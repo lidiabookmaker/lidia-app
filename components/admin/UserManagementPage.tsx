@@ -1,19 +1,23 @@
 
 import React from 'react';
-import type { UserProfile, Page } from '../../types';
+import type { UserProfile, Page, UserStatus } from '../../types';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 
 interface UserManagementPageProps {
   users: UserProfile[];
-  onUpdateUserStatus: (userId: string, status: 'ativa' | 'suspensa') => void;
+  onUpdateUserStatus: (userId: string, status: 'suspensa') => void;
   onNavigate: (page: Page) => void;
 }
 
-const statusClasses = {
-    ativa: 'bg-green-100 text-green-800',
-    pendente: 'bg-yellow-100 text-yellow-800',
+const statusClasses: Record<UserStatus, string> = {
+    ativa_pro: 'bg-indigo-100 text-indigo-800',
+    ativa_free: 'bg-green-100 text-green-800',
     suspensa: 'bg-red-100 text-red-800',
+};
+
+const formatStatus = (status: UserStatus) => {
+    return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
 
 export const UserManagementPage: React.FC<UserManagementPageProps> = ({ users, onUpdateUserStatus, onNavigate }) => {
@@ -47,16 +51,14 @@ export const UserManagementPage: React.FC<UserManagementPageProps> = ({ users, o
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClasses[user.status]}`}>
-                        {user.status}
+                        {formatStatus(user.status)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.book_credits}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      {user.status === 'ativa' ? (
+                      {(user.status === 'ativa_pro' || user.status === 'ativa_free') ? (
                         <Button onClick={() => onUpdateUserStatus(user.id, 'suspensa')} variant="danger" className="py-1 px-3 text-xs">Suspender</Button>
-                      ) : (
-                        <Button onClick={() => onUpdateUserStatus(user.id, 'ativa')} className="py-1 px-3 text-xs bg-green-600 hover:bg-green-700">Ativar</Button>
-                      )}
+                      ) : null}
                     </td>
                   </tr>
                 ))}
@@ -68,4 +70,3 @@ export const UserManagementPage: React.FC<UserManagementPageProps> = ({ users, o
     </div>
   );
 };
-   

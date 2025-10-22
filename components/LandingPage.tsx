@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Button } from './ui/Button';
+import type { Page } from '../types';
 
 interface LandingPageProps {
   onNavigate: (page: 'login') => void;
@@ -21,14 +22,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           Com o poder da Inteligência Artificial, o Lidia Book Maker cria e-books completos e formatados para você em minutos, não em meses.
         </p>
         <div className="mt-10">
-          <a href="#kiwify-checkout-url" target="_blank" rel="noopener noreferrer">
-            <Button className="text-xl md:text-2xl px-10 py-5">
-              QUERO CRIAR MEUS LIVROS PRONTOS AGORA
-            </Button>
-          </a>
+          <Button onClick={() => onNavigate('login')} className="text-xl md:text-2xl px-10 py-5">
+            COMECE GRÁTIS AGORA
+          </Button>
         </div>
       </main>
     </div>
   );
 };
-   

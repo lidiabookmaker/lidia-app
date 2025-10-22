@@ -10,6 +10,7 @@ interface CreateBookPageProps {
   onBookCreated: (book: Book, updatedCredits: number) => void;
   onNavigate: (page: Page) => void;
   apiKey: string | null;
+  onBeforeGenerate: () => Promise<{ allow: boolean; message: string }>;
 }
 
 const ArrowLeftIcon = () => (
@@ -17,7 +18,7 @@ const ArrowLeftIcon = () => (
 );
 
 
-export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCreated, onNavigate, apiKey }) => {
+export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCreated, onNavigate, apiKey, onBeforeGenerate }) => {
   const [formData, setFormData] = useState<BookGenerationFormData>({
     title: '',
     subtitle: '',
@@ -161,6 +162,14 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Freemium pre-generation check
+    const check = await onBeforeGenerate();
+    if (!check.allow) {
+        setError(check.message);
+        return;
+    }
+
     if (user.book_credits <= 0) {
         setError("Você não tem créditos suficientes para criar um novo livro.");
         return;
@@ -313,4 +322,3 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     </div>
   );
 };
-   

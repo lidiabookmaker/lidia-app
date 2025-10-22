@@ -37,11 +37,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onRegister }) => {
       if (isLogin) {
         // Simulate login
         if (email === 'admin@lidia.com' && password === 'admin123') {
-          onLogin({ id: '1', email, status: 'ativa', role: 'admin', book_credits: 999 });
+          onLogin({ id: '1', email, status: 'ativa_pro', role: 'admin', book_credits: 999 });
         } else if (email === 'user@example.com' && password === 'user123') {
-          onLogin({ id: '2', email, status: 'ativa', role: 'user', book_credits: 8 });
-        } else if (email === 'pending@example.com' && password === 'user123') {
-          onLogin({ id: '3', email, status: 'pendente', role: 'user', book_credits: 10 });
+          onLogin({ id: '2', email, status: 'ativa_pro', role: 'user', book_credits: 8 });
+        } else if (email === 'free@example.com' && password === 'user123') {
+          onLogin({ id: '3', email, status: 'ativa_free', role: 'user', book_credits: 1 });
+        } else if (email === 'suspended@example.com' && password === 'user123') {
+           onLogin({ id: '4', email, status: 'suspensa', role: 'user', book_credits: 0 });
+        } else if (email === 'usedfree@example.com' && password === 'user123') {
+           onLogin({ id: '5', email, status: 'ativa_free', role: 'user', book_credits: 0, first_book_ip: '123.45.67.89' });
         } else {
           setError('Credenciais inválidas.');
         }
@@ -50,7 +54,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onRegister }) => {
         if (!email || !password) {
             setError('Email e senha são obrigatórios.');
         } else {
-            const newUser: UserProfile = { id: Date.now().toString(), email, status: 'pendente', role: 'user', book_credits: 10 };
+            const newUser: UserProfile = { id: Date.now().toString(), email, status: 'ativa_free', role: 'user', book_credits: 1 };
             onRegister(newUser);
         }
       }
@@ -96,4 +100,3 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onRegister }) => {
     </div>
   );
 };
-   

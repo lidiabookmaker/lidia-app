@@ -6,7 +6,7 @@ import { mockUsers, mockBooks } from './services/mockData';
 // Dynamically import components to keep App.tsx clean
 import { LandingPage } from './components/LandingPage';
 import { AuthPage } from './components/AuthPage';
-import { AwaitingActivationPage } from './components/AwaitingActivationPage';
+import { SuspendedAccountPage } from './components/SuspendedAccountPage';
 import { DashboardPage } from './components/DashboardPage';
 import { CreateBookPage } from './components/CreateBookPage';
 import { UserManagementPage } from './components/admin/UserManagementPage';
@@ -24,10 +24,14 @@ const App: React.FC = () => {
         const loggedInUser = localStorage.getItem('user');
         if (loggedInUser) {
             const parsedUser = JSON.parse(loggedInUser);
+            // Sync user from state to get updates (e.g. status change by admin)
             const fullUser = users.find(u => u.id === parsedUser.id);
             if(fullUser) {
                 setUser(fullUser);
                 handleNavigation(fullUser);
+            } else {
+                // User might have been deleted, log them out
+                handleLogout();
             }
         }
     }, [users]); // Rerun if users data changes (e.g. admin action)
@@ -38,12 +42,12 @@ const App: React.FC = () => {
             return;
         }
         switch (currentUser.status) {
-            case 'ativa':
+            case 'ativa_pro':
+            case 'ativa_free':
                 setPage('dashboard');
                 break;
-            case 'pendente':
             case 'suspensa':
-                setPage('awaiting-activation');
+                setPage('suspended-account');
                 break;
             default:
                 setPage('login');
@@ -53,15 +57,16 @@ const App: React.FC = () => {
 
     const handleLogin = (loggedInUser: UserProfile) => {
         localStorage.setItem('user', JSON.stringify(loggedInUser));
-        setUser(loggedInUser);
-        handleNavigation(loggedInUser);
+        const fullUser = users.find(u => u.id === loggedInUser.id)!;
+        setUser(fullUser);
+        handleNavigation(fullUser);
     };
 
     const handleRegister = (newUser: UserProfile) => {
         setUsers(prev => [...prev, newUser]); // Add to mock DB
         localStorage.setItem('user', JSON.stringify(newUser));
         setUser(newUser);
-        setPage('awaiting-activation');
+        setPage('dashboard'); // Redirect directly to dashboard
     };
 
     const handleLogout = () => {
@@ -79,9 +84,9 @@ const App: React.FC = () => {
         setPage(newPage);
     };
 
-    const handleUpdateUserStatus = (userId: string, newStatus: UserStatus) => {
+    const handleUpdateUserStatus = (userId: string, newStatus: 'suspensa') => {
         setUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, status: newStatus } : u));
-        console.log(`User ${userId} status updated to ${newStatus}. A welcome email would be sent if status is 'ativa'.`);
+        console.log(`User ${userId} status updated to ${newStatus}.`);
     };
 
     const handleApiKeySave = (key: string) => {
@@ -92,11 +97,45 @@ const App: React.FC = () => {
     const handleBookCreated = (newBook: Book, updatedCredits: number) => {
         if (!user) return;
         setBooks(prev => [...prev, newBook]);
-        const updatedUser = { ...user, book_credits: updatedCredits };
+
+        let updatedUser: UserProfile = { ...user, book_credits: updatedCredits };
+        
+        // If it was a free user creating their first book, set their IP
+        if (user.status === 'ativa_free') {
+            updatedUser = { ...updatedUser, first_book_ip: '123.45.67.89' }; // Mock IP
+        }
+
         setUser(updatedUser);
         setUsers(prevUsers => prevUsers.map(u => u.id === user.id ? updatedUser : u));
         localStorage.setItem('user', JSON.stringify(updatedUser));
         setPage('dashboard');
+    };
+
+    const handleBeforeGenerate = async (): Promise<{ allow: boolean; message: string }> => {
+        if (!user) {
+            return { allow: false, message: "Usuário não autenticado." };
+        }
+
+        if (user.status === 'ativa_free') {
+            if (user.book_credits <= 0) {
+                return { allow: false, message: "Limite de um livro gratuito excedido. Faça upgrade para criar mais." };
+            }
+
+            const mockUserIp = '123.45.67.89';
+            
+            // Check if another free user with the same IP has already created a book.
+            const ipInUse = users.some(u => 
+                u.id !== user.id &&
+                u.status === 'ativa_free' &&
+                u.first_book_ip === mockUserIp
+            );
+
+            if (ipInUse) {
+                return { allow: false, message: "Limite de livros gratuitos por IP excedido. Faça upgrade para criar mais." };
+            }
+        }
+        
+        return { allow: true, message: "" };
     };
 
     const renderPage = () => {
@@ -111,25 +150,25 @@ const App: React.FC = () => {
 
         // Protected routes from here
         switch (page) {
-            case 'awaiting-activation':
-                 if (user.status === 'pendente' || user.status === 'suspensa') {
-                    return <AwaitingActivationPage user={user} onLogout={handleLogout} />;
+            case 'suspended-account':
+                 if (user.status === 'suspensa') {
+                    return <SuspendedAccountPage onLogout={handleLogout} />;
                  }
-                 // If status changed to 'ativa', redirect
+                 // If status changed, redirect
                  handleNavigation(user);
                  return null;
             case 'dashboard':
-                 if (user.status !== 'ativa') {
-                    setPage('awaiting-activation');
+                 if (user.status === 'suspensa') {
+                    setPage('suspended-account');
                     return null;
                  }
                 return <DashboardPage user={user} books={books.filter(b => b.userId === user.id || user.role === 'admin')} onNavigate={handleNavigate} onLogout={handleLogout} />;
             case 'create-book':
-                 if (user.status !== 'ativa') {
-                    setPage('awaiting-activation');
+                 if (user.status === 'suspensa') {
+                    setPage('suspended-account');
                     return null;
                  }
-                return <CreateBookPage user={user} onBookCreated={handleBookCreated} onNavigate={handleNavigate} apiKey={apiKey}/>;
+                return <CreateBookPage user={user} onBookCreated={handleBookCreated} onNavigate={handleNavigate} apiKey={apiKey} onBeforeGenerate={handleBeforeGenerate} />;
             case 'admin-users':
                 if (user.role !== 'admin') {
                     setPage('dashboard');
@@ -153,4 +192,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-   

@@ -16,6 +16,22 @@ const BookIcon = () => (
 );
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNavigate, onLogout }) => {
+  const isFreeUser = user.status === 'ativa_free';
+  const credits = user.book_credits;
+  const canCreateBook = credits > 0;
+
+  let creditsText;
+  if (isFreeUser) {
+    creditsText = `Você pode criar mais ${credits} livro gratuito.`;
+  } else { // ativa_pro
+    creditsText = `Você ainda pode criar ${credits} de 10 livros este mês.`;
+  }
+
+  let createButtonText = "+ Criar Novo Livro";
+  if (!canCreateBook && isFreeUser) {
+    createButtonText = "Faça upgrade para criar mais livros!";
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow-sm">
@@ -34,10 +50,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNav
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div>
                 <h2 className="text-3xl font-bold text-gray-800">Bem-vindo(a) de volta!</h2>
-                <p className="text-gray-600 mt-1">Você ainda pode criar <span className="font-bold text-indigo-600">{user.book_credits}</span> de 10 livros este mês.</p>
+                <p className="text-gray-600 mt-1">{creditsText}</p>
             </div>
-            <Button onClick={() => onNavigate('create-book')} className="mt-4 md:mt-0 text-lg">
-              + Criar Novo Livro
+            <Button 
+                onClick={() => onNavigate('create-book')} 
+                className="mt-4 md:mt-0 text-lg" 
+                disabled={!canCreateBook}
+                title={!canCreateBook ? "Você não tem créditos suficientes" : "Criar um novo livro"}
+            >
+              {createButtonText}
             </Button>
           </div>
         </Card>
@@ -68,4 +89,3 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNav
     </div>
   );
 };
-   

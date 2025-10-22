@@ -1,7 +1,7 @@
 
-export type UserStatus = 'ativa' | 'pendente' | 'suspensa';
+export type UserStatus = 'ativa_pro' | 'ativa_free' | 'suspensa';
 export type UserRole = 'user' | 'admin';
-export type Page = 'landing' | 'login' | 'awaiting-activation' | 'dashboard' | 'create-book' | 'admin-users' | 'admin-settings';
+export type Page = 'landing' | 'login' | 'suspended-account' | 'dashboard' | 'create-book' | 'admin-users' | 'admin-settings';
 
 export interface UserProfile {
   id: string;
@@ -9,6 +9,7 @@ export interface UserProfile {
   status: UserStatus;
   role: UserRole;
   book_credits: number;
+  first_book_ip?: string | null;
 }
 
 export interface Book {
@@ -30,4 +31,3 @@ export interface BookGenerationFormData {
     niche: string;
     summary: string;
 }
-   

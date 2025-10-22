@@ -5,30 +5,38 @@ export const mockUsers: UserProfile[] = [
   {
     id: '1',
     email: 'admin@lidia.com',
-    status: 'ativa',
+    status: 'ativa_pro',
     role: 'admin',
     book_credits: 999,
   },
   {
     id: '2',
     email: 'user@example.com',
-    status: 'ativa',
+    status: 'ativa_pro',
     role: 'user',
     book_credits: 8,
   },
   {
     id: '3',
-    email: 'pending@example.com',
-    status: 'pendente',
+    email: 'free@example.com',
+    status: 'ativa_free',
     role: 'user',
-    book_credits: 10,
+    book_credits: 1,
   },
   {
     id: '4',
     email: 'suspended@example.com',
     status: 'suspensa',
     role: 'user',
-    book_credits: 5,
+    book_credits: 0,
+  },
+  {
+    id: '5',
+    email: 'usedfree@example.com',
+    status: 'ativa_free',
+    role: 'user',
+    book_credits: 0,
+    first_book_ip: '123.45.67.89'
   },
 ];
 
@@ -50,4 +58,3 @@ export const mockBooks: Book[] = [
     createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
   },
 ];
-   
