@@ -1,0 +1,5 @@
+{
+  "name": "Lidia Book Maker",
+  "description": "An application for registered users to generate a limited number of professionally formatted digital books (PDF and DOCX) using AI. New user access requires manual activation by an administrator.",
+  "requestFramePermissions": []
+}
