@@ -9,13 +9,14 @@ interface DashboardPageProps {
   books: Book[];
   onNavigate: (page: Page) => void;
   onLogout: () => void;
+  onViewBook: (bookId: string) => void;
 }
 
 const BookIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-12 w-12 text-indigo-500 mb-2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
 );
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNavigate, onLogout }) => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNavigate, onLogout, onViewBook }) => {
   const isFreeUser = user.status === 'ativa_free';
   const credits = user.book_credits;
   const canCreateBook = credits > 0;
@@ -74,7 +75,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNav
                   <p className="text-gray-500 text-sm mt-1">{book.subtitle}</p>
                    <p className="text-gray-500 text-xs mt-2">Criado em: {new Date(book.createdAt).toLocaleDateString()}</p>
                    <div className="mt-auto pt-4 flex space-x-2">
-                       <Button variant="secondary" className="w-full text-sm py-2">Visualizar</Button>
+                       <Button onClick={() => onViewBook(book.id)} variant="secondary" className="w-full text-sm py-2">Visualizar</Button>
                    </div>
                 </Card>
               ))}

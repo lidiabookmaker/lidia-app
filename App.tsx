@@ -11,6 +11,7 @@ import { DashboardPage } from './components/DashboardPage';
 import { CreateBookPage } from './components/CreateBookPage';
 import { UserManagementPage } from './components/admin/UserManagementPage';
 import { SettingsPage } from './components/admin/SettingsPage';
+import { ViewBookPage } from './components/ViewBookPage';
 
 const App: React.FC = () => {
     const [user, setUser] = useState<UserProfile | null>(null);
@@ -18,6 +19,7 @@ const App: React.FC = () => {
     const [users, setUsers] = useState<UserProfile[]>(mockUsers);
     const [books, setBooks] = useState<Book[]>(mockBooks);
     const [apiKey, setApiKey] = useState<string | null>(() => localStorage.getItem('geminiApiKey'));
+    const [viewedBookId, setViewedBookId] = useState<string | null>(null);
 
 
     useEffect(() => {
@@ -108,7 +110,12 @@ const App: React.FC = () => {
         setUser(updatedUser);
         setUsers(prevUsers => prevUsers.map(u => u.id === user.id ? updatedUser : u));
         localStorage.setItem('user', JSON.stringify(updatedUser));
-        setPage('dashboard');
+        // Do not navigate away, let the user download the book first.
+    };
+
+     const handleViewBook = (bookId: string) => {
+        setViewedBookId(bookId);
+        setPage('view-book');
     };
 
     const handleBeforeGenerate = async (): Promise<{ allow: boolean; message: string }> => {
@@ -162,13 +169,24 @@ const App: React.FC = () => {
                     setPage('suspended-account');
                     return null;
                  }
-                return <DashboardPage user={user} books={books.filter(b => b.userId === user.id || user.role === 'admin')} onNavigate={handleNavigate} onLogout={handleLogout} />;
+                return <DashboardPage user={user} books={books.filter(b => b.userId === user.id || user.role === 'admin')} onNavigate={handleNavigate} onLogout={handleLogout} onViewBook={handleViewBook} />;
             case 'create-book':
                  if (user.status === 'suspensa') {
                     setPage('suspended-account');
                     return null;
                  }
                 return <CreateBookPage user={user} onBookCreated={handleBookCreated} onNavigate={handleNavigate} apiKey={apiKey} onBeforeGenerate={handleBeforeGenerate} />;
+            case 'view-book':
+                const bookToView = books.find(b => b.id === viewedBookId);
+                 if (user.status === 'suspensa') {
+                    setPage('suspended-account');
+                    return null;
+                 }
+                if (!bookToView) {
+                    setPage('dashboard');
+                    return null;
+                }
+                return <ViewBookPage book={bookToView} onNavigate={handleNavigate} />;
             case 'admin-users':
                 if (user.role !== 'admin') {
                     setPage('dashboard');

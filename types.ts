@@ -1,7 +1,7 @@
 
 export type UserStatus = 'ativa_pro' | 'ativa_free' | 'suspensa';
 export type UserRole = 'user' | 'admin';
-export type Page = 'landing' | 'login' | 'suspended-account' | 'dashboard' | 'create-book' | 'admin-users' | 'admin-settings';
+export type Page = 'landing' | 'login' | 'suspended-account' | 'dashboard' | 'create-book' | 'admin-users' | 'admin-settings' | 'view-book';
 
 export interface UserProfile {
   id: string;

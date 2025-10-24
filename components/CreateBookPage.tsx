@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import type { UserProfile, Book, BookGenerationFormData, Page } from '../types';
@@ -13,8 +12,26 @@ interface CreateBookPageProps {
   onBeforeGenerate: () => Promise<{ allow: boolean; message: string }>;
 }
 
+// --- Tipos para a nova estrutura do livro ---
+interface SubChapter {
+  title: string;
+  content: string;
+}
+interface Chapter {
+  title: string;
+  introduction: string;
+  subchapters: SubChapter[];
+}
+interface DetailedBookContent {
+  introduction: { title: string; content: string };
+  chapters: Chapter[];
+  conclusion: { title: string; content: string };
+}
+// --- Fim dos Tipos ---
+
+
 const ArrowLeftIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
 );
 
 
@@ -49,22 +66,46 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     setLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
   };
 
-  const generateBookHTML = (bookData: BookGenerationFormData, toc: string[], chaptersContent: string[]) => {
+  const formatContentForHTML = (text: string) => {
+    return text.split('\n').filter(p => p.trim() !== '').map(p => `<p>${p}</p>`).join('');
+  }
+
+  const generateBookHTML = (bookData: BookGenerationFormData, bookContent: DetailedBookContent) => {
     const year = new Date().getFullYear();
     const coverImageUrl = 'https://www.brasix.com.br/wp-content/uploads/2025/10/FUNDO-CAPA-LIVRO.png';
 
-    const tocHtml = toc.map(item => `<li>${item}</li>`).join('');
+    const tocHtml = `
+      <li>${bookContent.introduction.title}</li>
+      ${bookContent.chapters.map(chapter => 
+        `<li><strong>${chapter.title}</strong>
+            <ul>${chapter.subchapters.map(sub => `<li>${sub.title}</li>`).join('')}</ul>
+        </li>`
+      ).join('')}
+      <li>${bookContent.conclusion.title}</li>
+    `;
 
-    const chaptersHtml = chaptersContent.map((content, index) => `
-        <div class="page chapter-start">
-            <h1>${toc[index]}</h1>
-        </div>
+    const introHtml = `
+        <div class="page chapter-start"><h1>${bookContent.introduction.title}</h1></div>
+        <div class="page content-page"><div class="content-body">${formatContentForHTML(bookContent.introduction.content)}</div></div>
+    `;
+
+    const chaptersHtml = bookContent.chapters.map(chapter => `
+        <div class="page chapter-start"><h1>${chapter.title}</h1></div>
         <div class="page content-page">
             <div class="content-body">
-                ${content.split('\n').map(p => `<p>${p}</p>`).join('')}
+                <div class="chapter-intro">${formatContentForHTML(chapter.introduction)}</div>
+                ${chapter.subchapters.map(sub => `
+                    <h2>${sub.title}</h2>
+                    ${formatContentForHTML(sub.content)}
+                `).join('')}
             </div>
         </div>
     `).join('');
+    
+    const conclusionHtml = `
+        <div class="page chapter-start"><h1>${bookContent.conclusion.title}</h1></div>
+        <div class="page content-page"><div class="content-body">${formatContentForHTML(bookContent.conclusion.content)}</div></div>
+    `;
 
     return `
     <!DOCTYPE html>
@@ -75,7 +116,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         <title>${bookData.title}</title>
         <style>
             @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@400;700&family=Merriweather+Sans:wght@300;400;600;700&display=swap');
-            body { margin: 0; background-color: #ccc; }
+            body { margin: 0; background-color: #ccc; font-size: 12pt; }
             .page { 
                 width: 14.8cm; height: 21cm; 
                 margin: 2cm auto; 
@@ -97,29 +138,31 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
             .cover-subtitle { font-family: 'Merriweather Sans', sans-serif; font-weight: 300; font-size: 18px; position: absolute; top: 10cm; left: 0; right: 0; padding: 0 2cm; }
             .cover-author { font-family: 'Merriweather Sans', sans-serif; font-size: 14px; text-transform: uppercase; position: absolute; top: 15cm; left: 0; right: 0; }
             
-            .credits-page, .toc-page, .chapter-start {
+            .credits-page, .chapter-start {
                 padding: 2cm;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
                 text-align: center;
             }
-             .toc-page { justify-content: flex-start; text-align: left; }
+            .toc-page { padding: 2cm; justify-content: flex-start; text-align: left; }
             .toc-page h1 { font-family: 'Merriweather Sans', sans-serif; font-weight: 600; font-size: 18px; text-align:center; margin-bottom: 2em; }
-            .toc-page ul { list-style: none; padding: 0; }
-            .toc-page li { font-family: 'Merriweather Sans', sans-serif; font-weight: 400; font-size: 12px; margin-bottom: 0.5em; }
+            .toc-page ul { list-style: none; padding: 0; font-family: 'Merriweather Sans', sans-serif; font-size: 12px; }
+            .toc-page li { margin-bottom: 0.5em; }
+            .toc-page ul ul { padding-left: 2em; margin-top: 0.5em; }
 
-            .chapter-start h1 { font-family: 'Merriweather Sans', sans-serif; font-weight: 300; font-size: 24px; }
+            h1 { font-family: 'Merriweather Sans', sans-serif; font-weight: 300; font-size: 24px; }
+            h2 { font-family: 'Merriweather Sans', sans-serif; font-weight: 600; font-size: 16px; margin-top: 2em; margin-bottom: 1em; }
             
             .content-page { padding: 2cm; }
             .content-body { 
                 font-family: 'Merriweather', serif; 
                 color: #262626; 
-                font-size: 12pt;
                 line-height: 1.6;
                 text-align: justify;
             }
              .content-body p { margin-bottom: 1em; text-indent: 1.5em; }
+             .chapter-intro { font-style: italic; margin-bottom: 2em; }
 
             .footer { position: absolute; bottom: 1cm; left: 0; right: 0; text-align: center; font-family: 'Merriweather Sans', sans-serif; font-size: 12pt; font-weight: 600; color: #808080; }
         </style>
@@ -139,7 +182,9 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
             <h1>Sumário</h1>
             <ul>${tocHtml}</ul>
         </div>
+        ${introHtml}
         ${chaptersHtml}
+        ${conclusionHtml}
     </body>
     </html>`;
   };
@@ -150,7 +195,6 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     const safeTitle = formData.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    // Simulate different downloads by changing extension. In production, a server would convert this.
     a.download = `${safeTitle}.${format === 'PDF' ? 'html' : 'html'}`;
     a.href = url;
     document.body.appendChild(a);
@@ -163,17 +207,19 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        return await ai.models.generateContent(request);
+        const result = await ai.models.generateContent(request);
+        // Add a small delay to avoid hitting rate limits on rapid, consecutive calls
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return result;
       } catch (err) {
         lastError = err as Error;
         const errorMessage = lastError.message.toLowerCase();
         
         if ((errorMessage.includes('503') || errorMessage.includes('overloaded') || errorMessage.includes('unavailable')) && attempt < maxRetries) {
-            const delay = Math.pow(2, attempt-1) * 1000 + Math.random() * 1000; // Exponential backoff with jitter
+            const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
             updateLog(`Modelo sobrecarregado. Tentando novamente em ${Math.round(delay/1000)} segundo(s)... (Tentativa ${attempt}/${maxRetries-1})`);
             await new Promise(resolve => setTimeout(resolve, delay));
         } else {
-          // Not a retryable error, or final attempt failed
           throw lastError;
         }
       }
@@ -183,14 +229,11 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Freemium pre-generation check
     const check = await onBeforeGenerate();
     if (!check.allow) {
         setError(check.message);
         return;
     }
-
     if (user.book_credits <= 0) {
         setError("Você não tem créditos suficientes para criar um novo livro.");
         return;
@@ -209,61 +252,74 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     try {
       const ai = new GoogleGenAI({ apiKey });
 
-      // Step 1: Generate Table of Contents
-      updateLog('Conectando à IA para gerar o sumário...');
-      const tocPrompt = `Baseado na seguinte ideia de livro, gere um sumário. Título: "${formData.title}", Resumo: "${formData.summary}". Retorne um objeto JSON com uma única chave "chapters" que é um array de strings, onde cada string é um título de capítulo. Não inclua números de capítulo nos títulos. O livro deve ter entre 5 e 8 capítulos.`;
-      
-      const tocRequest = {
-        model: "gemini-2.5-flash",
-        contents: tocPrompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    chapters: {
-                        type: Type.ARRAY,
-                        items: { type: Type.STRING }
-                    }
-                }
+      // Step 1: Generate Book Skeleton (Intro, Conclusion, 10 Chapters titles)
+      updateLog('Gerando o esqueleto do livro (títulos)...');
+      const skeletonPrompt = `Gere o esqueleto de um livro sobre "${formData.summary}" com o título "${formData.title}". O esqueleto deve ser um objeto JSON com três chaves: "introduction_title" (string), "chapter_titles" (um array de exatamente 10 strings, que são os títulos dos capítulos), e "conclusion_title" (uma string para um título criativo da conclusão).`;
+      const skeletonResponse = await generateWithRetry(ai, {
+        model: "gemini-2.5-flash", contents: skeletonPrompt,
+        config: { responseMimeType: "application/json", responseSchema: {
+            type: Type.OBJECT, properties: {
+                introduction_title: { type: Type.STRING },
+                chapter_titles: { type: Type.ARRAY, items: { type: Type.STRING } },
+                conclusion_title: { type: Type.STRING }
             }
-        }
+        }}
+      });
+      const skeleton = JSON.parse(skeletonResponse.text);
+      if (!skeleton.chapter_titles || skeleton.chapter_titles.length !== 10) throw new Error("A IA não gerou 10 capítulos. Tente novamente.");
+
+      updateLog('Esqueleto gerado. Detalhando sumário...');
+      const detailedBookContent: DetailedBookContent = {
+        introduction: { title: skeleton.introduction_title, content: ""},
+        chapters: skeleton.chapter_titles.map((title: string) => ({ title, introduction: "", subchapters: [] })),
+        conclusion: { title: skeleton.conclusion_title, content: "" }
       };
-      
-      const tocResponse = await generateWithRetry(ai, tocRequest);
-      
-      const tocJson = JSON.parse(tocResponse.text);
-      const chapters: string[] = tocJson.chapters;
 
-      if (!chapters || chapters.length === 0) {
-        throw new Error("Não foi possível gerar o sumário. Tente novamente com um resumo mais detalhado.");
+      // Step 2: Generate Subchapter titles for each chapter
+      for (let i = 0; i < detailedBookContent.chapters.length; i++) {
+        const chapterTitle = detailedBookContent.chapters[i].title;
+        updateLog(`Gerando subcapítulos para: "${chapterTitle}"...`);
+        const subchaptersPrompt = `Para o capítulo "${chapterTitle}" de um livro sobre "${formData.summary}", gere 3 títulos de subcapítulos. Retorne um objeto JSON com a chave "subchapter_titles", que é um array de 3 strings.`;
+        const subchaptersResponse = await generateWithRetry(ai, {
+            model: "gemini-2.5-flash", contents: subchaptersPrompt,
+            config: { responseMimeType: "application/json", responseSchema: {
+                type: Type.OBJECT, properties: {
+                    subchapter_titles: { type: Type.ARRAY, items: { type: Type.STRING } }
+                }
+            }}
+        });
+        const subchaptersJson = JSON.parse(subchaptersResponse.text);
+        detailedBookContent.chapters[i].subchapters = subchaptersJson.subchapter_titles.map((title: string) => ({ title, content: "" }));
       }
+      updateLog('Sumário detalhado concluído. Iniciando geração de conteúdo...');
 
-      updateLog(`Sumário gerado com ${chapters.length} capítulos.`);
-      
-      // Step 2: Generate Content for each chapter
-      const chaptersContent: string[] = [];
-      for (let i = 0; i < chapters.length; i++) {
-        const chapterTitle = chapters[i];
-        updateLog(`Gerando conteúdo para o Capítulo ${i + 1}: "${chapterTitle}"...`);
-        
-        const chapterPrompt = `Escreva o conteúdo para o capítulo intitulado "${chapterTitle}" do livro "${formData.title}" de ${formData.author}. Mantenha um tom ${formData.tone}. O resumo geral do livro é: "${formData.summary}". Sua escrita deve evitar deixar palavras únicas na última linha de um parágrafo. Não adicione títulos extras ou cabeçalhos "Capítulo X"; apenas escreva o conteúdo de texto bruto para o capítulo. O idioma deve ser ${formData.language}.`;
+      // Step 3: Generate Content for all parts
+      updateLog(`Gerando conteúdo para: "${detailedBookContent.introduction.title}"...`);
+      const introResponse = await generateWithRetry(ai, { model: 'gemini-2.5-flash', contents: `Escreva o conteúdo para a introdução "${detailedBookContent.introduction.title}" do livro "${formData.title}". O resumo geral é: "${formData.summary}". Escreva aproximadamente 1000 palavras.` });
+      detailedBookContent.introduction.content = introResponse.text;
 
-        const chapterRequest = {
-            model: 'gemini-2.5-flash',
-            contents: chapterPrompt
-        };
+      for (let i = 0; i < detailedBookContent.chapters.length; i++) {
+        const chapter = detailedBookContent.chapters[i];
+        updateLog(`Gerando introdução para o Capítulo ${i + 1}: "${chapter.title}"...`);
+        const chapIntroResponse = await generateWithRetry(ai, { model: 'gemini-2.5-flash', contents: `Escreva uma breve introdução (cerca de 280 palavras) para o capítulo "${chapter.title}" do livro "${formData.title}". Resumo do livro: "${formData.summary}".` });
+        chapter.introduction = chapIntroResponse.text;
 
-        const chapterResponse = await generateWithRetry(ai, chapterRequest);
-
-        const content = chapterResponse.text;
-        chaptersContent.push(content);
+        for (let j = 0; j < chapter.subchapters.length; j++) {
+            const subchapter = chapter.subchapters[j];
+            updateLog(`-- Gerando subcapítulo: "${subchapter.title}"...`);
+            const subchapResponse = await generateWithRetry(ai, { model: 'gemini-2.5-flash', contents: `Escreva o conteúdo para o subcapítulo "${subchapter.title}" (que faz parte do capítulo "${chapter.title}") do livro "${formData.title}". Mantenha um tom ${formData.tone}. Resumo do livro: "${formData.summary}". O idioma deve ser ${formData.language}. Escreva aproximadamente 600 palavras.` });
+            subchapter.content = subchapResponse.text;
+        }
         updateLog(`Capítulo ${i + 1} concluído.`);
       }
 
-      // Step 3: Assemble and Finalize
+      updateLog(`Gerando conteúdo para: "${detailedBookContent.conclusion.title}"...`);
+      const conclusionResponse = await generateWithRetry(ai, { model: 'gemini-2.5-flash', contents: `Escreva o conteúdo para a conclusão "${detailedBookContent.conclusion.title}" do livro "${formData.title}". O resumo geral é: "${formData.summary}". Escreva aproximadamente 1000 palavras.` });
+      detailedBookContent.conclusion.content = conclusionResponse.text;
+
+      // Step 4: Assemble and Finalize
       updateLog('Montando o documento final...');
-      const finalHtml = generateBookHTML(formData, chapters, chaptersContent);
+      const finalHtml = generateBookHTML(formData, detailedBookContent);
       setGeneratedContent(finalHtml);
       
       const newBook: Book = {
@@ -278,8 +334,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
 
       const updatedCredits = user.book_credits - 1;
       onBookCreated(newBook, updatedCredits);
-
-      updateLog(`Parabéns, seu livro está pronto! Você ainda tem ${updatedCredits} livros para criar.`);
+      updateLog(`Parabéns, seu livro está pronto! Você ainda tem ${updatedCredits} créditos.`);
 
     } catch (err) {
       console.error(err);
