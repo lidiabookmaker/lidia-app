@@ -7,10 +7,12 @@ import { mockUsers, mockBooks } from './services/mockData';
 import { LandingPage } from './components/LandingPage';
 import { AuthPage } from './components/AuthPage';
 import { SuspendedAccountPage } from './components/SuspendedAccountPage';
+import { AwaitingActivationPage } from './components/AwaitingActivationPage';
 import { DashboardPage } from './components/DashboardPage';
 import { CreateBookPage } from './components/CreateBookPage';
 import { UserManagementPage } from './components/admin/UserManagementPage';
 import { SettingsPage } from './components/admin/SettingsPage';
+import { ActivationPage } from './components/admin/ActivationPage';
 import { ViewBookPage } from './components/ViewBookPage';
 
 const App: React.FC = () => {
@@ -50,6 +52,9 @@ const App: React.FC = () => {
             case 'suspensa':
                 setPage('suspended-account');
                 break;
+            case 'aguardando_ativacao':
+                setPage('awaiting-activation');
+                break;
             default:
                 setPage('login');
                 break;
@@ -67,7 +72,7 @@ const App: React.FC = () => {
         setUsers(prev => [...prev, newUser]); // Add to mock DB
         localStorage.setItem('user', JSON.stringify(newUser));
         setUser(newUser);
-        setPage('dashboard'); // Redirect directly to dashboard
+        setPage('awaiting-activation'); // Redirect to waiting page
     };
 
     const handleLogout = () => {
@@ -88,6 +93,19 @@ const App: React.FC = () => {
     const handleUpdateUserStatus = (userId: string, newStatus: 'suspensa') => {
         setUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, status: newStatus } : u));
         console.log(`User ${userId} status updated to ${newStatus}.`);
+    };
+
+    const handleActivateUser = (userId: string, plan: 'pro' | 'free') => {
+        setUsers(prevUsers => prevUsers.map(u => {
+            if (u.id === userId) {
+                return {
+                    ...u,
+                    status: plan === 'pro' ? 'ativa_pro' : 'ativa_free',
+                    book_credits: plan === 'pro' ? 10 : 1,
+                };
+            }
+            return u;
+        }));
     };
     
     const handleBookCreated = (newBook: Book, updatedCredits: number) => {
@@ -155,25 +173,30 @@ const App: React.FC = () => {
                  if (user.status === 'suspensa') {
                     return <SuspendedAccountPage onLogout={handleLogout} />;
                  }
-                 // If status changed, redirect
                  handleNavigation(user);
                  return null;
+            case 'awaiting-activation':
+                if (user.status === 'aguardando_ativacao') {
+                    return <AwaitingActivationPage user={user} onLogout={handleLogout} />;
+                }
+                handleNavigation(user);
+                return null;
             case 'dashboard':
-                 if (user.status === 'suspensa') {
-                    setPage('suspended-account');
+                 if (user.status === 'suspensa' || user.status === 'aguardando_ativacao') {
+                    handleNavigation(user);
                     return null;
                  }
                 return <DashboardPage user={user} books={books.filter(b => b.userId === user.id || user.role === 'admin')} onNavigate={handleNavigate} onLogout={handleLogout} onViewBook={handleViewBook} />;
             case 'create-book':
-                 if (user.status === 'suspensa') {
-                    setPage('suspended-account');
+                 if (user.status !== 'ativa_pro' && user.status !== 'ativa_free') {
+                    handleNavigation(user);
                     return null;
                  }
                 return <CreateBookPage user={user} onBookCreated={handleBookCreated} onNavigate={handleNavigate} onBeforeGenerate={handleBeforeGenerate} />;
             case 'view-book':
                 const bookToView = books.find(b => b.id === viewedBookId);
-                 if (user.status === 'suspensa') {
-                    setPage('suspended-account');
+                 if (user.status !== 'ativa_pro' && user.status !== 'ativa_free') {
+                    handleNavigation(user);
                     return null;
                  }
                 if (!bookToView) {
@@ -187,6 +210,12 @@ const App: React.FC = () => {
                     return null;
                 }
                 return <UserManagementPage users={users} onUpdateUserStatus={handleUpdateUserStatus} onNavigate={handleNavigate} />;
+            case 'admin-activation':
+                if (user.role !== 'admin') {
+                    setPage('dashboard');
+                    return null;
+                }
+                return <ActivationPage users={users} onActivateUser={handleActivateUser} onNavigate={handleNavigate} />;
             case 'admin-settings':
                 if (user.role !== 'admin') {
                     setPage('dashboard');

@@ -46,6 +46,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onRegister }) => {
            onLogin({ id: '4', email, status: 'suspensa', role: 'user', book_credits: 0 });
         } else if (email === 'usedfree@example.com' && password === 'user123') {
            onLogin({ id: '5', email, status: 'ativa_free', role: 'user', book_credits: 0, first_book_ip: '123.45.67.89' });
+        } else if (email === 'pending@example.com' && password === 'user123') {
+           onLogin({ id: '6', email, status: 'aguardando_ativacao', role: 'user', book_credits: 0 });
         } else {
           setError('Credenciais inválidas.');
         }
@@ -54,7 +56,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onRegister }) => {
         if (!email || !password) {
             setError('Email e senha são obrigatórios.');
         } else {
-            const newUser: UserProfile = { id: Date.now().toString(), email, status: 'ativa_free', role: 'user', book_credits: 1 };
+            const newUser: UserProfile = { id: Date.now().toString(), email, status: 'aguardando_ativacao', role: 'user', book_credits: 0 };
             onRegister(newUser);
         }
       }

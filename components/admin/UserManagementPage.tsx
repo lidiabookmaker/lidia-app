@@ -14,6 +14,7 @@ const statusClasses: Record<UserStatus, string> = {
     ativa_pro: 'bg-indigo-100 text-indigo-800',
     ativa_free: 'bg-green-100 text-green-800',
     suspensa: 'bg-red-100 text-red-800',
+    aguardando_ativacao: 'bg-yellow-100 text-yellow-800',
 };
 
 const formatStatus = (status: UserStatus) => {
@@ -29,6 +30,7 @@ export const UserManagementPage: React.FC<UserManagementPageProps> = ({ users, o
           <p className="text-gray-600">Ative ou suspenda contas de usuários.</p>
         </div>
         <div className="flex space-x-2">
+            <Button onClick={() => onNavigate('admin-activation')} variant="secondary">Ativações Pendentes</Button>
             <Button onClick={() => onNavigate('admin-settings')} variant="secondary">Configurações</Button>
             <Button onClick={() => onNavigate('dashboard')}>Dashboard</Button>
         </div>

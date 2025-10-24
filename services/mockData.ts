@@ -38,6 +38,13 @@ export const mockUsers: UserProfile[] = [
     book_credits: 0,
     first_book_ip: '123.45.67.89'
   },
+  {
+    id: '6',
+    email: 'pending@example.com',
+    status: 'aguardando_ativacao',
+    role: 'user',
+    book_credits: 0,
+  },
 ];
 
 export const mockBooks: Book[] = [
