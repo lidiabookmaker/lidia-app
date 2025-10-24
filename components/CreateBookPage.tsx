@@ -159,6 +159,27 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     URL.revokeObjectURL(url);
   };
   
+  const generateWithRetry = async (ai: GoogleGenAI, request: any, maxRetries = 4) => {
+    let lastError: Error | null = null;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await ai.models.generateContent(request);
+      } catch (err) {
+        lastError = err as Error;
+        const errorMessage = lastError.message.toLowerCase();
+        
+        if ((errorMessage.includes('503') || errorMessage.includes('overloaded') || errorMessage.includes('unavailable')) && attempt < maxRetries) {
+            const delay = Math.pow(2, attempt-1) * 1000 + Math.random() * 1000; // Exponential backoff with jitter
+            updateLog(`Modelo sobrecarregado. Tentando novamente em ${Math.round(delay/1000)} segundo(s)... (Tentativa ${attempt}/${maxRetries-1})`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          // Not a retryable error, or final attempt failed
+          throw lastError;
+        }
+      }
+    }
+    throw lastError || new Error("A geração falhou após múltiplas tentativas.");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,7 +213,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
       updateLog('Conectando à IA para gerar o sumário...');
       const tocPrompt = `Baseado na seguinte ideia de livro, gere um sumário. Título: "${formData.title}", Resumo: "${formData.summary}". Retorne um objeto JSON com uma única chave "chapters" que é um array de strings, onde cada string é um título de capítulo. Não inclua números de capítulo nos títulos. O livro deve ter entre 5 e 8 capítulos.`;
       
-      const tocResponse = await ai.models.generateContent({
+      const tocRequest = {
         model: "gemini-2.5-flash",
         contents: tocPrompt,
         config: {
@@ -207,7 +228,9 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
                 }
             }
         }
-      });
+      };
+      
+      const tocResponse = await generateWithRetry(ai, tocRequest);
       
       const tocJson = JSON.parse(tocResponse.text);
       const chapters: string[] = tocJson.chapters;
@@ -226,10 +249,12 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         
         const chapterPrompt = `Escreva o conteúdo para o capítulo intitulado "${chapterTitle}" do livro "${formData.title}" de ${formData.author}. Mantenha um tom ${formData.tone}. O resumo geral do livro é: "${formData.summary}". Sua escrita deve evitar deixar palavras únicas na última linha de um parágrafo. Não adicione títulos extras ou cabeçalhos "Capítulo X"; apenas escreva o conteúdo de texto bruto para o capítulo. O idioma deve ser ${formData.language}.`;
 
-        const chapterResponse = await ai.models.generateContent({
+        const chapterRequest = {
             model: 'gemini-2.5-flash',
             contents: chapterPrompt
-        });
+        };
+
+        const chapterResponse = await generateWithRetry(ai, chapterRequest);
 
         const content = chapterResponse.text;
         chaptersContent.push(content);
@@ -301,8 +326,8 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
             <div ref={logContainerRef} className="flex-grow bg-black rounded-md p-4 font-mono text-sm overflow-y-auto h-96">
               {log.length === 0 && <p className="text-gray-500">Aguardando início da geração...</p>}
               {log.map((line, index) => (
-                <p key={index} className={`whitespace-pre-wrap ${line.startsWith('[') ? 'text-green-400' : ''} ${line.startsWith('ERRO') ? 'text-red-400' : ''}`}>
-                  {line}
+                <p key={index} className={`whitespace-pre-wrap ${line.includes('Tentando novamente') ? 'text-yellow-400' : (line.startsWith('ERRO') ? 'text-red-400' : 'text-green-400')}`}>
+                  {line.startsWith('[') ? line : `  ${line}`}
                 </p>
               ))}
             </div>
