@@ -18,7 +18,6 @@ const App: React.FC = () => {
     const [page, setPage] = useState<Page>('landing');
     const [users, setUsers] = useState<UserProfile[]>(mockUsers);
     const [books, setBooks] = useState<Book[]>(mockBooks);
-    const [apiKey, setApiKey] = useState<string | null>(() => localStorage.getItem('geminiApiKey'));
     const [viewedBookId, setViewedBookId] = useState<string | null>(null);
 
 
@@ -89,11 +88,6 @@ const App: React.FC = () => {
     const handleUpdateUserStatus = (userId: string, newStatus: 'suspensa') => {
         setUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, status: newStatus } : u));
         console.log(`User ${userId} status updated to ${newStatus}.`);
-    };
-
-    const handleApiKeySave = (key: string) => {
-        localStorage.setItem('geminiApiKey', key);
-        setApiKey(key);
     };
     
     const handleBookCreated = (newBook: Book, updatedCredits: number) => {
@@ -175,7 +169,7 @@ const App: React.FC = () => {
                     setPage('suspended-account');
                     return null;
                  }
-                return <CreateBookPage user={user} onBookCreated={handleBookCreated} onNavigate={handleNavigate} apiKey={apiKey} onBeforeGenerate={handleBeforeGenerate} />;
+                return <CreateBookPage user={user} onBookCreated={handleBookCreated} onNavigate={handleNavigate} onBeforeGenerate={handleBeforeGenerate} />;
             case 'view-book':
                 const bookToView = books.find(b => b.id === viewedBookId);
                  if (user.status === 'suspensa') {
@@ -198,7 +192,7 @@ const App: React.FC = () => {
                     setPage('dashboard');
                     return null;
                 }
-                return <SettingsPage onNavigate={handleNavigate} apiKey={apiKey} onApiKeySave={handleApiKeySave} />;
+                return <SettingsPage onNavigate={handleNavigate} />;
             default:
                 // Fallback to dashboard for logged-in users on unknown pages
                 handleNavigation(user);

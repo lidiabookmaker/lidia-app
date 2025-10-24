@@ -8,7 +8,6 @@ interface CreateBookPageProps {
   user: UserProfile;
   onBookCreated: (book: Book, updatedCredits: number) => void;
   onNavigate: (page: Page) => void;
-  apiKey: string | null;
   onBeforeGenerate: () => Promise<{ allow: boolean; message: string }>;
 }
 
@@ -35,7 +34,7 @@ const ArrowLeftIcon = () => (
 );
 
 
-export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCreated, onNavigate, apiKey, onBeforeGenerate }) => {
+export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCreated, onNavigate, onBeforeGenerate }) => {
   const [formData, setFormData] = useState<BookGenerationFormData>({
     title: '',
     subtitle: '',
@@ -72,39 +71,196 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
 
   const generateBookHTML = (bookData: BookGenerationFormData, bookContent: DetailedBookContent) => {
     const year = new Date().getFullYear();
-    const coverImageUrl = 'https://www.brasix.com.br/wp-content/uploads/2025/10/FUNDO-CAPA-LIVRO.png';
+    
+    const styles = `
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@400;700&family=Merriweather+Sans:wght@300;400;600;700&display=swap');
+        
+        /* --- General & Screen Styles --- */
+        body { 
+            margin: 0; 
+            background-color: #ccc; 
+            font-family: 'Merriweather', serif;
+            font-size: 12pt;
+            color: #262626;
+        }
+        .page-container { 
+            background-color: white; 
+            width: 14.8cm; 
+            margin: 2cm auto; 
+            padding: 2cm;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+        .single-page {
+            height: 21cm;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        /* --- Cover Page --- */
+        .cover-page {
+            text-align: center;
+            padding: 0;
+            background: white;
+        }
+        .cover-title { 
+            font-family: 'League Gothic', sans-serif; 
+            font-size: 80px;
+            font-weight: 400;
+            text-transform: uppercase; 
+            color: black;
+            line-height: 1;
+            margin: 0;
+        }
+        .cover-subtitle { 
+            font-family: 'Merriweather Sans', sans-serif; 
+            font-weight: 300; 
+            font-size: 18px; 
+            color: black;
+            margin-top: 1.5cm;
+            padding: 0 1cm;
+        }
+        .cover-author { 
+            font-family: 'Merriweather Sans', sans-serif; 
+            font-weight: 400;
+            font-size: 14px; 
+            text-transform: uppercase; 
+            color: black;
+            margin-top: 4cm;
+        }
+
+        /* --- Credits Page --- */
+        .credits-page {
+            text-align: center;
+            font-family: 'Merriweather Sans', sans-serif;
+            color: #555;
+        }
+
+        /* --- TOC Page --- */
+        .toc-page { justify-content: flex-start; }
+        .toc-page h1 { 
+            font-family: 'Merriweather Sans', sans-serif; 
+            font-weight: 600; 
+            font-size: 24px; 
+            text-align:center; 
+            margin: 0 0 1.5em 0;
+        }
+        .toc-page ul { 
+            list-style: none; 
+            padding: 0; 
+            font-family: 'Merriweather Sans', sans-serif; 
+            font-size: 12px;
+            line-height: 1.2;
+        }
+        .toc-page li { margin-bottom: 0.8em; }
+        .toc-page ul ul { padding-left: 2em; margin-top: 0.8em; }
+        .toc-page li strong { font-weight: 500; } /* Chapters */
+        .toc-page ul ul li { font-weight: 300; } /* Subchapters */
+
+        /* --- Content --- */
+        .main-content h1 {
+            font-family: 'Merriweather Sans', sans-serif; 
+            font-weight: 300; 
+            font-size: 24px; 
+            text-align: center;
+            margin-top: 2em;
+            margin-bottom: 1.5em;
+            page-break-before: always;
+            page-break-after: avoid;
+        }
+        .main-content h1:first-child {
+            page-break-before: auto;
+        }
+        .main-content h2 { 
+            font-family: 'Merriweather Sans', sans-serif; 
+            font-weight: 600; 
+            font-size: 16px; 
+            margin-top: 2em; 
+            margin-bottom: 1em; 
+            page-break-after: avoid;
+        }
+        
+        .content-body { 
+            line-height: 1.6;
+            text-align: justify;
+        }
+        .content-body p { margin-bottom: 1em; text-indent: 1.5em; }
+        .content-body p:first-of-type, h2 + p { text-indent: 0; }
+        .chapter-intro { font-style: italic; margin-bottom: 2em; }
+
+        /* --- Print Specific Styles --- */
+        @page {
+            size: A5;
+            margin: 2.5cm 2cm;
+
+            @top-center {
+                content: "${bookData.title}";
+                font-family: 'Merriweather Sans', sans-serif;
+                font-size: 9pt;
+                color: #808080;
+                vertical-align: bottom;
+                padding-bottom: 5mm;
+            }
+
+            @bottom-center {
+                content: counter(page);
+                font-family: 'Merriweather Sans', sans-serif;
+                font-size: 9pt;
+                color: #808080;
+                vertical-align: top;
+                padding-top: 5mm;
+            }
+        }
+        
+        @page :first {
+            margin: 0;
+            @top-center { content: "" }
+            @bottom-center { content: "" }
+        }
+        
+        @media print {
+            body { background-color: white; }
+            .page-container {
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                width: auto;
+                height: auto;
+            }
+            .cover-page, .credits-page, .toc-page {
+                 page-break-after: always;
+            }
+        }
+    </style>
+    `;
 
     const tocHtml = `
-      <li>${bookContent.introduction.title}</li>
-      ${bookContent.chapters.map(chapter => 
+      ${bookContent.chapters.map((chapter, index) => 
         `<li><strong>${chapter.title}</strong>
-            <ul>${chapter.subchapters.map(sub => `<li>${sub.title}</li>`).join('')}</ul>
+            <ul>${chapter.subchapters.map((sub) => `<li>${sub.title}</li>`).join('')}</ul>
         </li>`
       ).join('')}
-      <li>${bookContent.conclusion.title}</li>
     `;
 
-    const introHtml = `
-        <div class="page chapter-start"><h1>${bookContent.introduction.title}</h1></div>
-        <div class="page content-page"><div class="content-body">${formatContentForHTML(bookContent.introduction.content)}</div></div>
-    `;
-
-    const chaptersHtml = bookContent.chapters.map(chapter => `
-        <div class="page chapter-start"><h1>${chapter.title}</h1></div>
-        <div class="page content-page">
-            <div class="content-body">
-                <div class="chapter-intro">${formatContentForHTML(chapter.introduction)}</div>
-                ${chapter.subchapters.map(sub => `
-                    <h2>${sub.title}</h2>
-                    ${formatContentForHTML(sub.content)}
-                `).join('')}
-            </div>
-        </div>
-    `).join('');
-    
-    const conclusionHtml = `
-        <div class="page chapter-start"><h1>${bookContent.conclusion.title}</h1></div>
-        <div class="page content-page"><div class="content-body">${formatContentForHTML(bookContent.conclusion.content)}</div></div>
+    const mainContentHtml = `
+      <h1>${bookContent.introduction.title}</h1>
+      <div class="content-body">${formatContentForHTML(bookContent.introduction.content)}</div>
+      
+      ${bookContent.chapters.map((chapter) => `
+          <h1>${chapter.title}</h1>
+          <div class="content-body">
+              <div class="chapter-intro">${formatContentForHTML(chapter.introduction)}</div>
+              ${chapter.subchapters.map((sub) => `
+                  <h2>${sub.title}</h2>
+                  ${formatContentForHTML(sub.content)}
+              `).join('')}
+          </div>
+      `).join('')}
+      
+      <h1>${bookContent.conclusion.title}</h1>
+      <div class="content-body">${formatContentForHTML(bookContent.conclusion.content)}</div>
     `;
 
     return `
@@ -114,77 +270,32 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${bookData.title}</title>
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@400;700&family=Merriweather+Sans:wght@300;400;600;700&display=swap');
-            body { margin: 0; background-color: #ccc; font-size: 12pt; }
-            .page { 
-                width: 14.8cm; height: 21cm; 
-                margin: 2cm auto; 
-                background-color: white; 
-                box-shadow: 0 0 10px rgba(0,0,0,0.5);
-                position: relative;
-                page-break-after: always;
-                box-sizing: border-box;
-            }
-            .cover-page {
-                background-image: url('${coverImageUrl}');
-                background-size: cover;
-                background-position: center;
-                color: white;
-                text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
-            }
-            .cover-content { text-align: center; }
-            .cover-title { font-family: 'League Gothic', sans-serif; font-size: 72px; text-transform: uppercase; position: absolute; top: 5cm; left: 0; right: 0; }
-            .cover-subtitle { font-family: 'Merriweather Sans', sans-serif; font-weight: 300; font-size: 18px; position: absolute; top: 10cm; left: 0; right: 0; padding: 0 2cm; }
-            .cover-author { font-family: 'Merriweather Sans', sans-serif; font-size: 14px; text-transform: uppercase; position: absolute; top: 15cm; left: 0; right: 0; }
-            
-            .credits-page, .chapter-start {
-                padding: 2cm;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                text-align: center;
-            }
-            .toc-page { padding: 2cm; justify-content: flex-start; text-align: left; }
-            .toc-page h1 { font-family: 'Merriweather Sans', sans-serif; font-weight: 600; font-size: 18px; text-align:center; margin-bottom: 2em; }
-            .toc-page ul { list-style: none; padding: 0; font-family: 'Merriweather Sans', sans-serif; font-size: 12px; }
-            .toc-page li { margin-bottom: 0.5em; }
-            .toc-page ul ul { padding-left: 2em; margin-top: 0.5em; }
-
-            h1 { font-family: 'Merriweather Sans', sans-serif; font-weight: 300; font-size: 24px; }
-            h2 { font-family: 'Merriweather Sans', sans-serif; font-weight: 600; font-size: 16px; margin-top: 2em; margin-bottom: 1em; }
-            
-            .content-page { padding: 2cm; }
-            .content-body { 
-                font-family: 'Merriweather', serif; 
-                color: #262626; 
-                line-height: 1.6;
-                text-align: justify;
-            }
-             .content-body p { margin-bottom: 1em; text-indent: 1.5em; }
-             .chapter-intro { font-style: italic; margin-bottom: 2em; }
-
-            .footer { position: absolute; bottom: 1cm; left: 0; right: 0; text-align: center; font-family: 'Merriweather Sans', sans-serif; font-size: 12pt; font-weight: 600; color: #808080; }
-        </style>
+        ${styles}
     </head>
     <body>
-        <div class="page cover-page">
-            <div class="cover-content">
+        <div class="page-container single-page cover-page">
+            <div>
                 <h1 class="cover-title">${bookData.title}</h1>
                 <h2 class="cover-subtitle">${bookData.subtitle}</h2>
                 <h3 class="cover-author">${bookData.author}</h3>
             </div>
         </div>
-        <div class="page credits-page">
+        <div class="page-container single-page credits-page">
             <p>Copyright © ${year}, ${bookData.author}. Criado com suporte de LidIA Book Maker®</p>
         </div>
-        <div class="page toc-page">
-            <h1>Sumário</h1>
-            <ul>${tocHtml}</ul>
+        <div class="page-container single-page toc-page">
+            <div>
+                <h1>Sumário</h1>
+                <ul>
+                    <li>${bookContent.introduction.title}</li>
+                    ${tocHtml}
+                    <li>${bookContent.conclusion.title}</li>
+                </ul>
+            </div>
         </div>
-        ${introHtml}
-        ${chaptersHtml}
-        ${conclusionHtml}
+        <div class="page-container main-content">
+            ${mainContentHtml}
+        </div>
     </body>
     </html>`;
   };
@@ -238,7 +349,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         setError("Você não tem créditos suficientes para criar um novo livro.");
         return;
     }
-    if (!apiKey) {
+    if (!process.env.API_KEY) {
       setError("A chave da API não está configurada. Contate o administrador.");
       return;
     }
@@ -250,7 +361,8 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     updateLog('Iniciando processo de geração do livro...');
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      // FIX: Initialize GoogleGenAI with API_KEY from environment variables.
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       // Step 1: Generate Book Skeleton (Intro, Conclusion, 10 Chapters titles)
       updateLog('Gerando o esqueleto do livro (títulos)...');
@@ -328,6 +440,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         title: formData.title,
         subtitle: formData.subtitle,
         author: formData.author,
+        // FIX: Corrected `new new Date()` to `new Date()`
         createdAt: new Date().toISOString(),
         generatedContent: finalHtml,
       };
@@ -389,10 +502,10 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
              {generatedContent && (
                  <div className="mt-6">
                      <h3 className="text-lg font-bold text-center text-green-400 mb-4">Seu livro foi gerado com sucesso!</h3>
-                     <p className="text-xs text-center text-gray-400 mb-4">Nota: Os botões abaixo farão o download de um arquivo HTML estilizado. A conversão para PDF/DOCX real requer um serviço de back-end.</p>
+                     <p className="text-xs text-center text-gray-400 mb-4">Para um PDF de alta fidelidade, use a função "Imprimir" do seu navegador e selecione "Salvar como PDF".</p>
                      <div className="flex space-x-4">
-                         <Button onClick={() => handleDownload('PDF')} className="w-full">Baixar "PDF"</Button>
-                         <Button onClick={() => handleDownload('DOCX')} variant="secondary" className="w-full">Baixar "DOCX"</Button>
+                         <Button onClick={() => handleDownload('PDF')} className="w-full">Baixar HTML (PDF)</Button>
+                         <Button onClick={() => handleDownload('DOCX')} variant="secondary" className="w-full">Baixar HTML (DOCX)</Button>
                      </div>
                  </div>
              )}
