@@ -6,7 +6,7 @@ import { Input, TextArea } from './ui/Input';
 
 interface CreateBookPageProps {
   user: UserProfile;
-  onBookCreated: (book: Book, updatedCredits: number) => void;
+  onBookCreated: (bookData: Omit<Book, 'id' | 'created_at'>, updatedCredits: number) => void;
   onNavigate: (page: Page) => void;
   onBeforeGenerate: () => Promise<{ allow: boolean; message: string }>;
 }
@@ -38,7 +38,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
   const [formData, setFormData] = useState<BookGenerationFormData>({
     title: '',
     subtitle: '',
-    author: user.email.split('@')[0],
+    author: user.email?.split('@')[0] || 'Autor',
     language: 'Português (Brasil)',
     tone: 'Inspirador e prático',
     niche: 'Desenvolvimento Pessoal',
@@ -361,7 +361,6 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     updateLog('Iniciando processo de geração do livro...');
 
     try {
-      // FIX: Initialize GoogleGenAI with API_KEY from environment variables.
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       // Step 1: Generate Book Skeleton (Intro, Conclusion, 10 Chapters titles)
@@ -434,19 +433,16 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
       const finalHtml = generateBookHTML(formData, detailedBookContent);
       setGeneratedContent(finalHtml);
       
-      const newBook: Book = {
-        id: Date.now().toString(),
-        userId: user.id,
+      const newBookData = {
+        user_id: user.id,
         title: formData.title,
         subtitle: formData.subtitle,
         author: formData.author,
-        // FIX: Corrected `new new Date()` to `new Date()`
-        createdAt: new Date().toISOString(),
-        generatedContent: finalHtml,
+        generated_content: finalHtml,
       };
 
       const updatedCredits = user.book_credits - 1;
-      onBookCreated(newBook, updatedCredits);
+      onBookCreated(newBookData, updatedCredits);
       updateLog(`Parabéns, seu livro está pronto! Você ainda tem ${updatedCredits} créditos.`);
 
     } catch (err) {

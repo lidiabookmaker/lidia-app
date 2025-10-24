@@ -1,13 +1,12 @@
-
 import React, { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Card } from './ui/Card';
-import type { UserProfile } from '../types';
+import { supabase } from '../services/supabase';
 
 interface AuthPageProps {
-  onLogin: (user: UserProfile) => void;
-  onRegister: (user: UserProfile) => void;
+  // As props onLogin e onRegister foram removidas, 
+  // pois App.tsx agora usa o onAuthStateChange do Supabase.
 }
 
 const GoogleIcon = () => (
@@ -20,48 +19,59 @@ const GoogleIcon = () => (
 );
 
 
-export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onRegister }) => {
+export const AuthPage: React.FC<AuthPageProps> = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Mocking Supabase Auth logic
-  const handleAuthAction = (e: React.FormEvent) => {
+  const handleAuthAction = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setMessage('');
 
-    setTimeout(() => {
+    try {
       if (isLogin) {
-        // Simulate login
-        if (email === 'admin@lidia.com' && password === 'admin123') {
-          onLogin({ id: '1', email, status: 'ativa_pro', role: 'admin', book_credits: 999 });
-        } else if (email === 'user@example.com' && password === 'user123') {
-          onLogin({ id: '2', email, status: 'ativa_pro', role: 'user', book_credits: 8 });
-        } else if (email === 'free@example.com' && password === 'user123') {
-          onLogin({ id: '3', email, status: 'ativa_free', role: 'user', book_credits: 1 });
-        } else if (email === 'suspended@example.com' && password === 'user123') {
-           onLogin({ id: '4', email, status: 'suspensa', role: 'user', book_credits: 0 });
-        } else if (email === 'usedfree@example.com' && password === 'user123') {
-           onLogin({ id: '5', email, status: 'ativa_free', role: 'user', book_credits: 0, first_book_ip: '123.45.67.89' });
-        } else if (email === 'pending@example.com' && password === 'user123') {
-           onLogin({ id: '6', email, status: 'aguardando_ativacao', role: 'user', book_credits: 0 });
-        } else {
-          setError('Credenciais inválidas.');
-        }
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        // O listener onAuthStateChange em App.tsx cuidará da navegação.
       } else {
-        // Simulate registration
-        if (!email || !password) {
-            setError('Email e senha são obrigatórios.');
-        } else {
-            const newUser: UserProfile = { id: Date.now().toString(), email, status: 'aguardando_ativacao', role: 'user', book_credits: 0 };
-            onRegister(newUser);
-        }
+        const { error } = await supabase.auth.signUp({ 
+            email, 
+            password,
+            options: {
+                // O trigger no banco de dados criará o perfil
+                // com o status 'aguardando_ativacao'
+            }
+        });
+        if (error) throw error;
+        setMessage('Verifique seu e-mail para confirmar o cadastro!');
       }
-      setIsLoading(false);
-    }, 1000);
+    } catch (err) {
+        const authError = err as { message: string };
+        if(authError.message.includes('Invalid login credentials')) {
+            setError('Credenciais inválidas.');
+        } else if (authError.message.includes('User already registered')) {
+            setError('Este e-mail já está cadastrado.');
+        } else {
+            setError(authError.message);
+        }
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+    });
+    if (error) {
+        setError(error.message);
+    }
   };
 
   return (
@@ -70,7 +80,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onRegister }) => {
       <Card className="w-full max-w-md">
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">{isLogin ? 'Bem-vindo de volta!' : 'Crie sua conta'}</h2>
         
-        <Button className="w-full mb-4 flex items-center justify-center" variant="secondary">
+        <Button onClick={handleGoogleSignIn} className="w-full mb-4 flex items-center justify-center" variant="secondary">
             <GoogleIcon />
             {isLogin ? 'Entrar com Google' : 'Cadastrar com Google'}
         </Button>
@@ -85,6 +95,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onRegister }) => {
         </div>
 
         {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
+        {message && <p className="text-green-600 text-sm text-center mb-4">{message}</p>}
+
         <form onSubmit={handleAuthAction} className="space-y-4">
           <Input id="email" label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
           <Input id="password" label="Senha" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
@@ -94,7 +106,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onRegister }) => {
         </form>
         <p className="mt-6 text-center text-sm">
           {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}
-          <button onClick={() => { setIsLogin(!isLogin); setError('')}} className="font-medium text-indigo-600 hover:text-indigo-500 ml-1">
+          <button onClick={() => { setIsLogin(!isLogin); setError(''); setMessage(''); }} className="font-medium text-indigo-600 hover:text-indigo-500 ml-1">
             {isLogin ? 'Cadastre-se' : 'Faça login'}
           </button>
         </p>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { UserProfile, Book, Page } from '../types';
 import { Button } from './ui/Button';
@@ -13,7 +12,7 @@ interface DashboardPageProps {
 }
 
 const BookIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-12 w-12 text-indigo-500 mb-2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-12 w-12 text-indigo-500 mb-2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
 );
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNavigate, onLogout, onViewBook }) => {
@@ -32,6 +31,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNav
   if (!canCreateBook && isFreeUser) {
     createButtonText = "Faça upgrade para criar mais livros!";
   }
+
+  const userBooks = user.role === 'admin' ? books : books.filter(b => b.user_id === user.id);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -66,14 +67,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNav
 
         <div>
           <h3 className="text-2xl font-bold text-gray-700 mb-4">Seus Livros Criados</h3>
-          {books.length > 0 ? (
+          {userBooks.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {books.map(book => (
+              {userBooks.map(book => (
                 <Card key={book.id} className="flex flex-col">
                     <BookIcon />
                   <h4 className="text-xl font-bold text-gray-800">{book.title}</h4>
                   <p className="text-gray-500 text-sm mt-1">{book.subtitle}</p>
-                   <p className="text-gray-500 text-xs mt-2">Criado em: {new Date(book.createdAt).toLocaleDateString()}</p>
+                   <p className="text-gray-500 text-xs mt-2">Criado em: {new Date(book.created_at).toLocaleDateString()}</p>
                    <div className="mt-auto pt-4 flex space-x-2">
                        <Button onClick={() => onViewBook(book.id)} variant="secondary" className="w-full text-sm py-2">Visualizar</Button>
                    </div>

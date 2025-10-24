@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Book } from '../types';
 import { Button } from './ui/Button';
@@ -14,8 +13,8 @@ interface ViewBookPageProps {
 
 export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) => {
   const handleDownload = (format: 'PDF' | 'DOCX') => {
-    if (!book.generatedContent) return;
-    const blob = new Blob([book.generatedContent], { type: 'text/html' });
+    if (!book.generated_content) return;
+    const blob = new Blob([book.generated_content], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     const safeTitle = book.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
@@ -48,9 +47,9 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
                 <p className="text-sm text-gray-500 mt-1">por {book.author}</p>
             </div>
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                {book.generatedContent ? (
+                {book.generated_content ? (
                     <iframe
-                        srcDoc={book.generatedContent}
+                        srcDoc={book.generated_content}
                         title={book.title}
                         className="w-full border-0 h-[80vh]"
                         sandbox="allow-same-origin" // for security

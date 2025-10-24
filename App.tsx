@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import type { UserProfile, Book, Page, UserStatus } from './types';
-import { mockUsers, mockBooks } from './services/mockData';
+import type { UserProfile, Book, Page } from './types';
+import { supabase } from './services/supabase';
 
 // Dynamically import components to keep App.tsx clean
 import { LandingPage } from './components/LandingPage';
@@ -18,26 +18,87 @@ import { ViewBookPage } from './components/ViewBookPage';
 const App: React.FC = () => {
     const [user, setUser] = useState<UserProfile | null>(null);
     const [page, setPage] = useState<Page>('landing');
-    const [users, setUsers] = useState<UserProfile[]>(mockUsers);
-    const [books, setBooks] = useState<Book[]>(mockBooks);
+    const [users, setUsers] = useState<UserProfile[]>([]);
+    const [books, setBooks] = useState<Book[]>([]);
     const [viewedBookId, setViewedBookId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
 
 
     useEffect(() => {
-        const loggedInUser = localStorage.getItem('user');
-        if (loggedInUser) {
-            const parsedUser = JSON.parse(loggedInUser);
-            // Sync user from state to get updates (e.g. status change by admin)
-            const fullUser = users.find(u => u.id === parsedUser.id);
-            if(fullUser) {
-                setUser(fullUser);
-                handleNavigation(fullUser);
+        setLoading(true);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session?.user) {
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                if (error) {
+                    console.error('Error fetching profile:', error);
+                    handleLogout();
+                } else if (profile) {
+                    const userWithEmail = { ...profile, email: session.user.email };
+                    setUser(userWithEmail);
+                    handleNavigation(userWithEmail);
+                }
             } else {
-                // User might have been deleted, log them out
-                handleLogout();
+                setUser(null);
+                setPage('landing');
+            }
+            setLoading(false);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        // Fetch data when user logs in
+        if (user) {
+            fetchBooks();
+            if (user.role === 'admin') {
+                fetchAllUsers();
             }
         }
-    }, [users]); // Rerun if users data changes (e.g. admin action)
+    }, [user]);
+
+    const fetchBooks = async () => {
+        if (!user) return;
+        
+        let query = supabase.from('books').select('*');
+
+        if (user.role !== 'admin') {
+            query = query.eq('user_id', user.id);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
+
+        if (error) console.error("Error fetching books", error);
+        else setBooks(data || []);
+    };
+    
+    const fetchAllUsers = async () => {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id, status, role, book_credits, first_book_ip, users(email)') // This requires a relationship setup in Supabase or a view
+             .order('created_at', { ascending: false });
+        
+        if (error) {
+             console.error("Error fetching users", error);
+        } else {
+            // Flatten the structure from the join
+             const formattedUsers = data.map((u: any) => ({
+                id: u.id,
+                status: u.status,
+                role: u.role,
+                book_credits: u.book_credits,
+                first_book_ip: u.first_book_ip,
+                email: u.users.email,
+             }));
+             setUsers(formattedUsers || []);
+        }
+    };
+
 
     const handleNavigation = (currentUser: UserProfile) => {
         if (currentUser.role === 'admin') {
@@ -61,68 +122,81 @@ const App: React.FC = () => {
         }
     };
 
-    const handleLogin = (loggedInUser: UserProfile) => {
-        localStorage.setItem('user', JSON.stringify(loggedInUser));
-        const fullUser = users.find(u => u.id === loggedInUser.id)!;
-        setUser(fullUser);
-        handleNavigation(fullUser);
-    };
-
-    const handleRegister = (newUser: UserProfile) => {
-        setUsers(prev => [...prev, newUser]); // Add to mock DB
-        localStorage.setItem('user', JSON.stringify(newUser));
-        setUser(newUser);
-        setPage('awaiting-activation'); // Redirect to waiting page
-    };
-
-    const handleLogout = () => {
-        localStorage.removeItem('user');
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
         setUser(null);
+        setBooks([]);
+        setUsers([]);
         setPage('landing');
     };
     
     const handleNavigate = (newPage: Page) => {
         if (newPage.startsWith('admin-') && user?.role !== 'admin') {
-            // Protect admin routes
             setPage('dashboard');
             return;
         }
         setPage(newPage);
     };
 
-    const handleUpdateUserStatus = (userId: string, newStatus: 'suspensa') => {
-        setUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, status: newStatus } : u));
-        console.log(`User ${userId} status updated to ${newStatus}.`);
+    const handleUpdateUserStatus = async (userId: string, newStatus: 'suspensa') => {
+       const { error } = await supabase
+        .from('profiles')
+        .update({ status: newStatus })
+        .eq('id', userId);
+
+        if (error) console.error("Error updating user status", error);
+        else fetchAllUsers(); // Re-fetch users to update UI
     };
 
-    const handleActivateUser = (userId: string, plan: 'pro' | 'free') => {
-        setUsers(prevUsers => prevUsers.map(u => {
-            if (u.id === userId) {
-                return {
-                    ...u,
-                    status: plan === 'pro' ? 'ativa_pro' : 'ativa_free',
-                    book_credits: plan === 'pro' ? 10 : 1,
-                };
-            }
-            return u;
-        }));
+    const handleActivateUser = async (userId: string, plan: 'pro' | 'free') => {
+         const { error } = await supabase
+            .from('profiles')
+            .update({
+                status: plan === 'pro' ? 'ativa_pro' : 'ativa_free',
+                book_credits: plan === 'pro' ? 10 : 1,
+            })
+            .eq('id', userId);
+
+        if (error) console.error("Error activating user", error);
+        else fetchAllUsers();
     };
     
-    const handleBookCreated = (newBook: Book, updatedCredits: number) => {
+    const handleBookCreated = async (newBookData: Omit<Book, 'id' | 'created_at'>, updatedCredits: number) => {
         if (!user) return;
-        setBooks(prev => [...prev, newBook]);
 
-        let updatedUser: UserProfile = { ...user, book_credits: updatedCredits };
-        
-        // If it was a free user creating their first book, set their IP
-        if (user.status === 'ativa_free') {
-            updatedUser = { ...updatedUser, first_book_ip: '123.45.67.89' }; // Mock IP
+        // 1. Insert the new book
+        const { data: newBook, error: bookError } = await supabase
+            .from('books')
+            .insert(newBookData)
+            .select()
+            .single();
+
+        if (bookError || !newBook) {
+            console.error("Error creating book", bookError);
+            return; // Exit if book creation fails
         }
+        
+        // 2. Update user profile (credits and IP)
+        const profileUpdate: Partial<UserProfile> = { book_credits: updatedCredits };
+        if (user.status === 'ativa_free' && !user.first_book_ip) {
+            profileUpdate.first_book_ip = '123.45.67.89'; // Mock IP as before
+        }
+        
+        const { data: updatedProfile, error: profileError } = await supabase
+            .from('profiles')
+            .update(profileUpdate)
+            .eq('id', user.id)
+            .select()
+            .single();
 
-        setUser(updatedUser);
-        setUsers(prevUsers => prevUsers.map(u => u.id === user.id ? updatedUser : u));
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        // Do not navigate away, let the user download the book first.
+        if (profileError || !updatedProfile) {
+            console.error("Error updating profile", profileError);
+            // Optional: Handle rollback logic for the created book
+        } else {
+            // 3. Update local state
+            setUser({ ...user, ...updatedProfile });
+            fetchBooks(); // Re-fetch books to include the new one
+        }
     };
 
      const handleViewBook = (bookId: string) => {
@@ -139,18 +213,23 @@ const App: React.FC = () => {
             if (user.book_credits <= 0) {
                 return { allow: false, message: "Limite de um livro gratuito excedido. Faça upgrade para criar mais." };
             }
-
-            const mockUserIp = '123.45.67.89';
             
-            // Check if another free user with the same IP has already created a book.
-            const ipInUse = users.some(u => 
-                u.id !== user.id &&
-                u.status === 'ativa_free' &&
-                u.first_book_ip === mockUserIp
-            );
+            // This is still a mock, as getting a real IP securely requires a server function.
+            // For now, we check if ANY other free user has an IP set.
+            const mockUserIp = '123.45.67.89'; 
+            
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('id')
+                .neq('id', user.id)
+                .eq('status', 'ativa_free')
+                .eq('first_book_ip', mockUserIp)
+                .limit(1);
 
-            if (ipInUse) {
-                return { allow: false, message: "Limite de livros gratuitos por IP excedido. Faça upgrade para criar mais." };
+            if (error) console.error("IP check error", error);
+
+            if (data && data.length > 0) {
+                 return { allow: false, message: "Limite de livros gratuitos por IP excedido. Faça upgrade para criar mais." };
             }
         }
         
@@ -158,47 +237,26 @@ const App: React.FC = () => {
     };
 
     const renderPage = () => {
+        if (loading) {
+            return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+        }
+
         if (!user) {
-            switch (page) {
-                case 'login':
-                    return <AuthPage onLogin={handleLogin} onRegister={handleRegister} />;
-                default:
-                    return <LandingPage onNavigate={handleNavigate} />;
-            }
+             return page === 'login' ? <AuthPage /> : <LandingPage onNavigate={handleNavigate} />;
         }
 
         // Protected routes from here
         switch (page) {
             case 'suspended-account':
-                 if (user.status === 'suspensa') {
-                    return <SuspendedAccountPage onLogout={handleLogout} />;
-                 }
-                 handleNavigation(user);
-                 return null;
+                return <SuspendedAccountPage onLogout={handleLogout} />;
             case 'awaiting-activation':
-                if (user.status === 'aguardando_ativacao') {
-                    return <AwaitingActivationPage user={user} onLogout={handleLogout} />;
-                }
-                handleNavigation(user);
-                return null;
+                return <AwaitingActivationPage user={user} onLogout={handleLogout} />;
             case 'dashboard':
-                 if (user.status === 'suspensa' || user.status === 'aguardando_ativacao') {
-                    handleNavigation(user);
-                    return null;
-                 }
-                return <DashboardPage user={user} books={books.filter(b => b.userId === user.id || user.role === 'admin')} onNavigate={handleNavigate} onLogout={handleLogout} onViewBook={handleViewBook} />;
+                return <DashboardPage user={user} books={books} onNavigate={handleNavigate} onLogout={handleLogout} onViewBook={handleViewBook} />;
             case 'create-book':
-                 if (user.status !== 'ativa_pro' && user.status !== 'ativa_free') {
-                    handleNavigation(user);
-                    return null;
-                 }
                 return <CreateBookPage user={user} onBookCreated={handleBookCreated} onNavigate={handleNavigate} onBeforeGenerate={handleBeforeGenerate} />;
             case 'view-book':
                 const bookToView = books.find(b => b.id === viewedBookId);
-                 if (user.status !== 'ativa_pro' && user.status !== 'ativa_free') {
-                    handleNavigation(user);
-                    return null;
-                 }
                 if (!bookToView) {
                     setPage('dashboard');
                     return null;
@@ -223,7 +281,7 @@ const App: React.FC = () => {
                 }
                 return <SettingsPage onNavigate={handleNavigate} />;
             default:
-                // Fallback to dashboard for logged-in users on unknown pages
+                // Fallback to determined route for logged-in users
                 handleNavigation(user);
                 return null;
         }

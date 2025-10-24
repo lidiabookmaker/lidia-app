@@ -5,7 +5,7 @@ export type Page = 'landing' | 'login' | 'suspended-account' | 'dashboard' | 'cr
 
 export interface UserProfile {
   id: string;
-  email: string;
+  email?: string; // Email is on the auth.users table, might not be joined
   status: UserStatus;
   role: UserRole;
   book_credits: number;
@@ -14,12 +14,12 @@ export interface UserProfile {
 
 export interface Book {
   id: string;
-  userId: string;
+  user_id: string;
   title: string;
   subtitle: string;
   author: string;
-  createdAt: string;
-  generatedContent?: string;
+  created_at: string;
+  generated_content?: string;
 }
 
 export interface BookGenerationFormData {

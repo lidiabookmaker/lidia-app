@@ -50,18 +50,22 @@ export const mockUsers: UserProfile[] = [
 export const mockBooks: Book[] = [
   {
     id: 'b1',
-    userId: '2',
+    // FIX: Changed 'userId' to 'user_id' to match the 'Book' type definition.
+    user_id: '2',
     title: 'A Jornada do Herói Digital',
     subtitle: 'Conquistando o impossível no mundo online',
     author: 'user@example.com',
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    // FIX: Changed 'createdAt' to 'created_at' to match the 'Book' type definition.
+    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
   },
    {
     id: 'b2',
-    userId: '2',
+    // FIX: Changed 'userId' to 'user_id' to match the 'Book' type definition.
+    user_id: '2',
     title: 'Receitas para o Sucesso',
     subtitle: 'Um guia culinário para empreendedores',
     author: 'user@example.com',
-    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+    // FIX: Changed 'createdAt' to 'created_at' to match the 'Book' type definition.
+    created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
   },
 ];
