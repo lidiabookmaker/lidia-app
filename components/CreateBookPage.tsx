@@ -340,17 +340,22 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const check = await onBeforeGenerate();
-    if (!check.allow) {
-        setError(check.message);
-        return;
+
+    // Admins bypass credit and IP checks
+    if (user.role !== 'admin') {
+      const check = await onBeforeGenerate();
+      if (!check.allow) {
+          setError(check.message);
+          return;
+      }
+      if (user.book_credits <= 0) {
+          setError("Você não tem créditos suficientes para criar um novo livro.");
+          return;
+      }
     }
-    if (user.book_credits <= 0) {
-        setError("Você não tem créditos suficientes para criar um novo livro.");
-        return;
-    }
+
     if (!process.env.API_KEY) {
-      setError("A chave da API não está configurada. Contate o administrador.");
+      setError("Chave da API do Gemini não encontrada. Verifique as 'Environment Variables' no seu painel de hospedagem (ex: Vercel) e certifique-se de que a variável 'API_KEY' está definida.");
       return;
     }
 
@@ -441,9 +446,13 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         generated_content: finalHtml,
       };
 
-      const updatedCredits = user.book_credits - 1;
+      const updatedCredits = user.role === 'admin' ? user.book_credits : user.book_credits - 1;
       onBookCreated(newBookData, updatedCredits);
-      updateLog(`Parabéns, seu livro está pronto! Você ainda tem ${updatedCredits} créditos.`);
+      
+      updateLog(user.role === 'admin'
+        ? 'Livro gerado com sucesso! (Modo Admin - créditos não foram deduzidos)'
+        : `Parabéns, seu livro está pronto! Você ainda tem ${updatedCredits} créditos.`
+      );
 
     } catch (err) {
       console.error(err);
@@ -455,6 +464,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     }
   };
 
+  const canGenerate = user.role === 'admin' || user.book_credits > 0;
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
@@ -477,8 +487,8 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
               <Input label="Tom de Voz" name="tone" value={formData.tone} onChange={handleInputChange} placeholder="Ex: Informativo, divertido, formal" required />
               <Input label="Nicho" name="niche" value={formData.niche} onChange={handleInputChange} placeholder="Ex: Finanças pessoais, ficção científica" required />
               <TextArea label="Resumo do Livro" name="summary" value={formData.summary} onChange={handleInputChange} placeholder="Descreva a ideia principal, os tópicos a serem abordados e o público-alvo." required />
-              <Button type="submit" className="w-full text-lg" isLoading={isLoading} disabled={isLoading || user.book_credits <= 0}>
-                {user.book_credits > 0 ? 'Gerar Livro Agora' : 'Sem créditos restantes'}
+              <Button type="submit" className="w-full text-lg" isLoading={isLoading} disabled={isLoading || !canGenerate}>
+                {canGenerate ? 'Gerar Livro Agora' : 'Sem créditos restantes'}
               </Button>
               {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
             </form>
