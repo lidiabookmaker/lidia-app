@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import type { UserProfile, Book, Page } from './types';
 import { supabase } from './services/supabase';
@@ -68,6 +69,7 @@ const App: React.FC = () => {
             // --- FIM DA CORREÇÃO ---
             
             if (profile) {
+                // Mesmo que o perfil tenha o email, usar o da sessão garante que ele esteja sempre atualizado.
                 const userWithEmail = { ...profile, email: session.user.email };
                 setUser(userWithEmail);
                 handleNavigation(userWithEmail);
@@ -110,22 +112,13 @@ const App: React.FC = () => {
     const fetchAllUsers = async () => {
         const { data, error } = await supabase
             .from('profiles')
-            .select('id, status, role, book_credits, first_book_ip, users(email)') // This requires a relationship setup in Supabase or a view
+            .select('id, email, status, role, book_credits, first_book_ip') // Busca o email agora
              .order('created_at', { ascending: false });
         
         if (error) {
              console.error("Error fetching users", error);
         } else {
-            // Flatten the structure from the join
-             const formattedUsers = data.map((u: any) => ({
-                id: u.id,
-                status: u.status,
-                role: u.role,
-                book_credits: u.book_credits,
-                first_book_ip: u.first_book_ip,
-                email: u.users.email,
-             }));
-             setUsers(formattedUsers || []);
+             setUsers(data || []);
         }
     };
 
