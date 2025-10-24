@@ -354,11 +354,6 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
       }
     }
 
-    if (!process.env.API_KEY) {
-      setError("Chave da API do Gemini não encontrada. Verifique as 'Environment Variables' no seu painel de hospedagem (ex: Vercel) e certifique-se de que a variável 'API_KEY' está definida.");
-      return;
-    }
-
     setIsLoading(true);
     setError('');
     setLog([]);
@@ -366,6 +361,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     updateLog('Iniciando processo de geração do livro...');
 
     try {
+      // FIX: Use process.env.API_KEY as per guidelines. This also resolves the TypeScript error.
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       // Step 1: Generate Book Skeleton (Intro, Conclusion, 10 Chapters titles)
