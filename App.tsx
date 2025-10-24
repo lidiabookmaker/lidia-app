@@ -27,25 +27,55 @@ const App: React.FC = () => {
     useEffect(() => {
         setLoading(true);
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            if (session?.user) {
-                const { data: profile, error } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', session.user.id)
-                    .single();
-                
-                if (error) {
-                    console.error('Error fetching profile:', error);
-                    handleLogout();
-                } else if (profile) {
-                    const userWithEmail = { ...profile, email: session.user.email };
-                    setUser(userWithEmail);
-                    handleNavigation(userWithEmail);
-                }
-            } else {
+            if (!session?.user) {
                 setUser(null);
                 setPage('landing');
+                setLoading(false);
+                return;
             }
+
+            // --- INÍCIO DA CORREÇÃO DA CONDIÇÃO DE CORRIDA ---
+            // Tenta buscar o perfil do usuário algumas vezes antes de desistir.
+            // Isso dá tempo para o trigger do banco de dados criar o perfil para um novo usuário.
+            const fetchProfileWithRetry = async (userId: string, attempts = 4, delay = 500) => {
+                for (let i = 0; i < attempts; i++) {
+                    const { data: profile, error } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', userId)
+                        .single();
+
+                    if (profile) {
+                        return profile; // Sucesso! Perfil encontrado.
+                    }
+                    
+                    // A API do Supabase retorna um erro quando .single() não encontra nenhuma linha.
+                    // Verificamos se o erro é o esperado "not found" (código PGRST116).
+                    const isNotFoundError = error && error.code === 'PGRST116';
+                    
+                    if (!isNotFoundError || i === attempts - 1) {
+                        console.error(`Falha ao buscar perfil (tentativa ${i + 1}/${attempts}):`, error);
+                        return null; // Falha definitiva.
+                    }
+                    
+                    // Espera antes de tentar novamente, aumentando o tempo de espera.
+                    await new Promise(res => setTimeout(res, delay * (i + 1)));
+                }
+                return null; // Se todas as tentativas falharem
+            };
+            
+            const profile = await fetchProfileWithRetry(session.user.id);
+            // --- FIM DA CORREÇÃO ---
+            
+            if (profile) {
+                const userWithEmail = { ...profile, email: session.user.email };
+                setUser(userWithEmail);
+                handleNavigation(userWithEmail);
+            } else {
+                console.error("Não foi possível buscar o perfil do usuário após várias tentativas. Deslogando.");
+                handleLogout();
+            }
+            
             setLoading(false);
         });
 
