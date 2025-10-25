@@ -361,8 +361,16 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     updateLog('Iniciando processo de geração do livro...');
 
     try {
-      // FIX: Use the VITE_ prefixed environment variable as is standard for browser-side code.
-      const ai = new GoogleGenAI({ apiKey: process.env.VITE_API_KEY });
+      // FIX: Check for VITE_API_KEY (for Vite dev env) and API_KEY (for production/other envs)
+      const apiKey = process.env.VITE_API_KEY || process.env.API_KEY;
+      if (!apiKey) {
+        const errorMsg = 'A chave da API não foi encontrada no ambiente. Contate o administrador.';
+        setError(errorMsg);
+        updateLog(`ERRO: ${errorMsg}`);
+        setIsLoading(false);
+        return;
+      }
+      const ai = new GoogleGenAI({ apiKey });
 
       // Step 1: Generate Book Skeleton (Intro, Conclusion, 10 Chapters titles)
       updateLog('Gerando o esqueleto do livro (títulos)...');

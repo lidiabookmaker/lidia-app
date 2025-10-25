@@ -75,7 +75,10 @@ const App: React.FC = () => {
                 handleNavigation(userWithEmail);
             } else {
                 console.error("Não foi possível buscar o perfil do usuário após várias tentativas. Deslogando.");
-                handleLogout();
+                // FIX: Avoid recursive call to handleLogout. Sign out and clear state directly.
+                await supabase.auth.signOut();
+                setUser(null);
+                setPage('landing');
             }
             
             setLoading(false);
