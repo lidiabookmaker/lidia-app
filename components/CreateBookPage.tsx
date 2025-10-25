@@ -361,7 +361,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     updateLog('Iniciando processo de geração do livro...');
 
     try {
-      // FIX: Use process.env.API_KEY as per guidelines. This also resolves the TypeScript error.
+      // FIX: The API key must be passed in an object with the `apiKey` property.
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       // Step 1: Generate Book Skeleton (Intro, Conclusion, 10 Chapters titles)
