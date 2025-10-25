@@ -15,6 +15,7 @@ import { UserManagementPage } from './components/admin/UserManagementPage';
 import { SettingsPage } from './components/admin/SettingsPage';
 import { ActivationPage } from './components/admin/ActivationPage';
 import { ViewBookPage } from './components/ViewBookPage';
+import { LoadingSpinner } from './components/ui/LoadingSpinner';
 
 const App: React.FC = () => {
     const [user, setUser] = useState<UserProfile | null>(null);
@@ -27,7 +28,22 @@ const App: React.FC = () => {
 
     useEffect(() => {
         setLoading(true);
+
+        // Set a timeout to prevent infinite loading
+        const loadingTimeout = setTimeout(() => {
+            // If the component is still loading after 10 seconds, stop loading and show landing.
+            // This can happen if the auth provider has issues or is blocked.
+            console.warn('App loading timed out. Forcing navigation to landing page.');
+            if (loading) {
+                setLoading(false);
+                setPage('landing');
+                setUser(null); // Ensure user state is cleared
+            }
+        }, 10000); // 10-second timeout
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            clearTimeout(loadingTimeout); // Authentication check completed, clear the timeout.
+
             if (!session?.user) {
                 setUser(null);
                 setPage('landing');
@@ -84,7 +100,10 @@ const App: React.FC = () => {
             setLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            subscription.unsubscribe();
+            clearTimeout(loadingTimeout);
+        };
     }, []);
 
     useEffect(() => {
@@ -264,7 +283,11 @@ const App: React.FC = () => {
 
     const renderPage = () => {
         if (loading) {
-            return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-gray-100">
+                    <LoadingSpinner />
+                </div>
+            );
         }
 
         if (!user) {
