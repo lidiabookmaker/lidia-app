@@ -24,25 +24,39 @@ const App: React.FC = () => {
     const [books, setBooks] = useState<Book[]>([]);
     const [viewedBookId, setViewedBookId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [authError, setAuthError] = useState<string | null>(null);
 
 
     useEffect(() => {
         setLoading(true);
 
+        // Proactive check for localStorage availability, which Supabase relies on.
+        try {
+            localStorage.setItem('__test', '1');
+            localStorage.removeItem('__test');
+        } catch (e) {
+            console.error("LocalStorage is not available.", e);
+            setAuthError("Seu navegador parece estar bloqueando o armazenamento de dados, o que impede o login. Por favor, verifique as configurações de privacidade do seu navegador.");
+            setLoading(false);
+            setPage('login');
+            setUser(null);
+            return; // Stop further execution in this effect
+        }
+
         // Set a timeout to prevent infinite loading
         const loadingTimeout = setTimeout(() => {
-            // If the component is still loading after 10 seconds, stop loading and show landing.
-            // This can happen if the auth provider has issues or is blocked.
-            console.warn('App loading timed out. Forcing navigation to landing page.');
+            console.warn('App loading timed out. Forcing navigation to login page.');
             if (loading) {
                 setLoading(false);
-                setPage('landing');
-                setUser(null); // Ensure user state is cleared
+                setPage('login');
+                setUser(null);
+                setAuthError("A verificação da sessão demorou muito. Por favor, tente fazer o login novamente.");
             }
         }, 10000); // 10-second timeout
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             clearTimeout(loadingTimeout); // Authentication check completed, clear the timeout.
+            setAuthError(null); // Clear any previous auth error on a successful event
 
             if (!session?.user) {
                 setUser(null);
@@ -291,7 +305,7 @@ const App: React.FC = () => {
         }
 
         if (!user) {
-             return page === 'login' ? <AuthPage /> : <LandingPage onNavigate={handleNavigate} />;
+             return page === 'login' ? <AuthPage initialError={authError} /> : <LandingPage onNavigate={handleNavigate} />;
         }
 
         // Protected routes from here

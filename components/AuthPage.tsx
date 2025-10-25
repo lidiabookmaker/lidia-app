@@ -5,8 +5,7 @@ import { Card } from './ui/Card';
 import { supabase } from '../services/supabase';
 
 interface AuthPageProps {
-  // As props onLogin e onRegister foram removidas, 
-  // pois App.tsx agora usa o onAuthStateChange do Supabase.
+  initialError?: string | null;
 }
 
 const GoogleIcon = () => (
@@ -19,11 +18,11 @@ const GoogleIcon = () => (
 );
 
 
-export const AuthPage: React.FC<AuthPageProps> = () => {
+export const AuthPage: React.FC<AuthPageProps> = ({ initialError }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(initialError || '');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
