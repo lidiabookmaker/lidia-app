@@ -361,8 +361,8 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     updateLog('Iniciando processo de geração do livro...');
 
     try {
-      // FIX: The API key must be passed in an object with the `apiKey` property.
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      // FIX: Use the VITE_ prefixed environment variable as is standard for browser-side code.
+      const ai = new GoogleGenAI({ apiKey: process.env.VITE_API_KEY });
 
       // Step 1: Generate Book Skeleton (Intro, Conclusion, 10 Chapters titles)
       updateLog('Gerando o esqueleto do livro (títulos)...');
