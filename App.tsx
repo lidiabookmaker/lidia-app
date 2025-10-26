@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import type { UserProfile, Book, Page } from './types';
 import { supabase } from './services/supabase';
@@ -26,57 +25,101 @@ const App: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [authError, setAuthError] = useState<string | null>(null);
 
-
-    useEffect(() => {
-        setLoading(true);
-
-        try {
-            localStorage.setItem('__test', '1');
-            localStorage.removeItem('__test');
-        } catch (e) {
-            console.error("LocalStorage is not available.", e);
-            setAuthError("Seu navegador parece estar bloqueando o armazenamento de dados, o que impede o login. Por favor, verifique as configurações de privacidade do seu navegador.");
-            setUser(null);
-            setPage('login');
-            setLoading(false);
+    const handleNavigation = (currentUser: UserProfile) => {
+        if (currentUser.role === 'admin') {
+            setPage('dashboard');
             return;
         }
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        switch (currentUser.status) {
+            case 'ativa_pro':
+            case 'ativa_free':
+                setPage('dashboard');
+                break;
+            case 'suspensa':
+                setPage('suspended-account');
+                break;
+            case 'aguardando_ativacao':
+                setPage('awaiting-activation');
+                break;
+            default:
+                setPage('login');
+                break;
+        }
+    };
+    
+    useEffect(() => {
+        const checkInitialSession = async () => {
             try {
+                // Check for LocalStorage availability first
+                localStorage.setItem('__test', '1');
+                localStorage.removeItem('__test');
+
+                // 1. Get the current session
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+                if (sessionError) {
+                    throw new Error("Erro ao obter a sessão: " + sessionError.message);
+                }
+
                 if (!session?.user) {
+                    // No user logged in
                     setUser(null);
                     setPage('landing');
-                    return;
+                } else {
+                    // User is logged in, verify profile
+                    const { data: profile, error: profileError } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', session.user.id)
+                        .single();
+
+                    if (profileError || !profile) {
+                        console.error("Falha na busca do perfil inicial, deslogando.", profileError);
+                        await supabase.auth.signOut(); // Clean up invalid session
+                        setUser(null);
+                        setPage('login');
+                        setAuthError("Sua sessão é inválida. Por favor, faça login novamente.");
+                    } else {
+                        const userWithEmail = { ...profile, email: session.user.email };
+                        setUser(userWithEmail);
+                        handleNavigation(userWithEmail);
+                    }
                 }
-
-                const { data: profile, error } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', session.user.id)
-                    .single();
-
-                if (error || !profile) {
-                    console.error("User profile not found or error, forcing logout.", error);
-                    await supabase.auth.signOut();
-                    setUser(null);
-                    setPage('login');
-                    setAuthError("Não foi possível carregar seu perfil. Sua sessão pode estar inválida. Por favor, faça login novamente.");
-                    return;
-                }
-                
-                const userWithEmail = { ...profile, email: session.user.email };
-                setUser(userWithEmail);
-                handleNavigation(userWithEmail);
-
             } catch (e) {
-                console.error("An unexpected error occurred during auth state change:", e);
-                setAuthError("Ocorreu um erro inesperado. Por favor, tente recarregar a página.");
+                console.error("Erro durante a verificação da sessão inicial:", e);
+                const err = e as Error;
+                if (err.message.toLowerCase().includes('localstorage')) {
+                    setAuthError("Seu navegador parece estar bloqueando o armazenamento de dados, o que impede o login. Por favor, verifique as configurações de privacidade do seu navegador.");
+                } else {
+                    setAuthError("Ocorreu um erro ao iniciar o aplicativo. Tente recarregar.");
+                }
                 setUser(null);
                 setPage('login');
             } finally {
-                // This guarantees the loading spinner will always be removed.
+                // This is the key: always stop loading after the initial check.
                 setLoading(false);
+            }
+        };
+
+        checkInitialSession();
+
+        // 2. Set up the listener for future changes (login, logout, etc.)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session?.user?.id !== user?.id) { // Only re-run if user actually changes
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session?.user?.id)
+                    .single();
+
+                if (profile) {
+                     const userWithEmail = { ...profile, email: session!.user!.email };
+                    setUser(userWithEmail);
+                    handleNavigation(userWithEmail);
+                } else {
+                    setUser(null);
+                    setPage('landing');
+                }
             }
         });
 
@@ -84,6 +127,7 @@ const App: React.FC = () => {
             subscription.unsubscribe();
         };
     }, []);
+
 
     useEffect(() => {
         // Fetch data when user logs in
@@ -120,29 +164,6 @@ const App: React.FC = () => {
              console.error("Error fetching users", error);
         } else {
              setUsers(data || []);
-        }
-    };
-
-
-    const handleNavigation = (currentUser: UserProfile) => {
-        if (currentUser.role === 'admin') {
-            setPage('dashboard');
-            return;
-        }
-        switch (currentUser.status) {
-            case 'ativa_pro':
-            case 'ativa_free':
-                setPage('dashboard');
-                break;
-            case 'suspensa':
-                setPage('suspended-account');
-                break;
-            case 'aguardando_ativacao':
-                setPage('awaiting-activation');
-                break;
-            default:
-                setPage('login');
-                break;
         }
     };
 
@@ -317,7 +338,7 @@ const App: React.FC = () => {
             default:
                 // Fallback to determined route for logged-in users
                 handleNavigation(user);
-                return null;
+                return <LoadingSpinner />; // Show spinner during brief redirect
         }
     };
 
