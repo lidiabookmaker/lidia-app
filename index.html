@@ -5,7 +5,31 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lidia Book Maker</title>
-    <link rel="stylesheet" href="/index.css?v=1.0.2" />
+
+    <!-- Pre-load script to clear corrupted sessions -->
+    <script>
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('force_logout') === 'true') {
+          console.log('Force logout: Running pre-load cleanup...');
+          const supabaseKeyPattern = /^sb-.*-auth-token$/;
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (key && supabaseKeyPattern.test(key)) {
+              localStorage.removeItem(key);
+              console.log('Force logout: Removed Supabase key:', key);
+            }
+          }
+          console.log('Force logout: Redirecting to clean URL.');
+          // Redirect to the same URL without the query parameter to prevent a loop on refresh.
+          window.location.href = window.location.pathname;
+        }
+      } catch (e) {
+        console.error('Error in pre-load cleanup script:', e);
+      }
+    </script>
+    
+    <link rel="stylesheet" href="/index.css?v=1.0.3" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,7 +62,7 @@
 </head>
   <body class="bg-gray-100">
     <div id="root"></div>
-    <script type="module" src="/index.tsx?v=1.0.2"></script>
+    <script type="module" src="/index.tsx?v=1.0.3"></script>
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>
