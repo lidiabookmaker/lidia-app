@@ -30,7 +30,6 @@ const App: React.FC = () => {
     useEffect(() => {
         setLoading(true);
 
-        // Proactive check for localStorage availability, which Supabase relies on.
         try {
             localStorage.setItem('__test', '1');
             localStorage.removeItem('__test');
@@ -40,78 +39,69 @@ const App: React.FC = () => {
             setLoading(false);
             setPage('login');
             setUser(null);
-            return; // Stop further execution in this effect
+            return;
         }
 
-        // Set a timeout to prevent infinite loading
         const loadingTimeout = setTimeout(() => {
-            console.warn('App loading timed out. Forcing navigation to login page.');
             if (loading) {
+                console.warn('App loading timed out. Forcing navigation to login page.');
                 setLoading(false);
                 setPage('login');
                 setUser(null);
                 setAuthError("A verificação da sessão demorou muito. Por favor, tente fazer o login novamente.");
             }
-        }, 10000); // 10-second timeout
+        }, 10000);
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            clearTimeout(loadingTimeout); // Authentication check completed, clear the timeout.
-            setAuthError(null); // Clear any previous auth error on a successful event
+            clearTimeout(loadingTimeout);
+            setAuthError(null);
 
-            if (!session?.user) {
-                setUser(null);
-                setPage('landing');
-                setLoading(false);
-                return;
-            }
-
-            // --- INÍCIO DA CORREÇÃO DA CONDIÇÃO DE CORRIDA ---
-            // Tenta buscar o perfil do usuário algumas vezes antes de desistir.
-            // Isso dá tempo para o trigger do banco de dados criar o perfil para um novo usuário.
-            const fetchProfileWithRetry = async (userId: string, attempts = 4, delay = 500) => {
-                for (let i = 0; i < attempts; i++) {
-                    const { data: profile, error } = await supabase
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', userId)
-                        .single();
-
-                    if (profile) {
-                        return profile; // Sucesso! Perfil encontrado.
-                    }
-                    
-                    // A API do Supabase retorna um erro quando .single() não encontra nenhuma linha.
-                    // Verificamos se o erro é o esperado "not found" (código PGRST116).
-                    const isNotFoundError = error && error.code === 'PGRST116';
-                    
-                    if (!isNotFoundError || i === attempts - 1) {
-                        console.error(`Falha ao buscar perfil (tentativa ${i + 1}/${attempts}):`, error);
-                        return null; // Falha definitiva.
-                    }
-                    
-                    // Espera antes de tentar novamente, aumentando o tempo de espera.
-                    await new Promise(res => setTimeout(res, delay * (i + 1)));
+            try {
+                if (!session?.user) {
+                    setUser(null);
+                    setPage('landing');
+                    return;
                 }
-                return null; // Se todas as tentativas falharem
-            };
-            
-            const profile = await fetchProfileWithRetry(session.user.id);
-            // --- FIM DA CORREÇÃO ---
-            
-            if (profile) {
-                // Mesmo que o perfil tenha o email, usar o da sessão garante que ele esteja sempre atualizado.
-                const userWithEmail = { ...profile, email: session.user.email };
-                setUser(userWithEmail);
-                handleNavigation(userWithEmail);
-            } else {
-                console.error("Não foi possível buscar o perfil do usuário após várias tentativas. Deslogando.");
-                // FIX: Avoid recursive call to handleLogout. Sign out and clear state directly.
+
+                const fetchProfileWithRetry = async (userId: string, attempts = 4, delay = 500) => {
+                    for (let i = 0; i < attempts; i++) {
+                        const { data: profile, error } = await supabase
+                            .from('profiles')
+                            .select('*')
+                            .eq('id', userId)
+                            .single();
+
+                        if (profile) return profile;
+                        
+                        const isNotFoundError = error && error.code === 'PGRST116';
+                        if (!isNotFoundError || i === attempts - 1) {
+                            console.error(`Falha ao buscar perfil (tentativa ${i + 1}/${attempts}):`, error);
+                            return null;
+                        }
+                        
+                        await new Promise(res => setTimeout(res, delay * (i + 1)));
+                    }
+                    return null;
+                };
+                
+                const profile = await fetchProfileWithRetry(session.user.id);
+                
+                if (profile) {
+                    const userWithEmail = { ...profile, email: session.user.email };
+                    setUser(userWithEmail);
+                    handleNavigation(userWithEmail);
+                } else {
+                    console.error("Não foi possível buscar o perfil do usuário. A sessão pode estar corrompida. Deslogando forçadamente.");
+                    await supabase.auth.signOut();
+                }
+            } catch (error) {
+                console.error("Erro crítico durante a verificação de autenticação:", error);
+                setAuthError("Ocorreu um erro ao verificar sua sessão. Por favor, faça o login novamente.");
                 await supabase.auth.signOut();
-                setUser(null);
-                setPage('landing');
+                setPage('login');
+            } finally {
+                setLoading(false);
             }
-            
-            setLoading(false);
         });
 
         return () => {
@@ -148,7 +138,7 @@ const App: React.FC = () => {
     const fetchAllUsers = async () => {
         const { data, error } = await supabase
             .from('profiles')
-            .select('id, email, status, role, book_credits, first_book_ip') // Busca o email agora
+            .select('id, email, status, role, book_credits, first_book_ip')
              .order('created_at', { ascending: false });
         
         if (error) {
@@ -182,11 +172,23 @@ const App: React.FC = () => {
     };
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
-        setUser(null);
-        setBooks([]);
-        setUsers([]);
-        setPage('landing');
+        setLoading(true);
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                console.error("Erro ao fazer logout no Supabase:", error);
+                setAuthError("Não foi possível fazer o logout do servidor. Limpando sessão local.");
+            }
+        } catch (e) {
+            console.error("Erro inesperado durante o logout:", e);
+            setAuthError("Ocorreu um erro inesperado durante o logout.");
+        } finally {
+            setUser(null);
+            setBooks([]);
+            setUsers([]);
+            setPage('landing');
+            setLoading(false);
+        }
     };
     
     const handleNavigate = (newPage: Page) => {
