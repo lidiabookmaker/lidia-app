@@ -1,0 +1,5 @@
+/* 
+  This file is intentionally almost empty. 
+  It exists to prevent a 404 error in browsers with an old cached version of the site 
+  that might be trying to load a non-existent index.css file, which was blocking the app from rendering.
+*/
