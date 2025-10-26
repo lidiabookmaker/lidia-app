@@ -42,34 +42,19 @@ const App: React.FC = () => {
                 setPage('awaiting-activation');
                 break;
             default:
+                // This case should ideally not be reached if statuses are correct
+                console.warn(`Unhandled user status: ${currentUser.status}. Defaulting to login.`);
                 setPage('login');
                 break;
         }
     };
     
     useEffect(() => {
-        // NOTE: The force_logout logic is now in index.html and runs before React.
-        // This ensures any corrupted session is cleared before the app even tries to load.
-        
-        const checkInitialSession = async () => {
+        // The single source of truth for authentication state.
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             try {
-                // Check for LocalStorage availability first
-                localStorage.setItem('__test', '1');
-                localStorage.removeItem('__test');
-
-                // 1. Get the current session
-                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-                if (sessionError) {
-                    throw new Error("Erro ao obter a sessão: " + sessionError.message);
-                }
-
-                if (!session?.user) {
-                    // No user logged in
-                    setUser(null);
-                    setPage('landing');
-                } else {
-                    // User is logged in, verify profile
+                if (session?.user) {
+                    // User is potentially logged in, let's verify their profile.
                     const { data: profile, error: profileError } = await supabase
                         .from('profiles')
                         .select('*')
@@ -77,59 +62,42 @@ const App: React.FC = () => {
                         .single();
 
                     if (profileError || !profile) {
-                        console.error("Falha na busca do perfil inicial, deslogando.", profileError);
-                        await supabase.auth.signOut(); // Clean up invalid session
+                        // Profile doesn't exist or there was an error. This is a corrupted state.
+                        // Force a sign-out to clean up.
+                        console.error("Profile fetch failed, forcing sign out.", profileError);
+                        await supabase.auth.signOut();
                         setUser(null);
                         setPage('login');
-                        setAuthError("Sua sessão é inválida. Por favor, faça login novamente.");
+                        setAuthError("Sua sessão está corrompida. Por favor, faça o login novamente.");
                     } else {
+                        // Success! We have a valid user and profile.
                         const userWithEmail = { ...profile, email: session.user.email };
                         setUser(userWithEmail);
                         handleNavigation(userWithEmail);
                     }
-                }
-            } catch (e) {
-                console.error("Erro durante a verificação da sessão inicial:", e);
-                const err = e as Error;
-                if (err.message.toLowerCase().includes('localstorage')) {
-                    setAuthError("Seu navegador parece estar bloqueando o armazenamento de dados, o que impede o login. Por favor, verifique as configurações de privacidade do seu navegador.");
                 } else {
-                    setAuthError("Ocorreu um erro ao iniciar o aplicativo. Tente recarregar.");
-                }
-                setUser(null);
-                setPage('login');
-            } finally {
-                // This is the key: always stop loading after the initial check.
-                setLoading(false);
-            }
-        };
-
-        checkInitialSession();
-
-        // 2. Set up the listener for future changes (login, logout, etc.)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            if (session?.user?.id !== user?.id) { // Only re-run if user actually changes
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', session?.user?.id)
-                    .single();
-
-                if (profile) {
-                     const userWithEmail = { ...profile, email: session!.user!.email };
-                    setUser(userWithEmail);
-                    handleNavigation(userWithEmail);
-                } else {
+                    // No session, user is logged out.
                     setUser(null);
                     setPage('landing');
+                }
+            } catch (e) {
+                console.error("Critical error in onAuthStateChange handler:", e);
+                setUser(null);
+                setPage('login');
+                setAuthError("Ocorreu um erro inesperado. Tente novamente.");
+            } finally {
+                // This block ensures that the loading spinner is hidden after the first auth event is processed.
+                if (loading) {
+                    setLoading(false);
                 }
             }
         });
 
         return () => {
+            // Cleanup the subscription when the component unmounts.
             subscription.unsubscribe();
         };
-    }, []);
+    }, [loading]); // Rerun effect only if loading state changes (which it won't after initial load).
 
 
     useEffect(() => {
@@ -139,6 +107,10 @@ const App: React.FC = () => {
             if (user.role === 'admin') {
                 fetchAllUsers();
             }
+        } else {
+            // Clear data when user logs out
+            setBooks([]);
+            setUsers([]);
         }
     }, [user]);
 
@@ -175,13 +147,7 @@ const App: React.FC = () => {
         if (error) {
             console.error("Error during sign out:", error);
         }
-        // Regardless of server response, clear local state to log out from the UI.
-        setUser(null);
-        setPage('landing');
-        setBooks([]);
-        setUsers([]);
-        setAuthError(null);
-        setLoading(false);
+        // The onAuthStateChange listener will automatically handle the state update (setUser, setPage).
     };
     
     const handleNavigate = (newPage: Page) => {
@@ -299,6 +265,8 @@ const App: React.FC = () => {
             );
         }
 
+        // The onAuthStateChange now reliably sets the user state.
+        // We can base our entire render logic on its result.
         if (!user) {
              return page === 'login' ? <AuthPage initialError={authError} /> : <LandingPage onNavigate={handleNavigate} />;
         }
@@ -316,32 +284,30 @@ const App: React.FC = () => {
             case 'view-book':
                 const bookToView = books.find(b => b.id === viewedBookId);
                 if (!bookToView) {
-                    setPage('dashboard');
-                    return null;
+                    // This can happen if books haven't loaded yet. Redirecting is safer.
+                    handleNavigation(user);
+                    return <LoadingSpinner />;
                 }
                 return <ViewBookPage book={bookToView} onNavigate={handleNavigate} />;
             case 'admin-users':
                 if (user.role !== 'admin') {
-                    setPage('dashboard');
-                    return null;
+                    handleNavigation(user); return null;
                 }
                 return <UserManagementPage users={users} onUpdateUserStatus={handleUpdateUserStatus} onNavigate={handleNavigate} />;
             case 'admin-activation':
                 if (user.role !== 'admin') {
-                    setPage('dashboard');
-                    return null;
+                    handleNavigation(user); return null;
                 }
                 return <ActivationPage users={users} onActivateUser={handleActivateUser} onNavigate={handleNavigate} />;
             case 'admin-settings':
                 if (user.role !== 'admin') {
-                    setPage('dashboard');
-                    return null;
+                    handleNavigation(user); return null;
                 }
                 return <SettingsPage onNavigate={handleNavigate} />;
             default:
-                // Fallback to determined route for logged-in users
+                // Fallback for any unknown page state after login
                 handleNavigation(user);
-                return <LoadingSpinner />; // Show spinner during brief redirect
+                return <LoadingSpinner />;
         }
     };
 
