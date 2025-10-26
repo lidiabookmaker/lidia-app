@@ -48,6 +48,19 @@ const App: React.FC = () => {
     };
     
     useEffect(() => {
+        // --- KILL SWITCH FOR BAD SESSIONS ---
+        // If the URL has a force_logout parameter, log out immediately.
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('force_logout') === 'true') {
+            console.log("Logout forçado detectado. Limpando sessão...");
+            setLoading(true); // Show spinner during forced logout
+            handleLogout().then(() => {
+                // Clean the URL so a refresh doesn't trigger another logout
+                window.history.replaceState({}, document.title, window.location.pathname);
+            });
+            return; // Stop further execution in this effect
+        }
+        
         const checkInitialSession = async () => {
             try {
                 // Check for LocalStorage availability first
