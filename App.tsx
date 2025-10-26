@@ -36,26 +36,13 @@ const App: React.FC = () => {
         } catch (e) {
             console.error("LocalStorage is not available.", e);
             setAuthError("Seu navegador parece estar bloqueando o armazenamento de dados, o que impede o login. Por favor, verifique as configurações de privacidade do seu navegador.");
-            setLoading(false);
-            setPage('login');
             setUser(null);
+            setPage('login');
+            setLoading(false);
             return;
         }
 
-        const loadingTimeout = setTimeout(() => {
-            if (loading) {
-                console.warn('App loading timed out. Forcing navigation to login page.');
-                setLoading(false);
-                setPage('login');
-                setUser(null);
-                setAuthError("A verificação da sessão demorou muito. Por favor, tente fazer o login novamente.");
-            }
-        }, 10000);
-
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            clearTimeout(loadingTimeout);
-            setAuthError(null);
-
             try {
                 if (!session?.user) {
                     setUser(null);
@@ -63,50 +50,38 @@ const App: React.FC = () => {
                     return;
                 }
 
-                const fetchProfileWithRetry = async (userId: string, attempts = 4, delay = 500) => {
-                    for (let i = 0; i < attempts; i++) {
-                        const { data: profile, error } = await supabase
-                            .from('profiles')
-                            .select('*')
-                            .eq('id', userId)
-                            .single();
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
 
-                        if (profile) return profile;
-                        
-                        const isNotFoundError = error && error.code === 'PGRST116';
-                        if (!isNotFoundError || i === attempts - 1) {
-                            console.error(`Falha ao buscar perfil (tentativa ${i + 1}/${attempts}):`, error);
-                            return null;
-                        }
-                        
-                        await new Promise(res => setTimeout(res, delay * (i + 1)));
-                    }
-                    return null;
-                };
-                
-                const profile = await fetchProfileWithRetry(session.user.id);
-                
-                if (profile) {
-                    const userWithEmail = { ...profile, email: session.user.email };
-                    setUser(userWithEmail);
-                    handleNavigation(userWithEmail);
-                } else {
-                    console.error("Não foi possível buscar o perfil do usuário. A sessão pode estar corrompida. Deslogando forçadamente.");
+                if (error || !profile) {
+                    console.error("User profile not found or error, forcing logout.", error);
                     await supabase.auth.signOut();
+                    setUser(null);
+                    setPage('login');
+                    setAuthError("Não foi possível carregar seu perfil. Sua sessão pode estar inválida. Por favor, faça login novamente.");
+                    return;
                 }
-            } catch (error) {
-                console.error("Erro crítico durante a verificação de autenticação:", error);
-                setAuthError("Ocorreu um erro ao verificar sua sessão. Por favor, faça o login novamente.");
-                await supabase.auth.signOut();
+                
+                const userWithEmail = { ...profile, email: session.user.email };
+                setUser(userWithEmail);
+                handleNavigation(userWithEmail);
+
+            } catch (e) {
+                console.error("An unexpected error occurred during auth state change:", e);
+                setAuthError("Ocorreu um erro inesperado. Por favor, tente recarregar a página.");
+                setUser(null);
                 setPage('login');
             } finally {
+                // This guarantees the loading spinner will always be removed.
                 setLoading(false);
             }
         });
 
         return () => {
             subscription.unsubscribe();
-            clearTimeout(loadingTimeout);
         };
     }, []);
 
@@ -172,23 +147,17 @@ const App: React.FC = () => {
     };
 
     const handleLogout = async () => {
-        setLoading(true);
-        try {
-            const { error } = await supabase.auth.signOut();
-            if (error) {
-                console.error("Erro ao fazer logout no Supabase:", error);
-                setAuthError("Não foi possível fazer o logout do servidor. Limpando sessão local.");
-            }
-        } catch (e) {
-            console.error("Erro inesperado durante o logout:", e);
-            setAuthError("Ocorreu um erro inesperado durante o logout.");
-        } finally {
-            setUser(null);
-            setBooks([]);
-            setUsers([]);
-            setPage('landing');
-            setLoading(false);
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            console.error("Error during sign out:", error);
         }
+        // Regardless of server response, clear local state to log out from the UI.
+        setUser(null);
+        setPage('landing');
+        setBooks([]);
+        setUsers([]);
+        setAuthError(null);
+        setLoading(false);
     };
     
     const handleNavigate = (newPage: Page) => {
