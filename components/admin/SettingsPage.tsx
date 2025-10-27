@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Page } from '../../types';
 import { Button } from '../ui/Button';
@@ -9,6 +8,7 @@ interface SettingsPageProps {
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
+
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
       <header className="max-w-4xl mx-auto mb-8 flex justify-between items-center">
@@ -23,14 +23,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
       </header>
       <main className="max-w-4xl mx-auto">
         <Card>
-          {/* FIX: Removed "(OpenAI)" from title */}
           <h2 className="text-xl font-bold text-gray-700 mb-4">Chave da API Gemini</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            A chave da API Gemini é gerenciada centralmente através de variáveis de ambiente no servidor.
-          </p>
           <div className="bg-gray-50 p-4 rounded-lg">
             <p className="text-sm text-gray-800">
-              Nenhuma ação é necessária aqui. A chave da API está configurada e pronta para uso. Para alterar a chave, contate o administrador do sistema para atualizar a configuração do servidor.
+              A chave da API do Google Gemini deve ser configurada como uma variável de ambiente no servidor com o nome <code>API_KEY</code>.
+            </p>
+            <p className="text-sm text-gray-800 mt-2">
+              Esta aplicação foi configurada para usar a chave de API exclusivamente a partir do ambiente, garantindo maior segurança. Não é necessário inseri-la aqui.
             </p>
           </div>
         </Card>
