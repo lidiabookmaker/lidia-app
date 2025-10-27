@@ -3,6 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import type { UserProfile, Book, BookGenerationFormData, Page } from '../types';
 import { Button } from './ui/Button';
 import { Input, TextArea } from './ui/Input';
+import { API_KEY } from '../services/geminiConfig';
 
 interface CreateBookPageProps {
   user: UserProfile;
@@ -229,7 +230,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
             throw new Error(check.message);
         }
 
-        const apiKey = process.env.API_KEY;
+        const apiKey = API_KEY;
         if (!apiKey) {
             throw new Error("A chave da API não foi encontrada no ambiente. Contate o administrador.");
         }
