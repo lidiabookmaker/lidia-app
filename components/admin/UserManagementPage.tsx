@@ -51,7 +51,7 @@ export const UserManagementPage: React.FC<UserManagementPageProps> = ({ users, o
               <tbody className="bg-white divide-y divide-gray-200">
                 {users.filter(u => u.role !== 'admin').map(user => (
                   <tr key={user.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.email}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">{user.email || user.id}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClasses[user.status]}`}>
                         {formatStatus(user.status)}

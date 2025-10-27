@@ -133,7 +133,7 @@ const App: React.FC = () => {
     const fetchAllUsers = async () => {
         const { data, error } = await supabase
             .from('profiles')
-            .select('id, email, status, role, book_credits, first_book_ip')
+            .select('id, email, status, role, book_credits')
              .order('created_at', { ascending: false });
         
         if (error) {
@@ -197,11 +197,8 @@ const App: React.FC = () => {
             return; // Exit if book creation fails
         }
         
-        // 2. Update user profile (credits and IP)
+        // 2. Update user profile (credits)
         const profileUpdate: Partial<UserProfile> = { book_credits: updatedCredits };
-        if (user.status === 'ativa_free' && !user.first_book_ip) {
-            profileUpdate.first_book_ip = '123.45.67.89'; // Mock IP as before
-        }
         
         const { data: updatedProfile, error: profileError } = await supabase
             .from('profiles')
@@ -233,24 +230,6 @@ const App: React.FC = () => {
         if (user.status === 'ativa_free') {
             if (user.book_credits <= 0) {
                 return { allow: false, message: "Limite de um livro gratuito excedido. Faça upgrade para criar mais." };
-            }
-            
-            // This is still a mock, as getting a real IP securely requires a server function.
-            // For now, we check if ANY other free user has an IP set.
-            const mockUserIp = '123.45.67.89'; 
-            
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('id')
-                .neq('id', user.id)
-                .eq('status', 'ativa_free')
-                .eq('first_book_ip', mockUserIp)
-                .limit(1);
-
-            if (error) console.error("IP check error", error);
-
-            if (data && data.length > 0) {
-                 return { allow: false, message: "Limite de livros gratuitos por IP excedido. Faça upgrade para criar mais." };
             }
         }
         

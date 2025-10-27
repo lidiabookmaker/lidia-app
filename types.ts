@@ -9,7 +9,6 @@ export interface UserProfile {
   status: UserStatus;
   role: UserRole;
   book_credits: number;
-  first_book_ip?: string | null;
 }
 
 export interface Book {

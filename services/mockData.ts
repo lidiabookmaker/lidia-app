@@ -36,7 +36,6 @@ export const mockUsers: UserProfile[] = [
     status: 'ativa_free',
     role: 'user',
     book_credits: 0,
-    first_book_ip: '123.45.67.89'
   },
   {
     id: '6',

@@ -361,15 +361,15 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     updateLog('Iniciando processo de geração do livro...');
 
     try {
-      // FIX: Changed to use process.env.API_KEY as per guidelines. This also resolves the TypeScript error 'Property 'env' does not exist on type 'ImportMeta''.
-      if (!process.env.API_KEY) {
-        const errorMsg = 'A chave da API (API_KEY) não foi encontrada nas variáveis de ambiente. O administrador precisa configurar o servidor.';
+      const apiKey = process.env.VITE_API_KEY;
+      if (!apiKey) {
+        const errorMsg = 'A chave da API (VITE_API_KEY) não foi encontrada nas variáveis de ambiente. O administrador precisa configurar o servidor.';
         setError(errorMsg);
         updateLog(`ERRO: ${errorMsg}`);
         setIsLoading(false);
         return;
       }
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
 
       // Step 1: Generate Book Skeleton (Intro, Conclusion, 10 Chapters titles)
       updateLog('Gerando o esqueleto do livro (títulos)...');
