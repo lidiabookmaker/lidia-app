@@ -50,7 +50,8 @@ const App: React.FC = () => {
     };
     
     useEffect(() => {
-        // The single source of truth for authentication state.
+        // This effect runs once on component mount to set up the authentication listener.
+        // It's the single source of truth for the user's authentication state.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             try {
                 if (session?.user) {
@@ -97,7 +98,7 @@ const App: React.FC = () => {
             // Cleanup the subscription when the component unmounts.
             subscription.unsubscribe();
         };
-    }, [loading]); // Rerun effect only if loading state changes (which it won't after initial load).
+    }, []); // The empty dependency array ensures this effect runs only once on mount.
 
 
     useEffect(() => {
