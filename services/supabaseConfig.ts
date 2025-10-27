@@ -1,7 +1,8 @@
 // Este arquivo armazena as credenciais de conexão do Supabase.
-// As credenciais são lidas de variáveis de ambiente prefixadas com VITE_
-// para serem expostas de forma segura ao frontend pela ferramenta de build Vite.
+// O ambiente de produção (Vercel) fornece as variáveis através do objeto `process.env`.
+// As variáveis devem ser nomeadas SEM o prefixo "VITE_".
 
-// The execution environment provides environment variables via `process.env`.
-export const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-export const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+const env = (typeof process !== 'undefined') ? process.env : {};
+
+export const SUPABASE_URL = env.SUPABASE_URL;
+export const SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY;
