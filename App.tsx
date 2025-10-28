@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { UserProfile, Book, Page } from './types';
 import { supabase } from './services/supabase';
@@ -16,21 +15,6 @@ import { SettingsPage } from './components/admin/SettingsPage';
 import { ActivationPage } from './components/admin/ActivationPage';
 import { ViewBookPage } from './components/ViewBookPage';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
-
-// FIX: Changed 'Promise<T>' to 'PromiseLike<T>'. Supabase's query builders return a 'thenable' object which is not a full Promise. This change makes the function's type signature compatible, allowing TypeScript to correctly infer the return type of the promise and fix the destructuring error.
-const promiseWithTimeout = <T,>(
-  promise: PromiseLike<T>,
-  ms: number,
-  timeoutError = new Error('Promise timed out')
-): Promise<T> => {
-  const timeout = new Promise<never>((_, reject) => {
-    setTimeout(() => {
-      reject(timeoutError);
-    }, ms);
-  });
-  return Promise.race([promise, timeout]);
-};
-
 
 const App: React.FC = () => {
     const [user, setUser] = useState<UserProfile | null>(null);
@@ -58,7 +42,6 @@ const App: React.FC = () => {
                 setPage('awaiting-activation');
                 break;
             default:
-                // This case should ideally not be reached if statuses are correct
                 console.warn(`Unhandled user status: ${currentUser.status}. Defaulting to login.`);
                 setPage('login');
                 break;
@@ -67,48 +50,38 @@ const App: React.FC = () => {
     
     useEffect(() => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-             // On the initial page load, onAuthStateChange fires with the current session.
-            // We want to ignore this to always show the landing page first.
+            // This flag prevents auto-login on page load.
             if (!initialAuthCheckCompleted.current) {
                 initialAuthCheckCompleted.current = true;
-                setUser(null);
-                setPage('landing');
-                return;
+                return; // Ignore the initial session check, forcing the app to stay on the landing page.
             }
 
-            // After the initial load, we process auth changes (manual login/logout).
-            try {
-                if (session?.user) {
-                    const profilePromise = supabase
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', session.user.id)
-                        .single();
+            // This code now only runs for explicit login or logout events.
+            if (session?.user) {
+                setPage('loading'); // Show a temporary spinner while fetching the user's profile.
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
 
-                    // Timeout remains a good idea for robustness during login attempts
-                    const { data: profile, error: profileError } = await promiseWithTimeout(Promise.resolve(profilePromise), 8000);
-
-
-                    if (profileError || !profile) {
-                        console.error("Corrupted session detected or failed to fetch profile. Triggering hard reset.", profileError);
-                        window.location.href = '/?force_logout=true';
-                        return;
-                    }
-                    
-                    const userWithEmail = { ...profile, email: session.user.email };
-                    setUser(userWithEmail);
-                    handleNavigation(userWithEmail);
-
-                } else {
-                     // This handles logout
+                if (profileError || !profile) {
+                    console.error("Failed to fetch profile after login:", profileError);
+                    await supabase.auth.signOut();
+                    setAuthError("Não foi possível carregar seu perfil. Tente novamente.");
+                    setPage('login');
                     setUser(null);
-                    setPage('landing');
+                    return;
                 }
-            } catch (e) {
-                console.error("Auth check timed out or failed. Defaulting to login page.", e);
-                setAuthError("Falha na autenticação. Por favor, tente novamente.");
+                
+                const userWithEmail = { ...profile, email: session.user.email };
+                setUser(userWithEmail);
+                handleNavigation(userWithEmail);
+
+            } else {
+                 // This handles logout.
                 setUser(null);
-                setPage('login');
+                setPage('landing');
             }
         });
 
@@ -119,14 +92,12 @@ const App: React.FC = () => {
 
 
     useEffect(() => {
-        // Fetch data when user logs in
         if (user) {
             fetchBooks();
             if (user.role === 'admin') {
                 fetchAllUsers();
             }
         } else {
-            // Clear data when user logs out
             setBooks([]);
             setUsers([]);
         }
@@ -134,15 +105,11 @@ const App: React.FC = () => {
 
     const fetchBooks = async () => {
         if (!user) return;
-        
         let query = supabase.from('books').select('*');
-
         if (user.role !== 'admin') {
             query = query.eq('user_id', user.id);
         }
-
         const { data, error } = await query.order('created_at', { ascending: false });
-
         if (error) console.error("Error fetching books", error);
         else setBooks(data || []);
     };
@@ -152,20 +119,13 @@ const App: React.FC = () => {
             .from('profiles')
             .select('id, email, status, role, book_credits')
              .order('created_at', { ascending: false });
-        
-        if (error) {
-             console.error("Error fetching users", error);
-        } else {
-             setUsers(data || []);
-        }
+        if (error) console.error("Error fetching users", error);
+        else setUsers(data || []);
     };
 
     const handleLogout = async () => {
         const { error } = await supabase.auth.signOut();
-        if (error) {
-            console.error("Error during sign out:", error);
-        }
-        // The onAuthStateChange listener will automatically handle the state update (setUser, setPage).
+        if (error) console.error("Error during sign out:", error);
     };
     
     const handleNavigate = (newPage: Page) => {
@@ -181,9 +141,8 @@ const App: React.FC = () => {
         .from('profiles')
         .update({ status: newStatus })
         .eq('id', userId);
-
         if (error) console.error("Error updating user status", error);
-        else fetchAllUsers(); // Re-fetch users to update UI
+        else fetchAllUsers();
     };
 
     const handleActivateUser = async (userId: string, plan: 'pro' | 'free') => {
@@ -194,43 +153,32 @@ const App: React.FC = () => {
                 book_credits: plan === 'pro' ? 10 : 1,
             })
             .eq('id', userId);
-
         if (error) console.error("Error activating user", error);
         else fetchAllUsers();
     };
     
     const handleBookCreated = async (newBookData: Omit<Book, 'id' | 'created_at'>, updatedCredits: number) => {
         if (!user) return;
-
-        // 1. Insert the new book
         const { data: newBook, error: bookError } = await supabase
             .from('books')
             .insert(newBookData)
             .select()
             .single();
-
         if (bookError || !newBook) {
             console.error("Error creating book", bookError);
-            return; // Exit if book creation fails
+            return;
         }
-        
-        // 2. Update user profile (credits)
-        const profileUpdate: Partial<UserProfile> = { book_credits: updatedCredits };
-        
         const { data: updatedProfile, error: profileError } = await supabase
             .from('profiles')
-            .update(profileUpdate)
+            .update({ book_credits: updatedCredits })
             .eq('id', user.id)
             .select()
             .single();
-
         if (profileError || !updatedProfile) {
             console.error("Error updating profile", profileError);
-            // Optional: Handle rollback logic for the created book
         } else {
-            // 3. Update local state
             setUser({ ...user, ...updatedProfile });
-            fetchBooks(); // Re-fetch books to include the new one
+            fetchBooks();
         }
     };
 
@@ -243,17 +191,24 @@ const App: React.FC = () => {
         if (!user) {
             return { allow: false, message: "Usuário não autenticado." };
         }
-
-        if (user.status === 'ativa_free') {
-            if (user.book_credits <= 0) {
-                return { allow: false, message: "Limite de um livro gratuito excedido. Faça upgrade para criar mais." };
-            }
+        if (user.status === 'ativa_free' && user.book_credits <= 0) {
+            return { allow: false, message: "Limite de um livro gratuito excedido. Faça upgrade para criar mais." };
         }
-        
         return { allow: true, message: "" };
     };
 
     const renderPage = () => {
+        // A dedicated loading state for the brief period after login while fetching profile data.
+        if (page === 'loading') {
+            return (
+                <div className="min-h-screen flex justify-center items-center">
+                    <LoadingSpinner />
+                </div>
+            );
+        }
+
+        // If no user is authenticated, only show the landing or login pages.
+        // The app starts here by default.
         if (!user) {
              return page === 'login' ? <AuthPage initialError={authError} /> : <LandingPage onNavigate={handleNavigate} />;
         }
@@ -276,22 +231,16 @@ const App: React.FC = () => {
                 }
                 return <ViewBookPage book={bookToView} onNavigate={handleNavigate} />;
             case 'admin-users':
-                if (user.role !== 'admin') {
-                    handleNavigation(user); return null;
-                }
+                if (user.role !== 'admin') { handleNavigation(user); return null; }
                 return <UserManagementPage users={users} onUpdateUserStatus={handleUpdateUserStatus} onNavigate={handleNavigate} />;
             case 'admin-activation':
-                if (user.role !== 'admin') {
-                    handleNavigation(user); return null;
-                }
+                if (user.role !== 'admin') { handleNavigation(user); return null; }
                 return <ActivationPage users={users} onActivateUser={handleActivateUser} onNavigate={handleNavigate} />;
             case 'admin-settings':
-                if (user.role !== 'admin') {
-                    handleNavigation(user); return null;
-                }
+                if (user.role !== 'admin') { handleNavigation(user); return null; }
                 return <SettingsPage onNavigate={handleNavigate} />;
             default:
-                // Fallback for any unknown page state after login
+                // Fallback for any unknown or incorrect page state after login.
                 handleNavigation(user);
                 return <LoadingSpinner />;
         }
