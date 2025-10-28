@@ -230,14 +230,14 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
             throw new Error(check.message);
         }
 
-        const apiKey = API_KEY;
-        // A verificação foi atualizada para incluir o valor de fallback e garantir que não prossiga sem uma chave válida.
-        if (!apiKey || apiKey === "API_KEY_NOT_SET") {
+        // fix: Uses the imported API_KEY from geminiConfig.ts, which correctly reads the VITE_API_KEY.
+        if (!API_KEY || API_KEY === "API_KEY_NOT_SET") {
             throw new Error("A chave da API não foi encontrada no ambiente. Contate o administrador.");
         }
 
         updateLog("Inicializando IA Generativa...");
-        const ai = new GoogleGenAI({ apiKey });
+        // fix: Initialized GoogleGenAI with the correctly sourced API_KEY.
+        const ai = new GoogleGenAI({ apiKey: API_KEY });
 
         const schema = {
             type: Type.OBJECT,
