@@ -1,6 +1,6 @@
 
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { UserProfile, Book, Page } from './types';
 import { supabase } from './services/supabase';
 
@@ -38,8 +38,8 @@ const App: React.FC = () => {
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [books, setBooks] = useState<Book[]>([]);
     const [viewedBookId, setViewedBookId] = useState<string | null>(null);
-    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
     const [authError, setAuthError] = useState<string | null>(null);
+    const initialAuthCheckCompleted = useRef(false);
 
     const handleNavigation = (currentUser: UserProfile) => {
         if (currentUser.role === 'admin') {
@@ -67,6 +67,16 @@ const App: React.FC = () => {
     
     useEffect(() => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+             // On the initial page load, onAuthStateChange fires with the current session.
+            // We want to ignore this to always show the landing page first.
+            if (!initialAuthCheckCompleted.current) {
+                initialAuthCheckCompleted.current = true;
+                setUser(null);
+                setPage('landing');
+                return;
+            }
+
+            // After the initial load, we process auth changes (manual login/logout).
             try {
                 if (session?.user) {
                     const profilePromise = supabase
@@ -75,13 +85,12 @@ const App: React.FC = () => {
                         .eq('id', session.user.id)
                         .single();
 
-                    // FIX: Wrapped `profilePromise` in `Promise.resolve()` to help TypeScript correctly infer the result type.
-                    // The Supabase query returns a `PromiseLike` object, and TypeScript sometimes struggles with type inference for generics from it.
-                    // Converting it to a full Promise resolves the destructuring issue.
-                    const { data: profile, error: profileError } = await promiseWithTimeout(Promise.resolve(profilePromise), 5000);
+                    // Timeout remains a good idea for robustness during login attempts
+                    const { data: profile, error: profileError } = await promiseWithTimeout(Promise.resolve(profilePromise), 8000);
+
 
                     if (profileError || !profile) {
-                        console.error("Corrupted session detected. Triggering hard reset.", profileError);
+                        console.error("Corrupted session detected or failed to fetch profile. Triggering hard reset.", profileError);
                         window.location.href = '/?force_logout=true';
                         return;
                     }
@@ -91,17 +100,15 @@ const App: React.FC = () => {
                     handleNavigation(userWithEmail);
 
                 } else {
+                     // This handles logout
                     setUser(null);
                     setPage('landing');
                 }
             } catch (e) {
-                console.error("Auth check timed out or failed. Defaulting to logged-out state.", e);
-                // In case of timeout, we don't force a logout, we just assume the user is logged out for this session.
-                // The user can still try to log in manually.
+                console.error("Auth check timed out or failed. Defaulting to login page.", e);
+                setAuthError("Falha na autenticação. Por favor, tente novamente.");
                 setUser(null);
-                setPage('landing');
-            } finally {
-                setIsCheckingAuth(false);
+                setPage('login');
             }
         });
 
@@ -248,7 +255,7 @@ const App: React.FC = () => {
 
     const renderPage = () => {
         if (!user) {
-             return page === 'login' ? <AuthPage initialError={authError} /> : <LandingPage onNavigate={handleNavigate} isCheckingAuth={isCheckingAuth} />;
+             return page === 'login' ? <AuthPage initialError={authError} /> : <LandingPage onNavigate={handleNavigate} />;
         }
 
         // Protected routes from here
