@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import type { UserProfile, Book, Page } from './types';
 import { supabase } from './services/supabase';
@@ -16,13 +17,28 @@ import { ActivationPage } from './components/admin/ActivationPage';
 import { ViewBookPage } from './components/ViewBookPage';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 
+// FIX: Changed 'Promise<T>' to 'PromiseLike<T>'. Supabase's query builders return a 'thenable' object which is not a full Promise. This change makes the function's type signature compatible, allowing TypeScript to correctly infer the return type of the promise and fix the destructuring error.
+const promiseWithTimeout = <T,>(
+  promise: PromiseLike<T>,
+  ms: number,
+  timeoutError = new Error('Promise timed out')
+): Promise<T> => {
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(timeoutError);
+    }, ms);
+  });
+  return Promise.race([promise, timeout]);
+};
+
+
 const App: React.FC = () => {
     const [user, setUser] = useState<UserProfile | null>(null);
     const [page, setPage] = useState<Page>('landing');
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [books, setBooks] = useState<Book[]>([]);
     const [viewedBookId, setViewedBookId] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
     const [authError, setAuthError] = useState<string | null>(null);
 
     const handleNavigation = (currentUser: UserProfile) => {
@@ -50,56 +66,49 @@ const App: React.FC = () => {
     };
     
     useEffect(() => {
-        // This effect runs once on component mount to set up the authentication listener.
-        // It's the single source of truth for the user's authentication state.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             try {
                 if (session?.user) {
-                    // User is potentially logged in, let's verify their profile.
-                    const { data: profile, error: profileError } = await supabase
+                    const profilePromise = supabase
                         .from('profiles')
                         .select('*')
                         .eq('id', session.user.id)
                         .single();
 
+                    // FIX: Wrapped `profilePromise` in `Promise.resolve()` to help TypeScript correctly infer the result type.
+                    // The Supabase query returns a `PromiseLike` object, and TypeScript sometimes struggles with type inference for generics from it.
+                    // Converting it to a full Promise resolves the destructuring issue.
+                    const { data: profile, error: profileError } = await promiseWithTimeout(Promise.resolve(profilePromise), 5000);
+
                     if (profileError || !profile) {
-                        // Profile doesn't exist or there was an error. This is a corrupted state.
-                        // We trigger a hard reset by reloading with a special parameter.
-                        // The script in index.html will catch this and clear localStorage
-                        // before the app even mounts, guaranteeing a clean slate.
-                        console.error("Corrupted session detected (profile fetch failed). Triggering hard reset.", profileError);
+                        console.error("Corrupted session detected. Triggering hard reset.", profileError);
                         window.location.href = '/?force_logout=true';
-                        // The page will reload, so no further state changes are needed here.
                         return;
-                    } else {
-                        // Success! We have a valid user and profile.
-                        const userWithEmail = { ...profile, email: session.user.email };
-                        setUser(userWithEmail);
-                        handleNavigation(userWithEmail);
                     }
+                    
+                    const userWithEmail = { ...profile, email: session.user.email };
+                    setUser(userWithEmail);
+                    handleNavigation(userWithEmail);
+
                 } else {
-                    // No session, user is logged out.
                     setUser(null);
                     setPage('landing');
                 }
             } catch (e) {
-                console.error("Critical error in onAuthStateChange handler:", e);
+                console.error("Auth check timed out or failed. Defaulting to logged-out state.", e);
+                // In case of timeout, we don't force a logout, we just assume the user is logged out for this session.
+                // The user can still try to log in manually.
                 setUser(null);
-                setPage('login');
-                setAuthError("Ocorreu um erro inesperado. Tente novamente.");
+                setPage('landing');
             } finally {
-                // This block ensures that the loading spinner is hidden after the first auth event is processed.
-                if (loading) {
-                    setLoading(false);
-                }
+                setIsCheckingAuth(false);
             }
         });
 
         return () => {
-            // Cleanup the subscription when the component unmounts.
             subscription.unsubscribe();
         };
-    }, []); // The empty dependency array ensures this effect runs only once on mount.
+    }, []); 
 
 
     useEffect(() => {
@@ -238,18 +247,8 @@ const App: React.FC = () => {
     };
 
     const renderPage = () => {
-        if (loading) {
-            return (
-                <div className="min-h-screen flex items-center justify-center bg-gray-100">
-                    <LoadingSpinner />
-                </div>
-            );
-        }
-
-        // The onAuthStateChange now reliably sets the user state.
-        // We can base our entire render logic on its result.
         if (!user) {
-             return page === 'login' ? <AuthPage initialError={authError} /> : <LandingPage onNavigate={handleNavigate} />;
+             return page === 'login' ? <AuthPage initialError={authError} /> : <LandingPage onNavigate={handleNavigate} isCheckingAuth={isCheckingAuth} />;
         }
 
         // Protected routes from here
@@ -265,7 +264,6 @@ const App: React.FC = () => {
             case 'view-book':
                 const bookToView = books.find(b => b.id === viewedBookId);
                 if (!bookToView) {
-                    // This can happen if books haven't loaded yet. Redirecting is safer.
                     handleNavigation(user);
                     return <LoadingSpinner />;
                 }

@@ -5,14 +5,19 @@ import type { Page } from '../types';
 
 interface LandingPageProps {
   onNavigate: (page: 'login') => void;
+  isCheckingAuth: boolean;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isCheckingAuth }) => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center text-center px-4">
       <header className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center">
         <h1 className="text-2xl font-bold text-indigo-600">Lidia Book Maker</h1>
-        <Button onClick={() => onNavigate('login')} variant="secondary">Login</Button>
+        {isCheckingAuth ? (
+            <div className="text-sm text-gray-500 font-medium px-4 py-2">Verificando sessão...</div>
+        ) : (
+            <Button onClick={() => onNavigate('login')} variant="secondary">Login</Button>
+        )}
       </header>
       <main className="max-w-4xl mx-auto">
         <h2 className="text-5xl md:text-7xl font-extrabold text-gray-900 leading-tight">
@@ -22,7 +27,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           Com o poder da Inteligência Artificial, o Lidia Book Maker cria e-books completos e formatados para você em minutos, não em meses.
         </p>
         <div className="mt-10">
-          <Button onClick={() => onNavigate('login')} className="text-xl md:text-2xl px-10 py-5">
+          <Button onClick={() => onNavigate('login')} className="text-xl md:text-2xl px-10 py-5" disabled={isCheckingAuth}>
             COMECE GRÁTIS AGORA
           </Button>
         </div>
