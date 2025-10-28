@@ -3,7 +3,6 @@ import { GoogleGenAI, Type } from "@google/genai";
 import type { UserProfile, Book, BookGenerationFormData, Page } from '../types';
 import { Button } from './ui/Button';
 import { Input, TextArea } from './ui/Input';
-import { API_KEY } from '../services/geminiConfig';
 
 interface CreateBookPageProps {
   user: UserProfile;
@@ -230,14 +229,9 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
             throw new Error(check.message);
         }
 
-        // fix: Uses the imported API_KEY from geminiConfig.ts, which correctly reads the VITE_API_KEY.
-        if (!API_KEY || API_KEY === "API_KEY_NOT_SET") {
-            throw new Error("A chave da API não foi encontrada no ambiente. Contate o administrador.");
-        }
-
         updateLog("Inicializando IA Generativa...");
-        // fix: Initialized GoogleGenAI with the correctly sourced API_KEY.
-        const ai = new GoogleGenAI({ apiKey: API_KEY });
+        // FIX: Initialize GoogleGenAI with process.env.API_KEY as per coding guidelines.
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
         const schema = {
             type: Type.OBJECT,
