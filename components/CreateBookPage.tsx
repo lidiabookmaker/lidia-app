@@ -230,7 +230,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         }
 
         updateLog("Inicializando IA Generativa...");
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenAI({ apiKey: process.env.VITE_API_KEY });
 
         const schema = {
             type: Type.OBJECT,

@@ -32,7 +32,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
               A chave da API do Google Gemini é gerenciada de forma segura através de variáveis de ambiente no seu provedor de hospedagem (ex: Vercel, Netlify).
             </p>
              <p className="text-sm text-blue-800 mt-2">
-              Certifique-se de que a variável de ambiente com o nome <code>API_KEY</code> está configurada com sua chave válida.
+              Certifique-se de que a variável de ambiente com o nome <code>VITE_API_KEY</code> está configurada com sua chave válida.
             </p>
           </div>
         </Card>
