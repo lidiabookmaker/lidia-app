@@ -231,7 +231,8 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         }
 
         const apiKey = API_KEY;
-        if (!apiKey) {
+        // A verificação foi atualizada para incluir o valor de fallback e garantir que não prossiga sem uma chave válida.
+        if (!apiKey || apiKey === "API_KEY_NOT_SET") {
             throw new Error("A chave da API não foi encontrada no ambiente. Contate o administrador.");
         }
 

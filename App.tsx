@@ -64,12 +64,13 @@ const App: React.FC = () => {
 
                     if (profileError || !profile) {
                         // Profile doesn't exist or there was an error. This is a corrupted state.
-                        // Force a sign-out to clean up.
-                        console.error("Profile fetch failed, forcing sign out.", profileError);
-                        await supabase.auth.signOut();
-                        setUser(null);
-                        setPage('login');
-                        setAuthError("Sua sessão está corrompida. Por favor, faça o login novamente.");
+                        // We trigger a hard reset by reloading with a special parameter.
+                        // The script in index.html will catch this and clear localStorage
+                        // before the app even mounts, guaranteeing a clean slate.
+                        console.error("Corrupted session detected (profile fetch failed). Triggering hard reset.", profileError);
+                        window.location.href = '/?force_logout=true';
+                        // The page will reload, so no further state changes are needed here.
+                        return;
                     } else {
                         // Success! We have a valid user and profile.
                         const userWithEmail = { ...profile, email: session.user.email };
