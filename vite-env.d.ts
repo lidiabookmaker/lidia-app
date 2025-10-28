@@ -1,14 +1,15 @@
-// Define types for `process.env` used by Supabase and the Gemini API Key.
-// This standardizes environment variable access for the entire application.
+// This file declares the types for environment variables accessed via process.env.
+// This provides type safety for the variables injected by the execution environment.
+
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-      readonly API_KEY: string;
-      readonly VITE_SUPABASE_URL: string;
-      readonly VITE_SUPABASE_ANON_KEY: string;
+      VITE_SUPABASE_URL?: string;
+      VITE_SUPABASE_ANON_KEY?: string;
+      API_KEY?: string;
     }
   }
 }
 
-// This is necessary to make the declaration a module and avoid conflicts.
+// This export statement is necessary to make this file a module.
 export {};

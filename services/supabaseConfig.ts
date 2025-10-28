@@ -15,8 +15,8 @@ if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY) {
     * AVISO: Credenciais do Supabase não configuradas!               *
     *                                                               *
     * As variáveis de ambiente VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY *
-    * não foram encontradas. O aplicativo não conseguirá se         *
-    * conectar ao banco de dados.                                   *
+    * não foram encontradas via process.env. O aplicativo não       *
+    * conseguirá se conectar ao banco de dados.                     *
     *                                                               *
     * Por favor, configure estas variáveis no seu ambiente (Vercel).  *
     *****************************************************************
