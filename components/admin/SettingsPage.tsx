@@ -21,18 +21,32 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
             <Button onClick={() => onNavigate('dashboard')}>Dashboard</Button>
         </div>
       </header>
-      <main className="max-w-4xl mx-auto">
+      <main className="max-w-4xl mx-auto space-y-6">
         <Card>
-          <h2 className="text-xl font-bold text-gray-700 mb-4">Chave da API Gemini</h2>
-          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-            <p className="text-sm text-blue-900 font-semibold">
-              Configuração via Variável de Ambiente
+          <h2 className="text-xl font-bold text-gray-700 mb-4">Chave da API do Google Gemini</h2>
+           <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+            <p className="text-sm text-green-900 font-semibold">
+              Configuração via Arquivo Local (MVP)
             </p>
-            <p className="text-sm text-blue-800 mt-2">
-              A chave da API do Google Gemini é gerenciada de forma segura através de variáveis de ambiente no seu provedor de hospedagem (ex: Vercel, Netlify).
+            <p className="text-sm text-green-800 mt-2">
+              A chave da API do Gemini é gerenciada diretamente no código para facilitar a validação.
             </p>
-             <p className="text-sm text-blue-800 mt-2">
-              Certifique-se de que a variável de ambiente com o nome <code>VITE_API_KEY</code> está configurada com sua chave válida.
+             <p className="text-sm text-green-800 mt-2">
+              Para atualizar a chave, edite o arquivo: <code>services/geminiConfig.ts</code>
+            </p>
+          </div>
+        </Card>
+         <Card>
+          <h2 className="text-xl font-bold text-gray-700 mb-4">Credenciais do Supabase</h2>
+          <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+            <p className="text-sm text-green-900 font-semibold">
+              Configuração via Arquivo Local (MVP)
+            </p>
+            <p className="text-sm text-green-800 mt-2">
+              As credenciais do Supabase (URL e Chave Anon) são gerenciadas diretamente no código.
+            </p>
+             <p className="text-sm text-green-800 mt-2">
+              Para atualizar as credenciais, edite o arquivo: <code>services/supabaseConfig.ts</code>
             </p>
           </div>
         </Card>

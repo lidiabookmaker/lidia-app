@@ -1,12 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseConfig';
 
-const supabaseUrl = SUPABASE_URL;
-const supabaseAnonKey = SUPABASE_ANON_KEY;
+// Verifica se as credenciais ainda são placeholders.
+export const isSupabaseConfigured = !(SUPABASE_URL.includes('COLE_AQUI') || SUPABASE_ANON_KEY.includes('COLE_AQUI'));
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error("Configuração do Supabase não encontrada em services/supabaseConfig.ts");
-  throw new Error('Supabase URL and Anon Key are required.');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Exporta o client. App.tsx é responsável por prevenir o seu uso se não estiver configurado.
+// A criação do client em si é leve e não causa problemas de rede imediatos.
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

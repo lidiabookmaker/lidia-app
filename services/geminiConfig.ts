@@ -1,22 +1,23 @@
-// Este arquivo armazena as credenciais de conexão do Gemini.
-// Configure API_KEY no seu ambiente (Vercel).
+// Este arquivo gerencia a configuração da chave de API do Google Gemini.
 
-// Valor de fallback para evitar que o aplicativo quebre se a variável de ambiente não estiver definida.
-// O aplicativo não conseguirá chamar a API do Gemini, mas pelo menos será carregado.
-const FALLBACK_API_KEY = "API_KEY_NOT_SET";
+// =================================================================================
+// ATENÇÃO: INSTRUÇÕES DE CONFIGURAÇÃO PARA O MVP
+// =================================================================================
+// 1. Obtenha sua chave de API no Google AI Studio.
+// 2. Cole a chave na constante GEMINI_API_KEY abaixo.
+// =================================================================================
 
-// FIX: The API key must be obtained from process.env.API_KEY as per the coding guidelines.
-export const API_KEY = process.env.API_KEY || FALLBACK_API_KEY;
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// ALERTA DE SEGURANÇA: Não envie este arquivo para um repositório público com as
+// chaves preenchidas. Esta abordagem é APENAS para a fase de validação inicial.
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-if (!process.env.API_KEY) {
-    console.warn(`
-    *****************************************************************
-    * AVISO: Chave de API do Gemini não configurada!                  *
-    *                                                               *
-    * A variável de ambiente API_KEY não foi encontrada.       *
-    * A geração de livros pela IA não funcionará.                   *
-    *                                                               *
-    * Por favor, configure esta variável no seu ambiente (Vercel).  *
-    *****************************************************************
-    `);
-}
+// FIX: Added string type annotation to widen the type from a literal to a string.
+// This resolves the TypeScript error where a comparison between the literal key and an empty string was flagged as impossible.
+export const GEMINI_API_KEY: string = "AIzaSyDmyns_NuZrgquEAC3VXTXJ_21CtCSjDww";
+
+/**
+ * Verifica se a chave da API do Gemini foi configurada.
+ * A verificação é feita para garantir que a chave padrão não seja usada.
+ */
+export const isGeminiConfigured = !(GEMINI_API_KEY.includes('COLE_AQUI') || GEMINI_API_KEY === '');

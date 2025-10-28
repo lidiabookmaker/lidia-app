@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
+import { GEMINI_API_KEY, isGeminiConfigured } from '../services/geminiConfig';
 import type { UserProfile, Book, BookGenerationFormData, Page } from '../types';
 import { Button } from './ui/Button';
 import { Input, TextArea } from './ui/Input';
@@ -229,8 +230,12 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
             throw new Error(check.message);
         }
 
+        if (!isGeminiConfigured) {
+            throw new Error("A chave da API do Gemini não está configurada. Edite o arquivo 'services/geminiConfig.ts'.");
+        }
+
         updateLog("Inicializando IA Generativa...");
-        const ai = new GoogleGenAI({ apiKey: process.env.VITE_API_KEY });
+        const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
         const schema = {
             type: Type.OBJECT,

@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { UserProfile, Book, Page } from './types';
-import { supabase } from './services/supabase';
+import { isSupabaseConfigured, supabase } from './services/supabase';
+import { isGeminiConfigured } from './services/geminiConfig';
 
 // Dynamically import components to keep App.tsx clean
 import { LandingPage } from './components/LandingPage';
@@ -15,6 +15,7 @@ import { SettingsPage } from './components/admin/SettingsPage';
 import { ActivationPage } from './components/admin/ActivationPage';
 import { ViewBookPage } from './components/ViewBookPage';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
+import { ConfigurationErrorPage } from './components/ConfigurationErrorPage';
 
 const App: React.FC = () => {
     const [user, setUser] = useState<UserProfile | null>(null);
@@ -23,7 +24,21 @@ const App: React.FC = () => {
     const [books, setBooks] = useState<Book[]>([]);
     const [viewedBookId, setViewedBookId] = useState<string | null>(null);
     const [authError, setAuthError] = useState<string | null>(null);
+    const [configErrors, setConfigErrors] = useState<('supabase' | 'gemini')[]>([]);
+    const [isConfigChecked, setIsConfigChecked] = useState(false);
     const initialAuthCheckCompleted = useRef(false);
+
+    useEffect(() => {
+        const missingKeys: ('supabase' | 'gemini')[] = [];
+        if (!isSupabaseConfigured) {
+            missingKeys.push('supabase');
+        }
+        if (!isGeminiConfigured) {
+            missingKeys.push('gemini');
+        }
+        setConfigErrors(missingKeys);
+        setIsConfigChecked(true);
+    }, []);
 
     const handleNavigation = (currentUser: UserProfile) => {
         if (currentUser.role === 'admin') {
@@ -49,16 +64,21 @@ const App: React.FC = () => {
     };
     
     useEffect(() => {
+        if (!isSupabaseConfigured) {
+            if (initialAuthCheckCompleted.current === false) {
+                 initialAuthCheckCompleted.current = true;
+            }
+            return;
+        };
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            // This flag prevents auto-login on page load.
             if (!initialAuthCheckCompleted.current) {
                 initialAuthCheckCompleted.current = true;
-                return; // Ignore the initial session check, forcing the app to stay on the landing page.
+                return;
             }
 
-            // This code now only runs for explicit login or logout events.
             if (session?.user) {
-                setPage('loading'); // Show a temporary spinner while fetching the user's profile.
+                setPage('loading');
                 const { data: profile, error: profileError } = await supabase
                     .from('profiles')
                     .select('*')
@@ -79,7 +99,6 @@ const App: React.FC = () => {
                 handleNavigation(userWithEmail);
 
             } else {
-                 // This handles logout.
                 setUser(null);
                 setPage('landing');
             }
@@ -88,7 +107,7 @@ const App: React.FC = () => {
         return () => {
             subscription.unsubscribe();
         };
-    }, []); 
+    }, [isSupabaseConfigured]); 
 
 
     useEffect(() => {
@@ -198,7 +217,18 @@ const App: React.FC = () => {
     };
 
     const renderPage = () => {
-        // A dedicated loading state for the brief period after login while fetching profile data.
+        if (!isConfigChecked) {
+            return (
+                <div className="min-h-screen flex justify-center items-center">
+                    <LoadingSpinner />
+                </div>
+            );
+        }
+
+        if (configErrors.length > 0) {
+            return <ConfigurationErrorPage missingKeys={configErrors} />;
+        }
+
         if (page === 'loading') {
             return (
                 <div className="min-h-screen flex justify-center items-center">
@@ -207,13 +237,10 @@ const App: React.FC = () => {
             );
         }
 
-        // If no user is authenticated, only show the landing or login pages.
-        // The app starts here by default.
         if (!user) {
              return page === 'login' ? <AuthPage initialError={authError} /> : <LandingPage onNavigate={handleNavigate} />;
         }
 
-        // Protected routes from here
         switch (page) {
             case 'suspended-account':
                 return <SuspendedAccountPage onLogout={handleLogout} />;
@@ -240,7 +267,6 @@ const App: React.FC = () => {
                 if (user.role !== 'admin') { handleNavigation(user); return null; }
                 return <SettingsPage onNavigate={handleNavigate} />;
             default:
-                // Fallback for any unknown or incorrect page state after login.
                 handleNavigation(user);
                 return <LoadingSpinner />;
         }
