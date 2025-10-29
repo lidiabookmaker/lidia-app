@@ -46,8 +46,8 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     summary: '',
   });
   const [log, setLog] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [generationState, setGenerationState] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
   const [generatedContent, setGeneratedContent] = useState<string | null>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
@@ -215,11 +215,25 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     return html;
   };
 
+  const handleDownload = (format: 'PDF' | 'DOCX') => {
+    if (!generatedContent) return;
+    const blob = new Blob([generatedContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeTitle = formData.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    // Simulate different downloads by changing extension. In production, a server would convert this.
+    a.download = `${safeTitle}.${format === 'PDF' ? 'html' : 'html'}`;
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError('');
+    setGenerationState('generating');
+    setErrorMessage('');
     setLog([]);
     setGeneratedContent(null);
 
@@ -344,25 +358,21 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         updateLog("Salvando livro e atualizando créditos...");
         await onBookCreated(newBookData, updatedCredits);
         
-        updateLog("Livro gerado e salvo com sucesso! Redirecionando...");
-        
-        // Navigate away after a short delay to allow the user to see the success message
-        setTimeout(() => {
-            onNavigate('dashboard');
-        }, 2000);
+        updateLog("Parabéns! Seu livro foi finalizado. Faça o download ou volte para o painel.");
+        setGenerationState('success');
 
     } catch (err) {
         const genericError = "Ocorreu um erro inesperado durante a geração do livro. Verifique o console para mais detalhes.";
-        const errorMessage = (err instanceof Error) ? err.message : genericError;
+        const resolvedErrorMessage = (err instanceof Error) ? err.message : genericError;
         
         console.error("Book Generation Error:", err);
-        setError(errorMessage);
-        updateLog(`ERRO: ${errorMessage}`);
-    } finally {
-        setIsLoading(false);
+        setErrorMessage(resolvedErrorMessage);
+        updateLog(`ERRO: ${resolvedErrorMessage}`);
+        setGenerationState('error');
     }
   };
 
+  const isLoading = generationState === 'generating';
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
@@ -375,20 +385,41 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
                 Voltar ao Dashboard
             </Button>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Detalhes do Livro</h1>
-          <p className="text-gray-600 mb-6">Preencha os campos abaixo para dar à IA a direção certa.</p>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input label="Título do Livro" name="title" value={formData.title} onChange={handleInputChange} required />
-            <Input label="Subtítulo" name="subtitle" value={formData.subtitle} onChange={handleInputChange} required />
-            <Input label="Nome do Autor" name="author" value={formData.author} onChange={handleInputChange} required />
-            <Input label="Idioma" name="language" value={formData.language} onChange={handleInputChange} required />
-            <Input label="Tom de Voz" name="tone" value={formData.tone} onChange={handleInputChange} required />
-            <Input label="Nicho" name="niche" value={formData.niche} onChange={handleInputChange} required />
-            <TextArea label="Resumo do Livro" name="summary" value={formData.summary} onChange={handleInputChange} required rows={6} />
-            <Button type="submit" className="w-full text-lg" isLoading={isLoading}>
-              Gerar Livro Agora
-            </Button>
-            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-          </form>
+          <p className="text-gray-600 mb-6">
+            {generationState !== 'success'
+              ? "Preencha os campos abaixo para dar à IA a direção certa."
+              : "Seu livro está pronto! Faça o download abaixo."
+            }
+          </p>
+          
+           {generationState === 'success' ? (
+            <div className="text-center mt-8 p-4 border-2 border-dashed border-green-300 bg-green-50 rounded-lg">
+                <h2 className="text-2xl font-bold text-green-700">Parabéns! Seu livro foi finalizado.</h2>
+                <p className="text-gray-600 mt-4 mb-6">Clique nos botões piscando para fazer o download.</p>
+                <div className="space-y-4">
+                    <Button onClick={() => handleDownload('PDF')} className="w-full animate-pulse">
+                        Baixar "PDF"
+                    </Button>
+                    <Button onClick={() => handleDownload('DOCX')} variant="secondary" className="w-full animate-pulse">
+                        Baixar "DOCX"
+                    </Button>
+                </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input label="Título do Livro" name="title" value={formData.title} onChange={handleInputChange} required disabled={isLoading} />
+              <Input label="Subtítulo" name="subtitle" value={formData.subtitle} onChange={handleInputChange} required disabled={isLoading} />
+              <Input label="Nome do Autor" name="author" value={formData.author} onChange={handleInputChange} required disabled={isLoading} />
+              <Input label="Idioma" name="language" value={formData.language} onChange={handleInputChange} required disabled={isLoading} />
+              <Input label="Tom de Voz" name="tone" value={formData.tone} onChange={handleInputChange} required disabled={isLoading} />
+              <Input label="Nicho" name="niche" value={formData.niche} onChange={handleInputChange} required disabled={isLoading} />
+              <TextArea label="Resumo do Livro" name="summary" value={formData.summary} onChange={handleInputChange} required rows={6} disabled={isLoading} />
+              <Button type="submit" className="w-full text-lg" isLoading={isLoading} disabled={isLoading}>
+                Gerar Livro Agora
+              </Button>
+              {errorMessage && <p className="text-red-500 text-sm mt-2">{errorMessage}</p>}
+            </form>
+          )}
         </div>
 
         {/* Console de Progresso */}
@@ -396,9 +427,18 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
           <h2 className="text-2xl font-bold mb-4">Progresso da Geração</h2>
           <div ref={logContainerRef} className="bg-black rounded-md p-4 flex-grow h-96 overflow-y-auto font-mono text-sm">
             {log.map((line, index) => (
-              <p key={index} className={`whitespace-pre-wrap ${line.startsWith('[') ? 'text-green-400' : ''} ${line.includes('ERRO') ? 'text-red-500' : ''}`}>{line}</p>
+              <p key={index} className={`whitespace-pre-wrap ${line.startsWith('[') ? 'text-green-400' : ''} ${line.includes('ERRO') ? 'text-red-500' : ''} ${line.includes('Parabéns') ? 'text-yellow-300 font-bold' : ''}`}>{line}</p>
             ))}
           </div>
+          {generationState === 'success' && (
+            <Button 
+                onClick={() => onNavigate('dashboard')} 
+                variant="secondary" 
+                className="mt-6 w-full"
+            >
+                Voltar ao Dashboard
+            </Button>
+          )}
         </div>
 
       </div>
