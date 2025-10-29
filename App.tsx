@@ -177,6 +177,10 @@ const App: React.FC = () => {
             setPage('dashboard');
             return;
         }
+        // FIX: Force a refetch when navigating to the dashboard to ensure the book list is always up-to-date.
+        if (newPage === 'dashboard') {
+            fetchBooks();
+        }
         setPage(newPage);
     };
 

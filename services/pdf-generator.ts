@@ -45,6 +45,11 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
 
     const printContainer = createPrintContainer(htmlContent);
     
+    // FIX: Add a short delay to allow the browser to fully render the content,
+    // including custom fonts, before html2canvas tries to capture it. This
+    // prevents a race condition that could lead to a silent download failure.
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     try {
         // FIX: The issue was that `printContainer.querySelector('body')` returned null
         // because when setting innerHTML to a full document string, the browser doesn't
