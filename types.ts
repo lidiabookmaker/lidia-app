@@ -2,7 +2,7 @@
 export type UserStatus = 'ativa_pro' | 'ativa_free' | 'suspensa' | 'aguardando_ativacao';
 export type UserRole = 'user' | 'admin';
 // FIX: Added 'loading' to the Page type to handle the loading state after authentication.
-export type Page = 'landing' | 'login' | 'suspended-account' | 'dashboard' | 'create-book' | 'admin-users' | 'admin-settings' | 'view-book' | 'admin-activation' | 'awaiting-activation' | 'loading';
+export type Page = 'landing' | 'login' | 'suspended-account' | 'dashboard' | 'create-book' | 'admin-users' | 'admin-settings' | 'view-book' | 'admin-activation' | 'loading';
 
 export interface UserProfile {
   id: string;

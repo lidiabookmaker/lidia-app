@@ -7,7 +7,6 @@ import { isGeminiConfigured } from './services/geminiConfig';
 import { LandingPage } from './components/LandingPage';
 import { AuthPage } from './components/AuthPage';
 import { SuspendedAccountPage } from './components/SuspendedAccountPage';
-import { AwaitingActivationPage } from './components/AwaitingActivationPage';
 import { DashboardPage } from './components/DashboardPage';
 import { CreateBookPage } from './components/CreateBookPage';
 import { UserManagementPage } from './components/admin/UserManagementPage';
@@ -53,9 +52,6 @@ const App: React.FC = () => {
             case 'suspensa':
                 setPage('suspended-account');
                 break;
-            case 'aguardando_ativacao':
-                setPage('awaiting-activation');
-                break;
             default:
                 console.warn(`Unhandled user status: ${currentUser.status}. Defaulting to login.`);
                 setPage('login');
@@ -79,7 +75,7 @@ const App: React.FC = () => {
 
             if (session?.user) {
                 setPage('loading');
-                const { data: profile, error: profileError } = await supabase
+                let { data: profile, error: profileError } = await supabase
                     .from('profiles')
                     .select('*')
                     .eq('id', session.user.id)
@@ -94,6 +90,30 @@ const App: React.FC = () => {
                     return;
                 }
                 
+                // Auto-activate new users
+                if (profile.status === 'aguardando_ativacao') {
+                    const { data: updatedProfile, error: updateError } = await supabase
+                        .from('profiles')
+                        .update({
+                            status: 'ativa_free',
+                            book_credits: 1,
+                        })
+                        .eq('id', session.user.id)
+                        .select()
+                        .single();
+                    
+                    if (updateError || !updatedProfile) {
+                        console.error("Failed to auto-activate user:", updateError);
+                        await supabase.auth.signOut();
+                        setAuthError("Não foi possível ativar sua conta automaticamente. Por favor, contate o suporte.");
+                        setPage('login');
+                        setUser(null);
+                        return;
+                    }
+                    // Use the updated profile from now on
+                    profile = updatedProfile;
+                }
+
                 const userWithEmail = { ...profile, email: session.user.email };
                 setUser(userWithEmail);
                 handleNavigation(userWithEmail);
@@ -244,8 +264,6 @@ const App: React.FC = () => {
         switch (page) {
             case 'suspended-account':
                 return <SuspendedAccountPage onLogout={handleLogout} />;
-            case 'awaiting-activation':
-                return <AwaitingActivationPage user={user} onLogout={handleLogout} />;
             case 'dashboard':
                 return <DashboardPage user={user} books={books} onNavigate={handleNavigate} onLogout={handleLogout} onViewBook={handleViewBook} />;
             case 'create-book':
