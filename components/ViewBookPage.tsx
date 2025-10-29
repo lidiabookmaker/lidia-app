@@ -15,16 +15,18 @@ interface ViewBookPageProps {
 export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) => {
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     if (!book.content) return;
     setIsDownloading(true);
     try {
-        await downloadAsPdf(book.title, book.content);
+        downloadAsPdf(book.title, book.content);
     } catch (error) {
         console.error("PDF Download failed:", error);
-        // Optionally show an error message to the user
+        // Opcionalmente, mostrar uma mensagem de erro para o usuário
     } finally {
-        setIsDownloading(false);
+        // O download é síncrono, então o estado de carregamento pode ser encerrado rapidamente.
+        // Um pequeno timeout melhora a percepção do usuário.
+        setTimeout(() => setIsDownloading(false), 1500);
     }
   };
 

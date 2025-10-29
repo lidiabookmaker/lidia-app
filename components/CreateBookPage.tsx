@@ -211,17 +211,19 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     return html;
   };
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     if (!generatedHtml || !formData.title) return;
     setIsDownloading(true);
+    setErrorMessage('');
     try {
-        await downloadAsPdf(formData.title, generatedHtml);
+        downloadAsPdf(formData.title, generatedHtml);
     } catch (error) {
         console.error("PDF Download failed:", error);
         setErrorMessage("Falha ao gerar o PDF. Tente novamente.");
-    } finally {
-        setIsDownloading(false);
     }
+    // A geração pode ser intensiva; manter o estado de carregamento por um momento
+    // para dar feedback ao usuário.
+    setTimeout(() => setIsDownloading(false), 1500);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

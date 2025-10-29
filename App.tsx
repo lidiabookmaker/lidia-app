@@ -101,7 +101,7 @@ const App: React.FC = () => {
                         .from('profiles')
                         .update({
                             status: 'ativa_free',
-                            book_credits: 1,
+                            book_credits: 10,
                         })
                         .eq('id', session.user.id)
                         .select()
