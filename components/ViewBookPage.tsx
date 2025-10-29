@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Book } from '../types';
 import { Button } from './ui/Button';
+import { downloadAsPdf } from '../services/pdf-generator';
 
 const ArrowLeftIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
@@ -12,19 +13,19 @@ interface ViewBookPageProps {
 }
 
 export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) => {
-  const handleDownload = (format: 'PDF' | 'DOCX') => {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async () => {
     if (!book.generated_content) return;
-    const blob = new Blob([book.generated_content], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const safeTitle = book.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    // Simulate different downloads by changing extension. In production, a server would convert this.
-    a.download = `${safeTitle}.${format === 'PDF' ? 'html' : 'html'}`;
-    a.href = url;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setIsDownloading(true);
+    try {
+        await downloadAsPdf(book.title, book.generated_content);
+    } catch (error) {
+        console.error("PDF Download failed:", error);
+        // Optionally show an error message to the user
+    } finally {
+        setIsDownloading(false);
+    }
   };
 
   return (
@@ -36,8 +37,14 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
                 Voltar ao Dashboard
             </Button>
             <div className="flex space-x-4 w-full sm:w-auto">
-                <Button onClick={() => handleDownload('PDF')} className="w-full">Baixar "PDF"</Button>
-                <Button onClick={() => handleDownload('DOCX')} variant="secondary" className="w-full">Baixar "DOCX"</Button>
+                <Button 
+                  onClick={handleDownload} 
+                  className="w-full"
+                  isLoading={isDownloading}
+                  loadingText="Gerando PDF..."
+                >
+                  Baixar PDF
+                </Button>
             </div>
         </header>
         <main>

@@ -74,6 +74,11 @@ const App: React.FC = () => {
             }
 
             if (session?.user) {
+                // FIX: Prevent re-render/loading loop on token refresh events for an already active user.
+                if (user && session.user.id === user.id) {
+                    return;
+                }
+
                 setPage('loading');
                 let { data: profile, error: profileError } = await supabase
                     .from('profiles')
@@ -127,7 +132,7 @@ const App: React.FC = () => {
         return () => {
             subscription.unsubscribe();
         };
-    }, [isSupabaseConfigured]); 
+    }, [isSupabaseConfigured, user]); // Added user dependency to the effect hook
 
 
     useEffect(() => {
