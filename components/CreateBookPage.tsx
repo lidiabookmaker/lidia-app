@@ -243,44 +243,49 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
                 introduction: {
                     type: Type.OBJECT,
                     properties: {
-                        title: { type: Type.STRING },
-                        content: { type: Type.STRING },
-                    }
+                        title: { type: Type.STRING, description: "O título da introdução do livro." },
+                        content: { type: Type.STRING, description: "O conteúdo completo da introdução, com parágrafos separados por '\\n'." },
+                    },
+                    required: ['title', 'content']
                 },
                 chapters: {
                     type: Type.ARRAY,
                     items: {
                         type: Type.OBJECT,
                         properties: {
-                            title: { type: Type.STRING },
-                            introduction: { type: Type.STRING },
+                            title: { type: Type.STRING, description: "O título do capítulo." },
+                            introduction: { type: Type.STRING, description: "O conteúdo introdutório do capítulo, com parágrafos separados por '\\n'." },
                             subchapters: {
                                 type: Type.ARRAY,
                                 items: {
                                     type: Type.OBJECT,
                                     properties: {
-                                        title: { type: Type.STRING },
-                                        content: { type: Type.STRING },
-                                    }
+                                        title: { type: Type.STRING, description: "O título do subcapítulo." },
+                                        content: { type: Type.STRING, description: "O conteúdo completo do subcapítulo, com parágrafos separados por '\\n'." },
+                                    },
+                                    required: ['title', 'content']
                                 }
                             }
-                        }
+                        },
+                        required: ['title', 'introduction', 'subchapters']
                     }
                 },
                 conclusion: {
                     type: Type.OBJECT,
                     properties: {
-                        title: { type: Type.STRING },
-                        content: { type: Type.STRING },
-                    }
+                        title: { type: Type.STRING, description: "O título da conclusão do livro." },
+                        content: { type: Type.STRING, description: "O conteúdo completo da conclusão, com parágrafos separados por '\\n'." },
+                    },
+                    required: ['title', 'content']
                 }
-            }
+            },
+            required: ['introduction', 'chapters', 'conclusion']
         };
 
         const prompt = `
             Você é um especialista em escrita de livros digitais.
             Sua tarefa é gerar o conteúdo completo para um livro com base nos detalhes fornecidos.
-            O livro deve ter uma introdução, 3 capítulos (cada um com uma introdução e 3 subcapítulos) e uma conclusão.
+            O livro DEVE ter uma introdução, EXATAMENTE 3 capítulos (cada um com uma introdução e EXATAMENTE 3 subcapítulos), e uma conclusão.
             O conteúdo deve ser prático, envolvente e alinhado com o tom de voz e o público-alvo definidos.
 
             Detalhes do Livro:
@@ -291,14 +296,14 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
             - Nicho/Público-alvo: ${formData.niche}
             - Resumo/Ideia Central: ${formData.summary}
 
-            Por favor, gere o conteúdo completo seguindo a estrutura de JSON solicitada.
-            Escreva o conteúdo de forma detalhada e rica. Cada parágrafo deve ser uma nova linha (separado por '\\n').
+            Siga ESTRITAMENTE a estrutura de JSON definida no schema. Não omita nenhum campo obrigatório.
+            Escreva o conteúdo de forma detalhada e rica. Cada campo 'content' e 'introduction' deve ter pelo menos 3 parágrafos substanciais, com cada parágrafo separado por '\\n'.
         `;
         
         updateLog("Enviando prompt para o modelo Gemini. Isso pode levar alguns minutos...");
         
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-2.5-pro",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -307,10 +312,17 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         });
 
         updateLog("Resposta recebida da IA. Processando conteúdo...");
+        
+        let jsonText = response.text.trim();
+        if (jsonText.startsWith('```json')) {
+            jsonText = jsonText.slice(7, -3).trim();
+        } else if (jsonText.startsWith('```')) {
+             jsonText = jsonText.slice(3, -3).trim();
+        }
 
-        const bookContent = JSON.parse(response.text) as DetailedBookContent;
+        const bookContent = JSON.parse(jsonText) as DetailedBookContent;
 
-        if (!bookContent.chapters || bookContent.chapters.length === 0) {
+        if (!bookContent || !bookContent.chapters || bookContent.chapters.length === 0) {
             throw new Error("A IA não retornou capítulos. Tente novamente com um prompt mais detalhado.");
         }
 
