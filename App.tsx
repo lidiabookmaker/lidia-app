@@ -217,7 +217,7 @@ const App: React.FC = () => {
             console.error("Error updating profile", profileError);
         } else {
             setUser({ ...user, ...updatedProfile });
-            fetchBooks();
+            await fetchBooks();
         }
     };
 
