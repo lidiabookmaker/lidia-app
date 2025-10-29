@@ -46,7 +46,10 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
     const printContainer = createPrintContainer(htmlContent);
     
     try {
-        const canvas = await html2canvas(printContainer.querySelector('body')!, {
+        // FIX: The issue was that `printContainer.querySelector('body')` returned null
+        // because when setting innerHTML to a full document string, the browser doesn't
+        // create a nested <body> tag inside the div. We need to capture the container itself.
+        const canvas = await html2canvas(printContainer, {
             scale: 2, // Use a higher scale for better resolution
             useCORS: true,
             scrollY: -window.scrollY,
