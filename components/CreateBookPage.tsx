@@ -5,6 +5,8 @@ import { downloadAsPdf } from '../services/pdf-generator';
 import type { UserProfile, Book, BookGenerationFormData, Page } from '../types';
 import { Button } from './ui/Button';
 import { Input, TextArea } from './ui/Input';
+import { coverBackgroundImage } from '../services/pdf-assets';
+
 
 interface CreateBookPageProps {
   user: UserProfile;
@@ -70,20 +72,20 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
   };
 
   const formatContentForHTML = (text: string) => {
-    return text.split('\n').filter(p => p.trim() !== '').map(p => `<p>${p}</p>`).join('');
+    return text.split('\n').filter(p => p.trim() !== '').map(p => `<p class="font-merriweather">${p}</p>`).join('');
   }
 
   const generateBookHTML = (bookData: BookGenerationFormData, bookContent: DetailedBookContent): string => {
     const year = new Date().getFullYear();
     
-    // NOTE: This function now produces a single-flow HTML document suitable for capture.
-    // The visual separation into pages is handled by CSS and specific page-break divs.
+    // NOTE: This function produces a single-flow HTML document suitable for the iframe preview.
+    // The PDF generator will now parse this and build the PDF programmatically.
     
     const styles = `
       <style>
+          /* Note: @import is used for the iframe preview only */
           @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@400;700&family=Merriweather+Sans:wght@300;400;600;700&display=swap');
           
-          /* These styles are applied to the off-screen div for rendering */
           div, p, h1, h2, h3 {
               box-sizing: border-box;
           }
@@ -92,46 +94,60 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
               font-size: 12pt;
               color: #262626;
               margin: 0;
-              padding: 2cm;
           }
-
-          /* --- Page-like containers --- */
-          .page-break {
-              height: 21cm;
-              width: 100%;
-              display: flex;
-              flex-direction: column;
-              justify-content: center;
-              page-break-after: always; /* For printing */
-          }
+           .page-container {
+               width: 14.8cm;
+               min-height: 21cm;
+               margin: 2cm auto;
+               padding: 2cm;
+               background: white;
+               box-shadow: 0 0 10px rgba(0,0,0,0.1);
+           }
           
           /* --- Cover Page --- */
           .cover-page {
+              padding: 2cm;
               text-align: center;
-              border: 2px solid black;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              align-items: center;
+              height: 21cm; /* A5 height */
+              width: 14.8cm; /* A5 width */
+              background-image: url('${coverBackgroundImage}');
+              background-size: cover;
+              background-position: center;
+              color: #333;
           }
           .cover-page .title {
               font-family: 'League Gothic', sans-serif;
-              font-size: 60pt;
+              font-size: 4.5rem; /* ~72pt */
               text-transform: uppercase;
               margin: 0;
               line-height: 1;
-              padding: 0 1cm;
+              color: #0d47a1; /* Dark Blue */
           }
           .cover-page .subtitle {
               font-family: 'Merriweather Sans', sans-serif;
-              font-size: 18pt;
-              margin: 0.5cm 0 1cm 0;
+              font-size: 1.125rem; /* ~18pt */
+              margin: 1.5rem 0;
+              color: #212121; /* Dark Gray */
+              font-style: italic;
           }
           .cover-page .author {
               font-family: 'Merriweather Sans', sans-serif;
-              font-size: 16pt;
-              font-weight: 600;
+              font-size: 1rem; /* ~16pt */
+              font-weight: 400;
+              margin-top: 2rem;
+              color: #212121; /* Dark Gray */
           }
 
           /* --- Copyright Page --- */
           .copyright-page {
+             display: flex;
+             flex-direction: column;
              justify-content: flex-end;
+             align-items: center;
           }
           .copyright-page p {
               font-size: 9pt;
@@ -142,30 +158,27 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
 
           /* --- Chapter Title Page --- */
           .chapter-title-break {
-              height: 21cm;
-              width: 100%;
               display: flex;
               justify-content: center;
               align-items: center;
-              page-break-after: always;
+              text-align: center;
           }
           .chapter-title-standalone {
               font-family: 'Merriweather', serif !important;
-              font-weight: 400 !important; /* Merriweather doesn't have a 300 weight */
+              font-weight: 300 !important;
               font-size: 24pt !important;
-              text-align: center;
           }
 
           /* --- General Content Styles --- */
           h1, h2, h3 {
               font-family: 'Merriweather Sans', sans-serif;
               font-weight: 700;
-              page-break-after: avoid;
           }
-          h1 { font-size: 24pt; margin-bottom: 1cm; page-break-before: always; }
+          h1 { font-size: 24pt; margin-bottom: 1cm; }
           h2 { font-size: 18pt; margin-top: 1cm; margin-bottom: 0.5cm; }
           h3 { font-size: 14pt; font-weight: 600; margin-top: 0.8cm; margin-bottom: 0.3cm;}
           p { 
+              font-family: 'Merriweather', serif;
               line-height: 1.6; 
               text-align: justify;
               margin-bottom: 0.4cm;
@@ -173,7 +186,12 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
            p:first-of-type {
               text-indent: 1cm;
           }
-          .no-break-before { page-break-before: auto !important; }
+          .toc-item {
+              text-indent: 0;
+              margin-bottom: 0.2cm;
+          }
+           /* Helper classes */
+          .font-merriweather { font-family: 'Merriweather', serif; }
       </style>
     `;
 
@@ -181,31 +199,39 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     let html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${bookData.title}</title>${styles}</head><body>`;
 
     // Capa
-    html += `<div class="page-break cover-page"><div><h1 class="title">${bookData.title}</h1><p class="subtitle">${bookData.subtitle}</p><p class="author">${bookData.author}</p></div></div>`;
+    html += `<div class="cover-page" data-page="cover"><div><h1 class="title">${bookData.title}</h1><p class="subtitle">${bookData.subtitle}</p><p class="author">${bookData.author}</p></div></div>`;
     
     // Copyright
-    html += `<div class="page-break copyright-page"><div><p>Copyright © ${year} ${bookData.author}</p><p>Todos os direitos reservados...</p></div></div>`;
-
+    html += `<div class="page-container copyright-page" data-page="copyright"><p>Copyright © ${year} ${bookData.author}</p><p>Todos os direitos reservados...</p></div>`;
+    
+    
+    // Conteúdo
+    let mainContentHtml = `<div class="page-container" data-page="content-start">`;
     // Sumário
     if(bookContent.table_of_contents) {
-        html += `<h1 class="no-break-before">${bookContent.table_of_contents.title}</h1>${formatContentForHTML(bookContent.table_of_contents.content).replace(/<p>/g, '<p style="text-indent: 0; margin-bottom: 0.2cm;">')}`;
+        mainContentHtml += `<div class="chapter-title-break" data-page="title-toc"><h1 class="chapter-title-standalone">${bookContent.table_of_contents.title}</h1></div>`;
+        mainContentHtml += `<h1 class="font-merriweather">${bookContent.table_of_contents.title}</h1>${formatContentForHTML(bookContent.table_of_contents.content).replace(/<p class="font-merriweather">/g, '<p class="font-merriweather toc-item">')}`;
     }
 
     // Introdução
-    html += `<h1>${bookContent.introduction.title}</h1>${formatContentForHTML(bookContent.introduction.content)}`;
+    mainContentHtml += `<div class="chapter-title-break" data-page="title-intro"><h1 class="chapter-title-standalone">${bookContent.introduction.title}</h1></div>`;
+    mainContentHtml += `<h1 class="font-merriweather">${bookContent.introduction.title}</h1>${formatContentForHTML(bookContent.introduction.content)}`;
     
     // Capítulos
-    bookContent.chapters.forEach(chapter => {
-        html += `<div class="chapter-title-break"><h1 class="chapter-title-standalone">${chapter.title}</h1></div>`;
-        html += `<h2 class="no-break-before">${chapter.title}</h2>${formatContentForHTML(chapter.introduction)}`;
+    bookContent.chapters.forEach((chapter, index) => {
+        mainContentHtml += `<div class="chapter-title-break" data-page="title-chapter-${index+1}"><h1 class="chapter-title-standalone">${chapter.title}</h1></div>`;
+        mainContentHtml += `<h2>${chapter.title}</h2>${formatContentForHTML(chapter.introduction)}`;
         chapter.subchapters.forEach(subchapter => {
-            html += `<h3>${subchapter.title}</h3>${formatContentForHTML(subchapter.content)}`;
+            mainContentHtml += `<h3>${subchapter.title}</h3>${formatContentForHTML(subchapter.content)}`;
         });
     });
-
+    
     // Conclusão
-    html += `<h1>${bookContent.conclusion.title}</h1>${formatContentForHTML(bookContent.conclusion.content)}`;
+    mainContentHtml += `<div class="chapter-title-break" data-page="title-conclusion"><h1 class="chapter-title-standalone">${bookContent.conclusion.title}</h1></div>`;
+    mainContentHtml += `<h1 class="font-merriweather">${bookContent.conclusion.title}</h1>${formatContentForHTML(bookContent.conclusion.content)}`;
+    mainContentHtml += `</div>`
 
+    html += mainContentHtml;
     html += '</body></html>';
 
     return html;
@@ -220,10 +246,9 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     } catch (error) {
         console.error("PDF Download failed:", error);
         setErrorMessage("Falha ao gerar o PDF. Tente novamente.");
+    } finally {
+        setTimeout(() => setIsDownloading(false), 1500);
     }
-    // A geração pode ser intensiva; manter o estado de carregamento por um momento
-    // para dar feedback ao usuário.
-    setTimeout(() => setIsDownloading(false), 1500);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
