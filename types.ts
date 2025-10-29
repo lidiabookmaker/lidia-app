@@ -19,7 +19,7 @@ export interface Book {
   subtitle: string;
   author: string;
   created_at: string;
-  generated_content?: string;
+  content?: string;
 }
 
 export interface BookGenerationFormData {

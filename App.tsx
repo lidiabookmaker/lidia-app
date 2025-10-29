@@ -207,28 +207,37 @@ const App: React.FC = () => {
     
     const handleBookCreated = async (newBookData: Omit<Book, 'id' | 'created_at'>, updatedCredits: number) => {
         if (!user) return;
+        
         const { data: newBook, error: bookError } = await supabase
             .from('books')
             .insert(newBookData)
             .select()
             .single();
+        
         if (bookError || !newBook) {
             console.error("Error creating book", bookError);
-            return;
+            // This throw is critical. It will be caught by the calling component (CreateBookPage)
+            // and allow it to display a specific error message to the user, preventing the "silent fail".
+            throw bookError;
         }
+
         const { data: updatedProfile, error: profileError } = await supabase
             .from('profiles')
             .update({ book_credits: updatedCredits })
             .eq('id', user.id)
             .select()
             .single();
+
         if (profileError || !updatedProfile) {
             console.error("Error updating profile", profileError);
+            // Even if profile update fails, we proceed to show the created book.
+            // This could be enhanced with more robust error handling.
         } else {
             setUser({ ...user, ...updatedProfile });
-            await fetchBooks();
         }
+        await fetchBooks();
     };
+
 
      const handleViewBook = (bookId: string) => {
         setViewedBookId(bookId);

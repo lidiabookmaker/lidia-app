@@ -8,7 +8,7 @@ import { Input, TextArea } from './ui/Input';
 
 interface CreateBookPageProps {
   user: UserProfile;
-  onBookCreated: (bookData: Omit<Book, 'id' | 'created_at'>, updatedCredits: number) => void;
+  onBookCreated: (bookData: Omit<Book, 'id' | 'created_at'>, updatedCredits: number) => Promise<void>;
   onNavigate: (page: Page) => void;
   onBeforeGenerate: () => Promise<{ allow: boolean; message: string }>;
 }
@@ -50,7 +50,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
   const [log, setLog] = useState<string[]>([]);
   const [generationState, setGenerationState] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
-  const [generatedContent, setGeneratedContent] = useState<string | null>(null);
+  const [generatedHtml, setGeneratedHtml] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
@@ -212,10 +212,10 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
   };
 
   const handleDownload = async () => {
-    if (!generatedContent || !formData.title) return;
+    if (!generatedHtml || !formData.title) return;
     setIsDownloading(true);
     try {
-        await downloadAsPdf(formData.title, generatedContent);
+        await downloadAsPdf(formData.title, generatedHtml);
     } catch (error) {
         console.error("PDF Download failed:", error);
         setErrorMessage("Falha ao gerar o PDF. Tente novamente.");
@@ -229,7 +229,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     setGenerationState('generating');
     setErrorMessage('');
     setLog([]);
-    setGeneratedContent(null);
+    setGeneratedHtml(null);
 
     try {
         updateLog("Verificando permissões e créditos...");
@@ -352,14 +352,14 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         updateLog("Estrutura do livro validada. Gerando HTML final...");
 
         const finalHtml = generateBookHTML(formData, bookContent);
-        setGeneratedContent(finalHtml);
+        setGeneratedHtml(finalHtml);
 
         const newBookData = {
             user_id: user.id,
             title: formData.title,
             subtitle: formData.subtitle,
             author: formData.author,
-            generated_content: finalHtml
+            content: finalHtml
         };
         
         const updatedCredits = user.book_credits - 1;
@@ -371,11 +371,12 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         setGenerationState('success');
 
     } catch (err) {
-        const genericError = "Ocorreu um erro inesperado durante a geração do livro. Verifique o console para mais detalhes.";
-        const resolvedErrorMessage = (err instanceof Error) ? err.message : genericError;
+        const genericError = "Ocorreu um erro inesperado. Verifique o console para mais detalhes.";
+        // Type guard to get a more specific error message from Supabase/other errors.
+        const resolvedErrorMessage = (err && typeof err === 'object' && 'message' in err) ? String(err.message) : genericError;
         
         console.error("Book Generation Error:", err);
-        setErrorMessage(resolvedErrorMessage);
+        setErrorMessage(`Falha na geração: ${resolvedErrorMessage}`);
         updateLog(`ERRO: ${resolvedErrorMessage}`);
         setGenerationState('error');
     }

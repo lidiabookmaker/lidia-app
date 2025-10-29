@@ -16,10 +16,10 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
   const [isDownloading, setIsDownloading] = useState(false);
 
   const handleDownload = async () => {
-    if (!book.generated_content) return;
+    if (!book.content) return;
     setIsDownloading(true);
     try {
-        await downloadAsPdf(book.title, book.generated_content);
+        await downloadAsPdf(book.title, book.content);
     } catch (error) {
         console.error("PDF Download failed:", error);
         // Optionally show an error message to the user
@@ -54,9 +54,9 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
                 <p className="text-sm text-gray-500 mt-1">por {book.author}</p>
             </div>
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                {book.generated_content ? (
+                {book.content ? (
                     <iframe
-                        srcDoc={book.generated_content}
+                        srcDoc={book.content}
                         title={book.title}
                         className="w-full border-0 h-[80vh]"
                         sandbox="allow-same-origin" // for security
