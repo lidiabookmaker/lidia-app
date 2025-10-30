@@ -23,11 +23,13 @@ const App: React.FC = () => {
     const [books, setBooks] = useState<Book[]>([]);
     const [viewedBookId, setViewedBookId] = useState<string | null>(null);
     const [authError, setAuthError] = useState<string | null>(null);
+    // FIX: Re-added 'gemini' to config errors to enforce API key setup during pre-MVP.
     const [configErrors, setConfigErrors] = useState<('supabase' | 'gemini')[]>([]);
     const [isConfigChecked, setIsConfigChecked] = useState(false);
     const initialAuthCheckCompleted = useRef(false);
 
     useEffect(() => {
+        // FIX: Re-added Gemini config check for the pre-MVP phase.
         const missingKeys: ('supabase' | 'gemini')[] = [];
         if (!isSupabaseConfigured) {
             missingKeys.push('supabase');
@@ -101,6 +103,7 @@ const App: React.FC = () => {
                         .from('profiles')
                         .update({
                             status: 'ativa_free',
+                            // FIX: Reverted to 10 credits for pre-MVP testing purposes.
                             book_credits: 10,
                         })
                         .eq('id', session.user.id)

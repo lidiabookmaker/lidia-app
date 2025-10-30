@@ -2,6 +2,7 @@ import React from 'react';
 import { Card } from './ui/Card';
 
 interface ConfigurationErrorPageProps {
+  // FIX: Re-added 'gemini' to missing keys to support the pre-MVP config check.
   missingKeys: ('supabase' | 'gemini')[];
 }
 
@@ -32,11 +33,12 @@ export const ConfigurationErrorPage: React.FC<ConfigurationErrorPageProps> = ({ 
               </p>
             </div>
           )}
+          {/* FIX: Re-added Gemini config error message for the pre-MVP phase. */}
           {missingKeys.includes('gemini') && (
             <div className="bg-red-100 p-4 rounded-lg">
               <h2 className="font-semibold text-red-900">Chave da API do Gemini Faltando</h2>
               <p className="mt-1 text-gray-800">
-                Por favor, adicione sua chave da API do Google Gemini no arquivo:{' '}
+                Por favor, adicione sua chave de API do Google Gemini no arquivo:{' '}
                 <CodeBlock>services/geminiConfig.ts</CodeBlock>
               </p>
             </div>

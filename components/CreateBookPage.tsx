@@ -347,6 +347,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
 
     try {
       updateLog("Inicializando o cliente da API do Gemini...");
+      // FIX: Reverted to using the hardcoded API key from the config file for the pre-MVP testing phase.
       const ai = new GoogleGenAI({apiKey: GEMINI_API_KEY});
 
       const bookSchema = {

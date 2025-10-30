@@ -24,14 +24,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate }) => {
       <main className="max-w-4xl mx-auto space-y-6">
         <Card>
           <h2 className="text-xl font-bold text-gray-700 mb-4">Chave da API do Google Gemini</h2>
-           <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-            <p className="text-sm text-green-900 font-semibold">
+           <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+            <p className="text-sm text-yellow-900 font-semibold">
+              {/* FIX: Reverted title to reflect local file management for pre-MVP. */}
               Configuração via Arquivo Local (MVP)
             </p>
-            <p className="text-sm text-green-800 mt-2">
-              A chave da API do Gemini é gerenciada diretamente no código para facilitar a validação.
+            <p className="text-sm text-yellow-800 mt-2">
+              {/* FIX: Reverted text to reflect API key is managed via local file for pre-MVP. */}
+              A chave da API do Gemini é gerenciada diretamente no código para a fase de testes.
             </p>
-             <p className="text-sm text-green-800 mt-2">
+             <p className="text-sm text-yellow-800 mt-2">
               Para atualizar a chave, edite o arquivo: <code>services/geminiConfig.ts</code>
             </p>
           </div>
