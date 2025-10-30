@@ -5,7 +5,6 @@ import type { UserProfile, Book, BookGenerationFormData, Page } from '../types';
 import { Button } from './ui/Button';
 import { Input, TextArea } from './ui/Input';
 import { Card } from './ui/Card';
-import { coverBackgroundImage } from '../services/pdf-assets';
 
 // --- Tipos para a nova estrutura do livro ---
 interface SubChapter {
@@ -98,30 +97,40 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
                page-break-after: always;
            }
           
-          /* --- Cover Page --- */
+          /* --- Cover Page (CSS Version) --- */
           .cover-page {
               padding: 0;
               text-align: center;
-              display: flex;
-              flex-direction: column;
-              justify-content: center;
-              align-items: center;
               height: 21cm;
               width: 14.8cm;
-              background-image: url('${coverBackgroundImage}');
-              background-size: cover;
-              background-position: center;
-              color: #333;
               margin: 1cm auto;
               box-shadow: 0 0 10px rgba(0,0,0,0.1);
               box-sizing: border-box;
+              position: relative;
+              overflow: hidden;
+              background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1) 0%, rgba(10, 207, 131, 0.1) 100%);
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between; /* Pushes content away from edges */
+              align-items: center;
           }
+          .cover-page .content-wrapper {
+              position: relative;
+              z-index: 10;
+              padding-top: 5cm;
+              padding-bottom: 9cm;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              height: 100%;
+          }
+
           .cover-page .title {
               font-family: 'League Gothic', sans-serif;
               font-size: 4.5rem;
               text-transform: uppercase;
               margin: 0;
-              line-height: 1;
+              line-height: 1.1;
               color: #0d47a1;
               padding: 0 1cm;
           }
@@ -131,14 +140,54 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
               margin: 1.5rem 0;
               color: #212121;
               font-style: italic;
-              padding: 0 1cm;
+              padding: 0 1.5cm;
           }
           .cover-page .author {
               font-family: 'Merriweather Sans', sans-serif;
               font-size: 1rem;
               font-weight: 400;
-              margin-top: 5rem;
+              margin-top: 2rem;
               color: #212121;
+          }
+
+          .onda {
+            position: absolute;
+            bottom: -20mm;
+            width: 200%;
+            height: 100mm;
+            left: -50%;
+            border-radius: 45%;
+            z-index: 1;
+          }
+          .onda1 {
+            background: linear-gradient(90deg, #0052A5 0%, #0ACF83 100%);
+            transform: rotate(-8deg);
+            animation: wave1 15s ease-in-out infinite alternate;
+          }
+          .onda2 {
+            background: linear-gradient(90deg, #0ACF83 0%, #0052A5 100%);
+            opacity: 0.75;
+            transform: rotate(-5deg);
+            animation: wave2 12s ease-in-out infinite alternate;
+          }
+          .onda3 {
+            background: linear-gradient(90deg, #0077FF 0%, #00FFB3 100%);
+            opacity: 0.5;
+            transform: rotate(-2deg);
+            animation: wave3 10s ease-in-out infinite alternate;
+          }
+
+          @keyframes wave1 {
+            from { transform: rotate(-8deg) translateX(-20px); }
+            to { transform: rotate(-10deg) translateX(20px); }
+          }
+          @keyframes wave2 {
+            from { transform: rotate(-5deg) translateX(-10px); }
+            to { transform: rotate(-3deg) translateX(10px); }
+          }
+          @keyframes wave3 {
+            from { transform: rotate(-2deg); }
+            to { transform: rotate(0deg); }
           }
 
           /* --- Copyright Page --- */
@@ -215,11 +264,14 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
 
     const coverPage = `
         <div class="cover-page" data-page="cover">
-            <div class="title-container">
+            <div class="content-wrapper">
                 <h1 class="title">${bookData.title}</h1>
                 <p class="subtitle">${bookData.subtitle}</p>
                 <p class="author">${bookData.author}</p>
             </div>
+            <div class="onda onda1"></div>
+            <div class="onda onda2"></div>
+            <div class="onda onda3"></div>
         </div>`;
     
     const copyrightPage = `
@@ -398,11 +450,11 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!generatedHtml) return;
     setIsDownloading(true);
     try {
-        downloadAsPdf(formData.title, generatedHtml);
+        await downloadAsPdf(formData.title, generatedHtml);
     } catch (error) {
         console.error("PDF Download failed:", error);
     } finally {

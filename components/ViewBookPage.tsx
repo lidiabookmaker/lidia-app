@@ -15,11 +15,11 @@ interface ViewBookPageProps {
 export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) => {
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!book.content) return;
     setIsDownloading(true);
     try {
-        downloadAsPdf(book.title, book.content);
+        await downloadAsPdf(book.title, book.content);
     } catch (error) {
         console.error("PDF Download failed:", error);
         // Opcionalmente, mostrar uma mensagem de erro para o usuário

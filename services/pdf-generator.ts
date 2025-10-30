@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { 
-    coverBackgroundImage, 
     leagueGothicBase64,
     merriweatherRegularBase64,
     merriweatherBoldBase64,
@@ -42,7 +42,7 @@ const addCustomFonts = (doc: jsPDF) => {
 };
 
 
-export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
+export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
     if (!htmlContent) {
         console.error("No HTML content provided to generate PDF.");
         return;
@@ -55,10 +55,22 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
     });
     
     addCustomFonts(doc);
+    
+    // Create a temporary, off-screen div to render the HTML for measurement and capture
+    const renderContainer = document.createElement('div');
+    renderContainer.style.position = 'fixed';
+    renderContainer.style.left = '-9999px';
+    renderContainer.style.top = '0';
+    document.body.appendChild(renderContainer);
+    renderContainer.innerHTML = htmlContent;
+    
+    const contentBody = renderContainer.querySelector('body');
+    if (!contentBody) {
+        console.error("Could not find body in HTML content");
+        document.body.removeChild(renderContainer);
+        return;
+    }
 
-    const parser = new DOMParser();
-    const htmlDoc = parser.parseFromString(htmlContent, 'text/html');
-    const contentBody = htmlDoc.body;
 
     const pageDimensions = {
         width: doc.internal.pageSize.getWidth(),
@@ -142,51 +154,24 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
     
     const addSpace = (spacePt: number) => { currentY += spacePt; };
 
-    // --- Page 1: Cover ---
-    const coverPageEl = contentBody.querySelector('[data-page="cover"]');
+    // --- Page 1: Cover (using html2canvas) ---
+    const coverPageEl = contentBody.querySelector<HTMLElement>('[data-page="cover"]');
     if (coverPageEl) {
-        doc.addImage(coverBackgroundImage, 'PNG', 0, 0, pageDimensions.width, pageDimensions.height, undefined, 'FAST');
-        const title = coverPageEl.querySelector('.title')?.textContent || '';
-        const subtitle = coverPageEl.querySelector('.subtitle')?.textContent || '';
-        const author = coverPageEl.querySelector('.author')?.textContent || '';
-
-        let coverY = pageDimensions.height * 0.20;
-
-        const titleHeight = addWrappedText(title.toUpperCase(), {
-            font: 'LeagueGothic',
-            fontSize: 58,
-            weight: 'normal',
-            color: '#0d47a1',
-            align: 'center',
-            x: pageDimensions.width / 2,
-            y: coverY,
-            maxWidth: usableWidth,
-            lineHeightRatio: 1.1
-        });
-        coverY += titleHeight + 35; 
-
-        const subtitleHeight = addWrappedText(subtitle, {
-            font: 'MerriweatherSans',
-            fontSize: 16,
-            weight: 'italic',
-            color: '#212121',
-            align: 'center',
-            x: pageDimensions.width / 2,
-            y: coverY,
-            maxWidth: usableWidth * 0.9,
-            lineHeightRatio: 1.4
-        });
-        
-        addWrappedText(author, {
-            font: 'MerriweatherSans',
-            fontSize: 14,
-            weight: 'normal',
-            color: '#212121',
-            align: 'center',
-            x: pageDimensions.width / 2,
-            y: pageDimensions.height * 0.65,
-        });
+        try {
+            const canvas = await html2canvas(coverPageEl, {
+                scale: 2, // Higher resolution
+                useCORS: true,
+                backgroundColor: null, // Transparent background
+            });
+            const imgData = canvas.toDataURL('image/png');
+            doc.addImage(imgData, 'PNG', 0, 0, pageDimensions.width, pageDimensions.height, undefined, 'FAST');
+        } catch (error) {
+            console.error("html2canvas failed for cover page:", error);
+            // Fallback: draw a simple text cover
+            addWrappedText(bookTitle, { font: 'Merriweather', fontSize: 24, align: 'center', x: pageDimensions.width / 2, y: pageDimensions.height / 2 });
+        }
     }
+
 
     // --- Page 2: Copyright ---
     const copyrightPageEl = contentBody.querySelector('[data-page="copyright"]');
@@ -328,5 +313,7 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
     }
 
     addHeadersAndFooters();
+
+    document.body.removeChild(renderContainer);
     doc.save(`${bookTitle.replace(/\s/g, '_')}.pdf`);
 };

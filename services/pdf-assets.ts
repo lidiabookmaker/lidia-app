@@ -2,14 +2,6 @@
 // This ensures that the PDF can be generated without external network requests
 // and that fonts and images are always available.
 
-// --- Background Image for the Cover ---
-// Source: The blue/green wave image provided by the user.
-// FIX: The original base64 string was truncated, causing a syntax error.
-// It has been replaced with a valid placeholder to allow the app to compile.
-// To restore the original cover, this placeholder should be replaced with the correct, full base64 string of the image.
-export const coverBackgroundImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
-
-
 // --- Fonts ---
 // These are placeholders to fix compilation errors. 
 // For the PDF to render with the correct fonts, these must be replaced
