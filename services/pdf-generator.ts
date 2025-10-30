@@ -1,10 +1,14 @@
 import jsPDF from 'jspdf';
 import { 
-    coverBackgroundImage
+    coverBackgroundImage, 
+    leagueGothicBase64,
+    merriweatherRegularBase64,
+    merriweatherBoldBase64,
+    merriweatherSansRegularBase64,
+    merriweatherSansBoldBase64,
+    merriweatherSansLightBase64,
+    merriweatherSansItalicBase64
 } from './pdf-assets';
-
-// As importações de fontes foram removidas pois os arquivos de fonte não estavam disponíveis, causando erros.
-// A lógica foi adaptada para usar fontes padrão do PDF.
 
 // --- Constantes de Layout ---
 const PAGE_FORMAT = 'a5';
@@ -15,15 +19,29 @@ const FONT_SIZE_H2 = 18;
 const FONT_SIZE_H3 = 14;
 const LINE_HEIGHT_RATIO_BODY = 1.6;
 const LINE_HEIGHT_RATIO_TITLE = 1.2;
+const PAGE_BG_COLOR = '#FAF3E0'; // Cor de fundo creme
 
-// A função addCustomFonts foi removida pois não será mais utilizada.
+const addCustomFonts = (doc: jsPDF) => {
+    // VFS = Virtual File System for jsPDF
+    doc.addFileToVFS('LeagueGothic-Regular.ttf', leagueGothicBase64);
+    doc.addFont('LeagueGothic-Regular.ttf', 'LeagueGothic', 'normal');
 
-/**
- * Generates and downloads a PDF from an HTML string using a programmatic, text-based approach.
- * This results in a high-quality, lightweight, and text-selectable PDF.
- * @param bookTitle The title of the book, used for the PDF header and filename.
- * @param htmlContent The full HTML content of the book.
- */
+    doc.addFileToVFS('Merriweather-Regular.ttf', merriweatherRegularBase64);
+    doc.addFont('Merriweather-Regular.ttf', 'Merriweather', 'normal');
+    doc.addFileToVFS('Merriweather-Bold.ttf', merriweatherBoldBase64);
+    doc.addFont('Merriweather-Bold.ttf', 'Merriweather', 'bold');
+
+    doc.addFileToVFS('MerriweatherSans-Regular.ttf', merriweatherSansRegularBase64);
+    doc.addFont('MerriweatherSans-Regular.ttf', 'MerriweatherSans', 'normal');
+    doc.addFileToVFS('MerriweatherSans-Bold.ttf', merriweatherSansBoldBase64);
+    doc.addFont('MerriweatherSans-Bold.ttf', 'MerriweatherSans', 'bold');
+     doc.addFileToVFS('MerriweatherSans-Light.ttf', merriweatherSansLightBase64);
+    doc.addFont('MerriweatherSans-Light.ttf', 'MerriweatherSans', 'light');
+     doc.addFileToVFS('MerriweatherSans-Italic.ttf', merriweatherSansItalicBase64);
+    doc.addFont('MerriweatherSans-Italic.ttf', 'MerriweatherSans', 'italic');
+};
+
+
 export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
     if (!htmlContent) {
         console.error("No HTML content provided to generate PDF.");
@@ -36,7 +54,7 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
         format: PAGE_FORMAT,
     });
     
-    // A chamada para addCustomFonts foi removida.
+    addCustomFonts(doc);
 
     const parser = new DOMParser();
     const htmlDoc = parser.parseFromString(htmlContent, 'text/html');
@@ -52,10 +70,16 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
     let currentY = marginPt;
     const resetY = () => { currentY = marginPt; };
     
+    const addPageWithBackground = () => {
+        doc.addPage();
+        doc.setFillColor(PAGE_BG_COLOR);
+        doc.rect(0, 0, pageDimensions.width, pageDimensions.height, 'F');
+        resetY();
+    };
+
     const checkAndAddPage = (requiredHeight: number) => {
         if (currentY + requiredHeight > pageDimensions.height - marginPt) {
-            doc.addPage();
-            resetY();
+            addPageWithBackground();
             return true;
         }
         return false;
@@ -80,7 +104,7 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
             weight = 'normal', 
             indent = 0, 
             align = 'left', 
-            color = '#000000', 
+            color = '#262626',
             lineHeightRatio = LINE_HEIGHT_RATIO_BODY, 
             isTitle = false,
             x = marginPt,
@@ -88,18 +112,7 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
             maxWidth = usableWidth 
         } = options;
         
-        // Mapeia as fontes desejadas para as fontes padrão do PDF
-        const fontMap: { [key: string]: string } = {
-            'Merriweather': 'times',
-            'MerriweatherSans': 'helvetica',
-            'LeagueGothic': 'helvetica',
-        };
-        const mappedFont = fontMap[font] || 'helvetica';
-
-        // Mapeia 'light' para 'normal' pois não é um estilo padrão
-        const mappedWeight = weight === 'light' ? 'normal' : weight;
-
-        doc.setFont(mappedFont, mappedWeight);
+        doc.setFont(font, weight);
         doc.setFontSize(fontSize);
         doc.setTextColor(color);
 
@@ -108,13 +121,12 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
         const textHeight = lines.length * lineHeight;
         
         let effectiveY = y;
-        if (y === currentY) { // Auto-paginação apenas se estivermos no fluxo principal
+        if (y === currentY) { 
             if(checkAndAddPage(textHeight)) {
               effectiveY = currentY; 
             }
             if (isTitle && (effectiveY + textHeight > pageDimensions.height - marginPt - (lineHeight * 2))) {
-                doc.addPage();
-                resetY();
+                addPageWithBackground();
                 effectiveY = currentY;
             }
         }
@@ -123,7 +135,7 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
         if (y === currentY) {
             currentY = effectiveY + textHeight;
         }
-        return textHeight; // Retorna a altura para cálculos manuais de layout
+        return textHeight;
     };
     
     const addSpace = (spacePt: number) => { currentY += spacePt; };
@@ -136,13 +148,12 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
         const subtitle = coverPageEl.querySelector('.subtitle')?.textContent || '';
         const author = coverPageEl.querySelector('.author')?.textContent || '';
 
-        let coverY = pageDimensions.height * 0.25;
+        let coverY = pageDimensions.height * 0.20;
 
-        // Title - Tamanho da fonte reduzido para melhor ajuste com Helvetica
         const titleHeight = addWrappedText(title.toUpperCase(), {
             font: 'LeagueGothic',
-            fontSize: 54, // AJUSTADO de 72 para 54
-            weight: 'bold', // Usando bold para dar mais peso
+            fontSize: 58,
+            weight: 'normal',
             color: '#0d47a1',
             align: 'center',
             x: pageDimensions.width / 2,
@@ -150,9 +161,8 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
             maxWidth: usableWidth,
             lineHeightRatio: 1.1
         });
-        coverY += titleHeight + 50; // Aumentado o espaço
+        coverY += titleHeight + 35; 
 
-        // Subtitle
         const subtitleHeight = addWrappedText(subtitle, {
             font: 'MerriweatherSans',
             fontSize: 16,
@@ -161,12 +171,10 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
             align: 'center',
             x: pageDimensions.width / 2,
             y: coverY,
-            maxWidth: usableWidth * 0.85, // Reduzido para mais margem
+            maxWidth: usableWidth * 0.9,
             lineHeightRatio: 1.4
         });
-        coverY += subtitleHeight;
-
-        // Author
+        
         addWrappedText(author, {
             font: 'MerriweatherSans',
             fontSize: 14,
@@ -174,21 +182,21 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
             color: '#212121',
             align: 'center',
             x: pageDimensions.width / 2,
-            y: pageDimensions.height * 0.75, // Reposicionado
+            y: pageDimensions.height * 0.65,
         });
     }
 
     // --- Page 2: Copyright ---
     const copyrightPageEl = contentBody.querySelector('[data-page="copyright"]');
     if (copyrightPageEl) {
-        doc.addPage();
+        addPageWithBackground();
         const lines = Array.from(copyrightPageEl.querySelectorAll('p')).map(p => p.textContent || '');
         const textBlock = lines.join('\n');
 
         addWrappedText(textBlock, {
             font: 'MerriweatherSans',
             fontSize: 9,
-            weight: 'normal',
+            weight: 'light',
             color: '#595959',
             align: 'center',
             x: pageDimensions.width / 2,
@@ -196,38 +204,41 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
         });
     }
 
-    // --- Process Content Pages ---
     const addHeadersAndFooters = () => {
         const pageCount = doc.internal.getNumberOfPages();
         for (let i = 3; i <= pageCount; i++) {
             doc.setPage(i);
+            
+            doc.setFillColor(PAGE_BG_COLOR);
+            doc.rect(0, 0, pageDimensions.width, pageDimensions.height, 'F');
 
             // Header
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9); // Aumentado para 9
+            doc.setFont('MerriweatherSans', 'light');
+            doc.setFontSize(8); 
             doc.setTextColor('#595959');
-            doc.text(bookTitle.toUpperCase(), pageDimensions.width / 2, marginPt / 2, { align: 'center' });
+            doc.text(bookTitle.toUpperCase(), pageDimensions.width / 2, marginPt / 1.5, { align: 'center' });
 
             // Footer (Page Number)
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12); // Reduzido de 18 para 12
-            doc.setTextColor('#808080'); // 50% gray
+            doc.setFont('MerriweatherSans', 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor('#595959'); // Gray color, slightly darker
             doc.text(String(i), pageDimensions.width / 2, pageDimensions.height - (marginPt / 2), { align: 'center' });
         }
     };
 
     const processNode = (node: Element) => {
         const tagName = node.tagName.toLowerCase();
+        const text = node.textContent || '';
         
         switch(tagName) {
-            case 'h1':
+            case 'h1': // Títulos principais (Sumário, Intro, Conclusão)
                  if (node.classList.contains('font-merriweather')) {
                     checkAndAddPage(FONT_SIZE_H1 * LINE_HEIGHT_RATIO_TITLE * 2);
                     addSpace(10);
-                    addWrappedText(node.textContent || '', {
+                    addWrappedText(text, {
                         font: 'Merriweather',
                         fontSize: FONT_SIZE_H1,
-                        weight: 'normal',
+                        weight: 'bold', // Titles should be bold
                         align: 'left',
                         isTitle: true,
                         lineHeightRatio: LINE_HEIGHT_RATIO_TITLE,
@@ -235,9 +246,9 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
                     addSpace(20);
                 }
                 break;
-            case 'h2': // Chapter Title
-                 addWrappedText(node.textContent || '', {
-                    font: 'MerriweatherSans',
+            case 'h2': // Títulos de Capítulo no conteúdo
+                 addWrappedText(text, {
+                    font: 'Merriweather',
                     fontSize: FONT_SIZE_H2,
                     weight: 'bold',
                     isTitle: true,
@@ -245,9 +256,9 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
                 });
                 addSpace(10);
                 break;
-            case 'h3': // Subchapter Title
+            case 'h3': // Títulos de Subcapítulo
                 addSpace(5);
-                addWrappedText(node.textContent || '', {
+                addWrappedText(text, {
                     font: 'MerriweatherSans',
                     fontSize: FONT_SIZE_H3,
                     weight: 'bold',
@@ -257,32 +268,34 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
                 addSpace(5);
                 break;
             case 'p':
-                 addWrappedText(node.textContent || '', {
-                    font: 'Merriweather',
-                    fontSize: FONT_SIZE_BODY,
+                 const isTocItem = node.classList.contains('toc-item');
+                 const isTocChapter = isTocItem && !text.startsWith('•');
+                 
+                 addWrappedText(text, {
+                    font: isTocItem ? 'MerriweatherSans' : 'Merriweather',
+                    fontSize: isTocItem ? 11 : FONT_SIZE_BODY,
                     align: 'justify',
-                    indent: node.classList.contains('toc-item') ? 0 : 28,
-                });
-                addSpace(node.classList.contains('toc-item') ? 3 : 5); // Adicionado espaço para itens do sumário
+                    weight: isTocChapter ? 'bold' : 'normal',
+                    indent: isTocItem ? (text.startsWith('•') ? 15 : 0) : 28,
+                 });
+                 addSpace(isTocItem ? (isTocChapter ? 10 : 2) : 5);
                 break;
             case 'div':
                 if (node.hasAttribute('data-page') && node.getAttribute('data-page')?.startsWith('title-')) {
-                    doc.addPage();
-                    resetY();
+                    addPageWithBackground();
                     const titleEl = node.querySelector('.chapter-title-standalone');
                     if (titleEl && titleEl.textContent) {
                          addWrappedText(titleEl.textContent, {
                             font: 'Merriweather',
-                            fontSize: 22, // AJUSTADO de 24 para 22
+                            fontSize: 24,
                             weight: 'normal',
                             align: 'center',
-                            y: pageDimensions.height / 2.3, // AJUSTADO para melhor centralização
+                            y: pageDimensions.height / 2.3,
                             x: pageDimensions.width / 2,
                             maxWidth: usableWidth * 0.9
                         });
                     }
-                    doc.addPage();
-                    resetY();
+                    addPageWithBackground();
                 } else {
                      Array.from(node.children).forEach(child => processNode(child));
                 }
@@ -294,11 +307,9 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
     
     const contentStartEl = contentBody.querySelector('[data-page="content-start"]');
     if(contentStartEl) {
-        doc.addPage();
-        resetY();
+        addPageWithBackground();
         Array.from(contentStartEl.children).forEach(child => processNode(child));
     }
-
 
     addHeadersAndFooters();
     doc.save(`${bookTitle.replace(/\s/g, '_')}.pdf`);
