@@ -13,10 +13,16 @@
 // chaves preenchidas. Esta abordagem é APENAS para a fase de validação inicial.
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-export const GEMINI_API_KEY: string = "AIzaSyDmyns_NuZrgquEAC3VXTXJ_21CtCSjDww";
+// geminiConfig.ts
 
-/**
- * Verifica se a chave da API foi alterada do valor placeholder.
- * O App.tsx usará isso para mostrar um erro de configuração se a chave não for fornecida.
- */
-export const isGeminiConfigured = !GEMINI_API_KEY.includes('AIzaSyDmyns_NuZrgquEAC3VXTXJ_21CtCSjDww');
+// Placeholder apenas para referência no MVP
+const PLACEHOLDER = "AIzaSyCyh43BgOsfCijaBuKIhxHrdEnZhwWON1Q";
+
+// 1) Tenta pegar do ambiente (Vercel)
+// 2) Se não houver, cai no placeholder
+export const GEMINI_API_KEY: string =
+  import.meta.env.VITE_API_KEY || PLACEHOLDER;
+
+// Verifica se não estamos usando o placeholder
+export const isGeminiConfigured =
+  GEMINI_API_KEY !== PLACEHOLDER && GEMINI_API_KEY.trim() !== "";
