@@ -15,7 +15,7 @@
 
 
 // FIX: Reverted to a hardcoded key placeholder for the pre-MVP testing phase.
-export const GEMINI_API_KEY: string = "COLE_AQUI_SUA_CHAVE_API_DO_GEMINI";
+export const GEMINI_API_KEY: string = "AIzaSyCyh43BgOsfCijaBuKIhxHrdEnZhwWON1Q";
 
 /**
  * Verifica se a chave da API foi alterada do valor placeholder.
