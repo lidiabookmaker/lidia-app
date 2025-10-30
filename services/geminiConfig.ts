@@ -1,22 +1,22 @@
-// Este arquivo gerenciava a configuração da chave de API do Google Gemini.
-// A chave agora é gerenciada através de variáveis de ambiente (process.env.API_KEY)
-// e este arquivo não é mais utilizado pela aplicação.
+// Este arquivo armazena as credenciais de conexão do Google Gemini.
+// Para a validação do MVP, você pode colar sua chave diretamente aqui.
 
 // =================================================================================
 // ATENÇÃO: INSTRUÇÕES DE CONFIGURAÇÃO PARA O MVP
 // =================================================================================
-// 1. A chave da API do Gemini agora deve ser configurada como uma variável de
-//    ambiente no seu ambiente de hospedagem (ex: Vercel).
-// 2. A variável de ambiente deve se chamar `API_KEY`.
+// 1. Obtenha sua chave de API no Google AI Studio.
+// 2. Cole a chave na constante GEMINI_API_KEY abaixo, substituindo "COLE_AQUI_SUA_CHAVE_API_DO_GEMINI".
 // =================================================================================
 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// ALERTA DE SEGURANÇA: Não envie este arquivo para um repositório público com as
+// chaves preenchidas. Esta abordagem é APENAS para a fase de validação inicial.
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+export const GEMINI_API_KEY: string = "COLE_AQUI_SUA_CHAVE_API_DO_GEMINI";
 
 /**
- * @deprecated This constant is no longer used. The API key is sourced from process.env.API_KEY.
+ * Verifica se a chave da API foi alterada do valor placeholder.
+ * O App.tsx usará isso para mostrar um erro de configuração se a chave não for fornecida.
  */
-export const GEMINI_API_KEY: string = "CHAVE_REMOVIDA_USE_VARIAVEL_DE_AMBIENTE";
-
-/**
- * @deprecated This function is no longer used. Configuration is assumed via environment variables.
- */
-export const isGeminiConfigured = false;
+export const isGeminiConfigured = !GEMINI_API_KEY.includes('COLE_AQUI');

@@ -5,6 +5,7 @@ import type { UserProfile, Book, BookGenerationFormData, Page } from '../types';
 import { Button } from './ui/Button';
 import { Input, TextArea } from './ui/Input';
 import { Card } from './ui/Card';
+import { GEMINI_API_KEY } from '../services/geminiConfig';
 
 // --- Tipos para a nova estrutura do livro ---
 interface SubChapter {
@@ -346,7 +347,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
 
     try {
       updateLog("Inicializando o cliente da API do Gemini...");
-      const ai = new GoogleGenAI({apiKey: process.env.API_KEY as string});
+      const ai = new GoogleGenAI({apiKey: GEMINI_API_KEY});
 
       const bookSchema = {
           type: Type.OBJECT,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { UserProfile, Book, Page } from './types';
 import { isSupabaseConfigured, supabase } from './services/supabase';
+import { isGeminiConfigured } from './services/geminiConfig';
 
 // Dynamically import components to keep App.tsx clean
 import { LandingPage } from './components/LandingPage';
@@ -22,16 +23,18 @@ const App: React.FC = () => {
     const [books, setBooks] = useState<Book[]>([]);
     const [viewedBookId, setViewedBookId] = useState<string | null>(null);
     const [authError, setAuthError] = useState<string | null>(null);
-    const [configErrors, setConfigErrors] = useState<('supabase')[]>([]);
+    const [configErrors, setConfigErrors] = useState<('supabase' | 'gemini')[]>([]);
     const [isConfigChecked, setIsConfigChecked] = useState(false);
     const initialAuthCheckCompleted = useRef(false);
 
     useEffect(() => {
-        const missingKeys: ('supabase')[] = [];
+        const missingKeys: ('supabase' | 'gemini')[] = [];
         if (!isSupabaseConfigured) {
             missingKeys.push('supabase');
         }
-        // Gemini API key is now handled via environment variables and not checked here.
+        if (!isGeminiConfigured) {
+            missingKeys.push('gemini');
+        }
         setConfigErrors(missingKeys);
         setIsConfigChecked(true);
     }, []);
