@@ -1,23 +1,22 @@
-// Este arquivo gerencia a configuração da chave de API do Google Gemini.
+// Este arquivo gerenciava a configuração da chave de API do Google Gemini.
+// A chave agora é gerenciada através de variáveis de ambiente (process.env.API_KEY)
+// e este arquivo não é mais utilizado pela aplicação.
 
 // =================================================================================
 // ATENÇÃO: INSTRUÇÕES DE CONFIGURAÇÃO PARA O MVP
 // =================================================================================
-// 1. Obtenha sua chave de API no Google AI Studio.
-// 2. Cole a chave na constante GEMINI_API_KEY abaixo.
+// 1. A chave da API do Gemini agora deve ser configurada como uma variável de
+//    ambiente no seu ambiente de hospedagem (ex: Vercel).
+// 2. A variável de ambiente deve se chamar `API_KEY`.
 // =================================================================================
 
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// ALERTA DE SEGURANÇA: Não envie este arquivo para um repositório público com as
-// chaves preenchidas. Esta abordagem é APENAS para a fase de validação inicial.
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-// FIX: Added string type annotation to widen the type from a literal to a string.
-// This resolves the TypeScript error where a comparison between the literal key and an empty string was flagged as impossible.
-export const GEMINI_API_KEY: string = "AIzaSyDmyns_NuZrgquEAC3VXTXJ_21CtCSjDww";
 
 /**
- * Verifica se a chave da API do Gemini foi configurada.
- * A verificação é feita para garantir que a chave padrão não seja usada.
+ * @deprecated This constant is no longer used. The API key is sourced from process.env.API_KEY.
  */
-export const isGeminiConfigured = !(GEMINI_API_KEY.includes('COLE_AQUI') || GEMINI_API_KEY === '');
+export const GEMINI_API_KEY: string = "CHAVE_REMOVIDA_USE_VARIAVEL_DE_AMBIENTE";
+
+/**
+ * @deprecated This function is no longer used. Configuration is assumed via environment variables.
+ */
+export const isGeminiConfigured = false;

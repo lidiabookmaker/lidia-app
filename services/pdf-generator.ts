@@ -19,7 +19,7 @@ const FONT_SIZE_H2 = 18;
 const FONT_SIZE_H3 = 14;
 const LINE_HEIGHT_RATIO_BODY = 1.6;
 const LINE_HEIGHT_RATIO_TITLE = 1.2;
-const PAGE_BG_COLOR = '#FAF3E0'; // Cor de fundo creme
+const PAGE_BG_COLOR = '#FFFFFF'; // Cor de fundo branca
 
 const addCustomFonts = (doc: jsPDF) => {
     // VFS = Virtual File System for jsPDF
@@ -72,8 +72,10 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
     
     const addPageWithBackground = () => {
         doc.addPage();
-        doc.setFillColor(PAGE_BG_COLOR);
-        doc.rect(0, 0, pageDimensions.width, pageDimensions.height, 'F');
+        if (PAGE_BG_COLOR !== '#FFFFFF') {
+            doc.setFillColor(PAGE_BG_COLOR);
+            doc.rect(0, 0, pageDimensions.width, pageDimensions.height, 'F');
+        }
         resetY();
     };
 
@@ -209,8 +211,14 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
         for (let i = 3; i <= pageCount; i++) {
             doc.setPage(i);
             
-            doc.setFillColor(PAGE_BG_COLOR);
-            doc.rect(0, 0, pageDimensions.width, pageDimensions.height, 'F');
+            // Re-apply background only if not white, to preserve content
+            if (PAGE_BG_COLOR !== '#FFFFFF') {
+                const currentPageContent = doc.internal.pages[i-1];
+                doc.setFillColor(PAGE_BG_COLOR);
+                doc.rect(0, 0, pageDimensions.width, pageDimensions.height, 'F');
+                // This content restoration is complex and often fails with jsPDF.
+                // It's much safer to just draw content on a white background.
+            }
 
             // Header
             doc.setFont('MerriweatherSans', 'light');
@@ -222,7 +230,7 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
             doc.setFont('MerriweatherSans', 'bold');
             doc.setFontSize(12);
             doc.setTextColor('#595959'); // Gray color, slightly darker
-            doc.text(String(i), pageDimensions.width / 2, pageDimensions.height - (marginPt / 2), { align: 'center' });
+            doc.text(String(i - 2), pageDimensions.width / 2, pageDimensions.height - (marginPt / 2), { align: 'center' });
         }
     };
 
@@ -269,14 +277,15 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
                 break;
             case 'p':
                  const isTocItem = node.classList.contains('toc-item');
-                 const isTocChapter = isTocItem && !text.startsWith('•');
+                 const isTocChapter = node.classList.contains('toc-chapter');
+                 const isTocSubchapter = node.classList.contains('toc-subchapter');
                  
                  addWrappedText(text, {
                     font: isTocItem ? 'MerriweatherSans' : 'Merriweather',
                     fontSize: isTocItem ? 11 : FONT_SIZE_BODY,
                     align: 'justify',
                     weight: isTocChapter ? 'bold' : 'normal',
-                    indent: isTocItem ? (text.startsWith('•') ? 15 : 0) : 28,
+                    indent: isTocSubchapter ? 15 : (isTocItem ? 0 : 28),
                  });
                  addSpace(isTocItem ? (isTocChapter ? 10 : 2) : 5);
                 break;
@@ -308,7 +317,14 @@ export const downloadAsPdf = (bookTitle: string, htmlContent: string) => {
     const contentStartEl = contentBody.querySelector('[data-page="content-start"]');
     if(contentStartEl) {
         addPageWithBackground();
-        Array.from(contentStartEl.children).forEach(child => processNode(child));
+        const allContentDivs = contentBody.querySelectorAll('.page-container.content-page, .page-container.chapter-title-page');
+        
+        allContentDivs.forEach((pageDiv, index) => {
+            if (index > 0) { // The first content page is already created
+                 addPageWithBackground();
+            }
+            Array.from(pageDiv.children).forEach(child => processNode(child));
+        });
     }
 
     addHeadersAndFooters();
