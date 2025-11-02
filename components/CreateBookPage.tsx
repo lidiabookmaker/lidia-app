@@ -110,22 +110,21 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
               position: relative;
               overflow: hidden;
               background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1) 0%, rgba(10, 207, 131, 0.1) 100%);
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between; /* Pushes content away from edges */
-              align-items: center;
           }
           .cover-page .content-wrapper {
               position: relative;
               z-index: 10;
-              padding-top: 5cm;
-              padding-bottom: 9cm;
-              display: flex;
-              flex-direction: column;
-              justify-content: center;
               height: 100%;
+              width: 100%;
           }
-
+          .cover-page .title, .cover-page .subtitle, .cover-page .author {
+              position: absolute;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 90%;
+              padding: 0 1cm;
+              box-sizing: border-box;
+          }
           .cover-page .title {
               font-family: 'League Gothic', sans-serif;
               font-size: 4.5rem;
@@ -133,27 +132,27 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
               margin: 0;
               line-height: 1.1;
               color: #0d47a1;
-              padding: 0 1cm;
+              top: 30mm;
           }
           .cover-page .subtitle {
               font-family: 'Merriweather Sans', sans-serif;
               font-size: 1.125rem;
-              margin: 1.5rem 0;
+              margin: 0;
               color: #212121;
               font-style: italic;
-              padding: 0 1.5cm;
+              top: 100mm;
           }
           .cover-page .author {
               font-family: 'Merriweather Sans', sans-serif;
               font-size: 1rem;
               font-weight: 400;
-              margin-top: 2rem;
+              margin: 0;
               color: #212121;
+              top: 140mm;
           }
-
           .onda {
             position: absolute;
-            bottom: -20mm;
+            top: 155mm;
             width: 200%;
             height: 100mm;
             left: -50%;
@@ -398,12 +397,15 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         
         **Estrutura e Contagem de Palavras (siga o mais próximo possível):**
         - **Introdução:** (Aproximadamente 400 palavras). O título DEVE ser "Introdução".
-        - **Sumário:** (Aproximadamente 800 palavras de conteúdo descritivo, se aplicável, mais a lista). O título DEVE ser "Sumário". O conteúdo deve ser uma lista de todos os 10 capítulos e seus 3 subcapítulos, formatada como texto simples com quebras de linha.
+        - **Sumário:** O título DEVE ser "Sumário". O conteúdo deve ser APENAS a lista de todos os 10 capítulos e seus 3 subcapítulos, formatada como texto simples com quebras de linha. NÃO inclua nenhum parágrafo de introdução ou texto descritivo para o sumário.
         - **Capítulos:** Crie exatamente 10 capítulos. O total de palavras por capítulo deve ser aproximadamente 2100 palavras.
           - **Introdução do Capítulo:** (Aproximadamente 300 palavras). Uma breve introdução para o capítulo.
           - **Subcapítulos:** Crie exatamente 3 subcapítulos para cada capítulo.
             - **Conteúdo de cada Subcapítulo:** (Aproximadamente 600 palavras). Conteúdo detalhado e bem escrito para cada subcapítulo.
         - **Conclusão:** (Aproximadamente 600 palavras). Um capítulo de conclusão. O título DEVE ser "Conclusão".
+
+        **Instruções Adicionais para Títulos:**
+        - Para o título de cada capítulo na estrutura JSON (\`chapters[].title\`), forneça APENAS o nome do capítulo (ex: "Os Pilares da Alimentação Saudável"), sem o prefixo numérico como "Capítulo 1:".
 
         O conteúdo total do livro deve ter aproximadamente 22.800 palavras.
       `;
