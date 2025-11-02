@@ -18,6 +18,7 @@ interface Chapter {
   subchapters: SubChapter[];
 }
 interface DetailedBookContent {
+  optimized_title: string;
   introduction: { title: string; content: string };
   table_of_contents: { title: string; content: string; };
   chapters: Chapter[];
@@ -294,7 +295,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     mainContent += bookContent.table_of_contents.content.split('\n').map(line => {
         line = line.trim();
         if (!line) return '';
-        if (line.toLowerCase().startsWith('capítulo')) {
+        if (line.match(/^capítulo \d+:/i)) {
             return `<p class="toc-item toc-chapter">${line}</p>`;
         }
         return `<p class="toc-item toc-subchapter">${line}</p>`;
@@ -346,12 +347,12 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
 
     try {
       updateLog("Inicializando o cliente da API do Gemini...");
-      // FIX: Reverted to using the hardcoded API key from the config file for the pre-MVP testing phase.
       const ai = new GoogleGenAI({apiKey: GEMINI_API_KEY});
 
       const bookSchema = {
           type: Type.OBJECT,
           properties: {
+              optimized_title: { type: Type.STRING, description: "O título final otimizado para a capa, com no máximo 45 caracteres." },
               introduction: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, content: { type: Type.STRING } }, required: ['title', 'content'] },
               table_of_contents: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, content: { type: Type.STRING } }, required: ['title', 'content'] },
               chapters: {
@@ -378,7 +379,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
               },
               conclusion: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, content: { type: Type.STRING } }, required: ['title', 'content'] },
           },
-          required: ['introduction', 'table_of_contents', 'chapters', 'conclusion']
+          required: ['optimized_title', 'introduction', 'table_of_contents', 'chapters', 'conclusion']
       };
 
       updateLog("Criando prompt para a IA...");
@@ -387,7 +388,16 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         O formato da resposta DEVE ser um JSON válido que corresponda ao esquema fornecido.
         NÃO inclua markdown (como \`\`\`json) na sua resposta. A resposta deve ser APENAS o JSON.
 
-        **Título:** ${formData.title}
+        **Instruções para o Título:**
+        - **Sugestão de Título (do usuário):** "${formData.title}"
+        - A partir da sugestão do usuário, crie um **Título Final Otimizado** para a capa do livro.
+        - **REGRAS OBRIGATÓRIAS para o Título Final Otimizado:**
+          - DEVE ter no máximo 45 caracteres no total.
+          - DEVE ser impactante e comercialmente atraente.
+          - DEVE ser idealmente divisível em 2 ou 3 linhas curtas para um bom design de capa.
+        - O campo no JSON de resposta para este título DEVE ser \`optimized_title\`.
+
+        **Outras Informações:**
         **Subtítulo:** ${formData.subtitle}
         **Autor:** ${formData.author}
         **Idioma:** ${formData.language}
@@ -397,14 +407,14 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         
         **Estrutura e Contagem de Palavras (siga o mais próximo possível):**
         - **Introdução:** (Aproximadamente 400 palavras). O título DEVE ser "Introdução".
-        - **Sumário:** O título DEVE ser "Sumário". O conteúdo deve ser APENAS a lista de todos os 10 capítulos e seus 3 subcapítulos, formatada como texto simples com quebras de linha. NÃO inclua nenhum parágrafo de introdução ou texto descritivo para o sumário.
+        - **Sumário:** O título DEVE ser "Sumário". O conteúdo deve ser APENAS a lista de todos os 10 capítulos e seus 3 subcapítulos, formatada como texto simples com quebras de linha. Exemplo: 'Capítulo 1: Título do Capítulo\\n- Subcapítulo 1.1\\n- Subcapítulo 1.2'. NÃO inclua nenhum parágrafo de introdução ou texto descritivo para o sumário.
         - **Capítulos:** Crie exatamente 10 capítulos. O total de palavras por capítulo deve ser aproximadamente 2100 palavras.
           - **Introdução do Capítulo:** (Aproximadamente 300 palavras). Uma breve introdução para o capítulo.
           - **Subcapítulos:** Crie exatamente 3 subcapítulos para cada capítulo.
             - **Conteúdo de cada Subcapítulo:** (Aproximadamente 600 palavras). Conteúdo detalhado e bem escrito para cada subcapítulo.
         - **Conclusão:** (Aproximadamente 600 palavras). Um capítulo de conclusão. O título DEVE ser "Conclusão".
 
-        **Instruções Adicionais para Títulos:**
+        **Instruções Adicionais para Títulos de Capítulo:**
         - Para o título de cada capítulo na estrutura JSON (\`chapters[].title\`), forneça APENAS o nome do capítulo (ex: "Os Pilares da Alimentação Saudável"), sem o prefixo numérico como "Capítulo 1:".
 
         O conteúdo total do livro deve ter aproximadamente 22.800 palavras.
@@ -424,16 +434,20 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
       let jsonText = response.text.trim();
       const bookContent: DetailedBookContent = JSON.parse(jsonText);
       updateLog("Conteúdo do livro analisado com sucesso.");
+      
+      const finalTitle = bookContent.optimized_title;
+      updateLog(`Título otimizado pela IA: "${finalTitle}"`);
 
       updateLog("Formatando o livro em HTML...");
-      const html = generateBookHTML(formData, bookContent);
+      const finalBookData = { ...formData, title: finalTitle };
+      const html = generateBookHTML(finalBookData, bookContent);
       setGeneratedHtml(html);
       updateLog("Formatação HTML concluída.");
 
       updateLog("Salvando o livro no banco de dados...");
       const newBookData: Omit<Book, 'id' | 'created_at'> = {
           user_id: user.id,
-          title: formData.title,
+          title: finalTitle,
           subtitle: formData.subtitle,
           author: formData.author,
           content: html
@@ -486,9 +500,9 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
                 <p className="text-gray-600 mb-6">Preencha os detalhes abaixo para a IA gerar seu e-book.</p>
                 
                 <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleGenerateBook(); }}>
-                  <Input name="title" label="Título do Livro *" value={formData.title} onChange={handleInputChange} placeholder="Ex: O Guia Definitivo do Marketing Digital" required />
+                  <Input name="title" label="Sugestão de Título *" value={formData.title} onChange={handleInputChange} placeholder="Ex: O Guia Definitivo do Marketing Digital" required />
                   <Input name="subtitle" label="Subtítulo" value={formData.subtitle} onChange={handleInputChange} placeholder="Ex: Estratégias para alavancar seu negócio online" />
-                  <Input name="author" label="Autor" value={formData.author} onChange={handleInputChange} required />
+                  <Input name="author" label="Autor(es)" value={formData.author} onChange={handleInputChange} required />
                   <TextArea name="summary" label="Resumo do Conteúdo *" value={formData.summary} onChange={handleInputChange} placeholder="Descreva sobre o que é o livro, os principais tópicos que devem ser abordados, e o público-alvo." required rows={6} />
                   <Input name="niche" label="Nicho/Assunto Principal *" value={formData.niche} onChange={handleInputChange} placeholder="Ex: Marketing para pequenas empresas, Culinária vegana, etc." required />
                   <Input name="tone" label="Tom de Voz" value={formData.tone} onChange={handleInputChange} placeholder="Ex: Inspirador e prático, formal e acadêmico, divertido e casual" />
