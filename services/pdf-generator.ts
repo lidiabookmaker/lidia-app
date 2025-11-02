@@ -68,10 +68,11 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
     document.body.appendChild(renderContainer);
     renderContainer.innerHTML = htmlContent;
     
-    const contentBody = renderContainer.querySelector('body');
-    if (!contentBody) {
+    // FIX: The browser strips <html> and <body> tags when setting innerHTML on a div.
+    // We should query directly from the container itself, not a non-existent body tag within it.
+    if (!renderContainer.hasChildNodes()) {
         document.body.removeChild(renderContainer);
-        throw new Error("Could not find body in HTML content");
+        throw new Error("Could not find any content in the provided HTML.");
     }
 
     const pageDimensions = {
@@ -164,7 +165,7 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
     // --- 2. PAGE GENERATION ---
     
     // Page 1: Cover (using html2canvas is the best for complex CSS)
-    const coverPageEl = contentBody.querySelector<HTMLElement>('[data-page="cover"]');
+    const coverPageEl = renderContainer.querySelector<HTMLElement>('[data-page="cover"]');
     if (coverPageEl) {
         try {
             const canvas = await html2canvas(coverPageEl, { scale: 2, useCORS: true, backgroundColor: null });
@@ -179,7 +180,7 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
 
     // Page 2: Copyright
     addPageWithBackground();
-    const copyrightPageEl = contentBody.querySelector<HTMLElement>('[data-page="copyright"]');
+    const copyrightPageEl = renderContainer.querySelector<HTMLElement>('[data-page="copyright"]');
     if (copyrightPageEl) {
         const lines = Array.from(copyrightPageEl.querySelectorAll('p')).map(p => p.textContent || '').join('\n');
         // Position it at the bottom of the page
@@ -198,7 +199,7 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
     addPageWithBackground(); // Start content on a new page
 
     // Find the container of all content nodes
-    const contentNodes = contentBody.querySelectorAll('.page-container.content-page, .page-container.chapter-title-page');
+    const contentNodes = renderContainer.querySelectorAll('.page-container.content-page, .page-container.chapter-title-page');
     
     // The main layouting loop
     contentNodes.forEach(containerNode => {
