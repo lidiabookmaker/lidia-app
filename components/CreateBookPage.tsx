@@ -475,6 +475,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         await downloadAsPdf(formData.title, generatedHtml);
     } catch (error) {
         console.error("PDF Download failed:", error);
+        alert(`Ocorreu um erro ao gerar o PDF: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
         setTimeout(() => setIsDownloading(false), 1500);
     }

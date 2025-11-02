@@ -22,7 +22,7 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
         await downloadAsPdf(book.title, book.content);
     } catch (error) {
         console.error("PDF Download failed:", error);
-        // Opcionalmente, mostrar uma mensagem de erro para o usuário
+        alert(`Ocorreu um erro ao gerar o PDF: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
         // O download é síncrono, então o estado de carregamento pode ser encerrado rapidamente.
         // Um pequeno timeout melhora a percepção do usuário.

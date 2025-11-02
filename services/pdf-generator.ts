@@ -1,14 +1,5 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { 
-    leagueGothicBase64,
-    merriweatherRegularBase64,
-    merriweatherBoldBase64,
-    merriweatherSansRegularBase64,
-    merriweatherSansBoldBase64,
-    merriweatherSansLightBase64,
-    merriweatherSansItalicBase64
-} from './pdf-assets';
 
 // --- Constantes de Layout ---
 const PAGE_FORMAT = 'a5';
@@ -21,24 +12,37 @@ const LINE_HEIGHT_RATIO_BODY = 1.6;
 const LINE_HEIGHT_RATIO_TITLE = 1.2;
 const PAGE_BG_COLOR = '#FFFFFF'; // Cor de fundo branca
 
-const addCustomFonts = (doc: jsPDF) => {
-    // VFS = Virtual File System for jsPDF
-    doc.addFileToVFS('LeagueGothic-Regular.ttf', leagueGothicBase64);
-    doc.addFont('LeagueGothic-Regular.ttf', 'LeagueGothic', 'normal');
+type CustomFont = 'Merriweather' | 'MerriweatherSans' | 'LeagueGothic';
+type FontWeight = 'normal' | 'bold' | 'light' | 'italic';
+type PdfFontWeight = 'normal' | 'bold' | 'italic' | 'bolditalic';
 
-    doc.addFileToVFS('Merriweather-Regular.ttf', merriweatherRegularBase64);
-    doc.addFont('Merriweather-Regular.ttf', 'Merriweather', 'normal');
-    doc.addFileToVFS('Merriweather-Bold.ttf', merriweatherBoldBase64);
-    doc.addFont('Merriweather-Bold.ttf', 'Merriweather', 'bold');
+/**
+ * Mapeia as fontes customizadas usadas no HTML para as fontes padrão do PDF.
+ * Isso aumenta a confiabilidade da geração do PDF, evitando problemas com
+ * o embutimento de fontes via base64.
+ */
+const mapFont = (
+    font: CustomFont,
+    weight: FontWeight = 'normal'
+): { fontName: string; style: PdfFontWeight } => {
+    let fontName: string;
+    switch (font) {
+        case 'Merriweather':
+            fontName = 'Times-Roman';
+            break;
+        case 'MerriweatherSans':
+        case 'LeagueGothic':
+        default:
+            fontName = 'Helvetica';
+            break;
+    }
 
-    doc.addFileToVFS('MerriweatherSans-Regular.ttf', merriweatherSansRegularBase64);
-    doc.addFont('MerriweatherSans-Regular.ttf', 'MerriweatherSans', 'normal');
-    doc.addFileToVFS('MerriweatherSans-Bold.ttf', merriweatherSansBoldBase64);
-    doc.addFont('MerriweatherSans-Bold.ttf', 'MerriweatherSans', 'bold');
-     doc.addFileToVFS('MerriweatherSans-Light.ttf', merriweatherSansLightBase64);
-    doc.addFont('MerriweatherSans-Light.ttf', 'MerriweatherSans', 'light');
-     doc.addFileToVFS('MerriweatherSans-Italic.ttf', merriweatherSansItalicBase64);
-    doc.addFont('MerriweatherSans-Italic.ttf', 'MerriweatherSans', 'italic');
+    let style: PdfFontWeight = 'normal';
+    if (weight === 'bold') style = 'bold';
+    if (weight === 'italic') style = 'italic';
+    // 'light' será tratado como 'normal' nas fontes padrão do jsPDF.
+
+    return { fontName, style };
 };
 
 
@@ -53,8 +57,6 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
         unit: 'pt',
         format: PAGE_FORMAT,
     });
-    
-    addCustomFonts(doc);
     
     // Create a temporary, off-screen div to render the HTML for measurement and capture
     const renderContainer = document.createElement('div');
@@ -100,9 +102,9 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
     };
     
     const addWrappedText = (text: string, options: {
-        font: 'Merriweather' | 'MerriweatherSans' | 'LeagueGothic';
+        font: CustomFont;
         fontSize: number;
-        weight?: 'normal' | 'bold' | 'light' | 'italic';
+        weight?: FontWeight;
         indent?: number;
         align?: 'left' | 'center' | 'justify';
         color?: string;
@@ -126,7 +128,8 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
             maxWidth = usableWidth 
         } = options;
         
-        doc.setFont(font, weight);
+        const { fontName, style } = mapFont(font, weight);
+        doc.setFont(fontName, style);
         doc.setFontSize(fontSize);
         doc.setTextColor(color);
 
@@ -198,21 +201,20 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
             
             // Re-apply background only if not white, to preserve content
             if (PAGE_BG_COLOR !== '#FFFFFF') {
-                const currentPageContent = doc.internal.pages[i-1];
                 doc.setFillColor(PAGE_BG_COLOR);
                 doc.rect(0, 0, pageDimensions.width, pageDimensions.height, 'F');
-                // This content restoration is complex and often fails with jsPDF.
-                // It's much safer to just draw content on a white background.
             }
 
             // Header
-            doc.setFont('MerriweatherSans', 'light');
+            const headerFont = mapFont('MerriweatherSans', 'light');
+            doc.setFont(headerFont.fontName, headerFont.style);
             doc.setFontSize(8); 
             doc.setTextColor('#595959');
             doc.text(bookTitle.toUpperCase(), pageDimensions.width / 2, marginPt / 1.5, { align: 'center' });
 
             // Footer (Page Number)
-            doc.setFont('MerriweatherSans', 'bold');
+            const footerFont = mapFont('MerriweatherSans', 'bold');
+            doc.setFont(footerFont.fontName, footerFont.style);
             doc.setFontSize(12);
             doc.setTextColor('#595959'); // Gray color, slightly darker
             doc.text(String(i - 2), pageDimensions.width / 2, pageDimensions.height - (marginPt / 2), { align: 'center' });
