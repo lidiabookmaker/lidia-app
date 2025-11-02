@@ -10,7 +10,6 @@ const FONT_SIZE_H2 = 18;
 const FONT_SIZE_H3 = 14;
 const LINE_HEIGHT_RATIO_BODY = 1.6;
 const LINE_HEIGHT_RATIO_TITLE = 1.2;
-const PAGE_BG_COLOR = '#FFFFFF'; // Cor de fundo branca
 
 type CustomFont = 'Merriweather' | 'MerriweatherSans' | 'LeagueGothic';
 type FontWeight = 'normal' | 'bold' | 'light' | 'italic';
@@ -19,7 +18,8 @@ type PdfFontWeight = 'normal' | 'bold' | 'italic' | 'bolditalic';
 /**
  * Mapeia as fontes customizadas usadas no HTML para as fontes padrão do PDF.
  * Isso aumenta a confiabilidade da geração do PDF, evitando problemas com
- * o embutimento de fontes via base64.
+ * o embutimento de fontes. Usamos Times para textos com serifa (corpo) e
+ * Helvetica para textos sem serifa (títulos, sumário).
  */
 const mapFont = (
     font: CustomFont,
@@ -49,58 +49,56 @@ const mapFont = (
 export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
     if (!htmlContent) {
         console.error("No HTML content provided to generate PDF.");
-        return;
+        throw new Error("Conteúdo HTML para o livro não foi encontrado.");
     }
 
+    // --- 1. SETUP ---
     const doc = new jsPDF({
         orientation: 'p',
-        unit: 'pt',
+        unit: 'pt', // Use points for easier calculations with font sizes
         format: PAGE_FORMAT,
     });
     
-    // Create a temporary, off-screen div to render the HTML for measurement and capture
+    // Create a temporary, off-screen div to parse the HTML
     const renderContainer = document.createElement('div');
     renderContainer.style.position = 'fixed';
-    renderContainer.style.left = '-9999px';
+    renderContainer.style.left = '-9999px'; // Place it off-screen
     renderContainer.style.top = '0';
+    renderContainer.style.width = '14.8cm'; // Set A5 width for html2canvas
     document.body.appendChild(renderContainer);
     renderContainer.innerHTML = htmlContent;
     
     const contentBody = renderContainer.querySelector('body');
     if (!contentBody) {
-        console.error("Could not find body in HTML content");
         document.body.removeChild(renderContainer);
-        return;
+        throw new Error("Could not find body in HTML content");
     }
-
 
     const pageDimensions = {
         width: doc.internal.pageSize.getWidth(),
         height: doc.internal.pageSize.getHeight(),
     };
-    const marginPt = MARGIN_CM * 28.3465; // Convert cm to points
+    const marginPt = MARGIN_CM * 28.3465; // Convert cm to points (1cm = 28.3465pt)
     const usableWidth = pageDimensions.width - (marginPt * 2);
-
     let currentY = marginPt;
+
+    // --- Helper Functions ---
     const resetY = () => { currentY = marginPt; };
     
     const addPageWithBackground = () => {
         doc.addPage();
-        if (PAGE_BG_COLOR !== '#FFFFFF') {
-            doc.setFillColor(PAGE_BG_COLOR);
-            doc.rect(0, 0, pageDimensions.width, pageDimensions.height, 'F');
-        }
         resetY();
     };
 
-    const checkAndAddPage = (requiredHeight: number) => {
+    const checkAndAddPage = (requiredHeight: number): boolean => {
         if (currentY + requiredHeight > pageDimensions.height - marginPt) {
             addPageWithBackground();
-            return true;
+            return true; // Page was added
         }
-        return false;
+        return false; // No page added
     };
-    
+
+    // The core rendering function
     const addWrappedText = (text: string, options: {
         font: CustomFont;
         fontSize: number;
@@ -109,7 +107,7 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
         align?: 'left' | 'center' | 'justify';
         color?: string;
         lineHeightRatio?: number;
-        isTitle?: boolean;
+        isTitle?: boolean; // To prevent titles from being orphaned
         x?: number;
         y?: number;
         maxWidth?: number;
@@ -124,7 +122,7 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
             lineHeightRatio = LINE_HEIGHT_RATIO_BODY, 
             isTitle = false,
             x = marginPt,
-            y = currentY,
+            y = currentY, // Default to the current cursor position
             maxWidth = usableWidth 
         } = options;
         
@@ -138,10 +136,12 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
         const textHeight = lines.length * lineHeight;
         
         let effectiveY = y;
+        // Only manage page breaks if we are writing to the main flow (y === currentY)
         if (y === currentY) { 
             if(checkAndAddPage(textHeight)) {
-              effectiveY = currentY; 
+              effectiveY = currentY; // Y position was reset to top margin
             }
+            // Orphan prevention for titles
             if (isTitle && (effectiveY + textHeight > pageDimensions.height - marginPt - (lineHeight * 2))) {
                 addPageWithBackground();
                 effectiveY = currentY;
@@ -149,173 +149,168 @@ export const downloadAsPdf = async (bookTitle: string, htmlContent: string) => {
         }
         
         doc.text(lines, x + indent, effectiveY, { align: align, lineHeightFactor: lineHeightRatio, maxWidth: maxWidth - indent });
+        
+        // Only advance the main cursor if we are writing to the main flow
         if (y === currentY) {
             currentY = effectiveY + textHeight;
         }
-        return textHeight;
     };
-    
-    const addSpace = (spacePt: number) => { currentY += spacePt; };
 
-    // --- Page 1: Cover (using html2canvas) ---
+    const addSpace = (spacePt: number) => { 
+        checkAndAddPage(spacePt);
+        currentY += spacePt; 
+    };
+
+    // --- 2. PAGE GENERATION ---
+    
+    // Page 1: Cover (using html2canvas is the best for complex CSS)
     const coverPageEl = contentBody.querySelector<HTMLElement>('[data-page="cover"]');
     if (coverPageEl) {
         try {
-            const canvas = await html2canvas(coverPageEl, {
-                scale: 2, // Higher resolution
-                useCORS: true,
-                backgroundColor: null, // Transparent background
-            });
+            const canvas = await html2canvas(coverPageEl, { scale: 2, useCORS: true, backgroundColor: null });
             const imgData = canvas.toDataURL('image/png');
             doc.addImage(imgData, 'PNG', 0, 0, pageDimensions.width, pageDimensions.height, undefined, 'FAST');
         } catch (error) {
             console.error("html2canvas failed for cover page:", error);
-            // Fallback: draw a simple text cover
-            addWrappedText(bookTitle, { font: 'Merriweather', fontSize: 24, align: 'center', x: pageDimensions.width / 2, y: pageDimensions.height / 2 });
+            // Fallback: draw a simple text cover if html2canvas fails
+            addWrappedText(bookTitle, { font: 'MerriweatherSans', fontSize: 36, weight: 'bold', align: 'center', x: pageDimensions.width / 2, y: pageDimensions.height / 3 });
         }
     }
 
-
-    // --- Page 2: Copyright ---
-    const copyrightPageEl = contentBody.querySelector('[data-page="copyright"]');
+    // Page 2: Copyright
+    addPageWithBackground();
+    const copyrightPageEl = contentBody.querySelector<HTMLElement>('[data-page="copyright"]');
     if (copyrightPageEl) {
-        addPageWithBackground();
-        const lines = Array.from(copyrightPageEl.querySelectorAll('p')).map(p => p.textContent || '');
-        const textBlock = lines.join('\n');
-
-        addWrappedText(textBlock, {
+        const lines = Array.from(copyrightPageEl.querySelectorAll('p')).map(p => p.textContent || '').join('\n');
+        // Position it at the bottom of the page
+        addWrappedText(lines, {
             font: 'MerriweatherSans',
-            fontSize: 9,
+            fontSize: 8,
             weight: 'light',
             color: '#595959',
             align: 'center',
             x: pageDimensions.width / 2,
-            y: pageDimensions.height - marginPt - 30,
+            y: pageDimensions.height - marginPt - 60, // 60pt from bottom margin
         });
     }
 
-    const addHeadersAndFooters = () => {
-        const pageCount = doc.internal.getNumberOfPages();
-        for (let i = 3; i <= pageCount; i++) {
-            doc.setPage(i);
-            
-            // Re-apply background only if not white, to preserve content
-            if (PAGE_BG_COLOR !== '#FFFFFF') {
-                doc.setFillColor(PAGE_BG_COLOR);
-                doc.rect(0, 0, pageDimensions.width, pageDimensions.height, 'F');
+    // --- Page 3 onwards: Content ---
+    addPageWithBackground(); // Start content on a new page
+
+    // Find the container of all content nodes
+    const contentNodes = contentBody.querySelectorAll('.page-container.content-page, .page-container.chapter-title-page');
+    
+    // The main layouting loop
+    contentNodes.forEach(containerNode => {
+        // Handle standalone chapter title pages
+        if (containerNode.classList.contains('chapter-title-page')) {
+            // If we are not at the top of a page, force a new page for the title
+            if (currentY > marginPt + 1) { // +1 to handle tiny float variations
+                addPageWithBackground();
             }
-
-            // Header
-            const headerFont = mapFont('MerriweatherSans', 'light');
-            doc.setFont(headerFont.fontName, headerFont.style);
-            doc.setFontSize(8); 
-            doc.setTextColor('#595959');
-            doc.text(bookTitle.toUpperCase(), pageDimensions.width / 2, marginPt / 1.5, { align: 'center' });
-
-            // Footer (Page Number)
-            const footerFont = mapFont('MerriweatherSans', 'bold');
-            doc.setFont(footerFont.fontName, footerFont.style);
-            doc.setFontSize(12);
-            doc.setTextColor('#595959'); // Gray color, slightly darker
-            doc.text(String(i - 2), pageDimensions.width / 2, pageDimensions.height - (marginPt / 2), { align: 'center' });
+            const titleEl = containerNode.querySelector<HTMLElement>('.chapter-title-standalone');
+            if (titleEl && titleEl.textContent) {
+                 addWrappedText(titleEl.textContent, {
+                    font: 'Merriweather',
+                    fontSize: FONT_SIZE_H1,
+                    weight: 'bold',
+                    align: 'center',
+                    // Position vertically centered
+                    y: pageDimensions.height / 2.5,
+                    x: pageDimensions.width / 2,
+                    maxWidth: usableWidth * 0.9
+                });
+            }
+            // The content for this chapter will start on the *next* page
+            addPageWithBackground();
+            return; // Move to the next containerNode
         }
-    };
 
-    const processNode = (node: Element) => {
-        const tagName = node.tagName.toLowerCase();
-        const text = node.textContent || '';
-        
-        switch(tagName) {
-            case 'h1': // Títulos principais (Sumário, Intro, Conclusão)
-                 if (node.classList.contains('font-merriweather')) {
-                    checkAndAddPage(FONT_SIZE_H1 * LINE_HEIGHT_RATIO_TITLE * 2);
-                    addSpace(10);
+        // Handle regular content pages
+        Array.from(containerNode.children).forEach(node => {
+            const el = node as HTMLElement;
+            const tagName = el.tagName.toLowerCase();
+            const text = el.textContent?.trim() || '';
+            if (!text) return;
+
+            switch(tagName) {
+                case 'h1': // Sumário, Introdução, Conclusão titles
+                    addSpace(10); // Space before main title
                     addWrappedText(text, {
                         font: 'Merriweather',
                         fontSize: FONT_SIZE_H1,
-                        weight: 'bold', // Titles should be bold
+                        weight: 'bold',
                         align: 'left',
                         isTitle: true,
                         lineHeightRatio: LINE_HEIGHT_RATIO_TITLE,
                     });
-                    addSpace(20);
-                }
-                break;
-            case 'h2': // Títulos de Capítulo no conteúdo
-                 addWrappedText(text, {
-                    font: 'Merriweather',
-                    fontSize: FONT_SIZE_H2,
-                    weight: 'bold',
-                    isTitle: true,
-                    lineHeightRatio: LINE_HEIGHT_RATIO_TITLE,
-                });
-                addSpace(10);
-                break;
-            case 'h3': // Títulos de Subcapítulo
-                addSpace(5);
-                addWrappedText(text, {
-                    font: 'MerriweatherSans',
-                    fontSize: FONT_SIZE_H3,
-                    weight: 'bold',
-                    isTitle: true,
-                    lineHeightRatio: LINE_HEIGHT_RATIO_TITLE,
-                });
-                addSpace(5);
-                break;
-            case 'p':
-                 const isTocItem = node.classList.contains('toc-item');
-                 const isTocChapter = node.classList.contains('toc-chapter');
-                 const isTocSubchapter = node.classList.contains('toc-subchapter');
-                 
-                 addWrappedText(text, {
-                    font: isTocItem ? 'MerriweatherSans' : 'Merriweather',
-                    fontSize: isTocItem ? 11 : FONT_SIZE_BODY,
-                    align: 'justify',
-                    weight: isTocChapter ? 'bold' : 'normal',
-                    indent: isTocSubchapter ? 15 : (isTocItem ? 0 : 28),
-                 });
-                 addSpace(isTocItem ? (isTocChapter ? 10 : 2) : 5);
-                break;
-            case 'div':
-                if (node.hasAttribute('data-page') && node.getAttribute('data-page')?.startsWith('title-')) {
-                    addPageWithBackground();
-                    const titleEl = node.querySelector('.chapter-title-standalone');
-                    if (titleEl && titleEl.textContent) {
-                         addWrappedText(titleEl.textContent, {
-                            font: 'Merriweather',
-                            fontSize: 24,
-                            weight: 'normal',
-                            align: 'center',
-                            y: pageDimensions.height / 2.3,
-                            x: pageDimensions.width / 2,
-                            maxWidth: usableWidth * 0.9
-                        });
-                    }
-                    addPageWithBackground();
-                } else {
-                     Array.from(node.children).forEach(child => processNode(child));
-                }
-                break;
-            default:
-                break;
-        }
-    };
-    
-    const contentStartEl = contentBody.querySelector('[data-page="content-start"]');
-    if(contentStartEl) {
-        addPageWithBackground();
-        const allContentDivs = contentBody.querySelectorAll('.page-container.content-page, .page-container.chapter-title-page');
-        
-        allContentDivs.forEach((pageDiv, index) => {
-            if (index > 0) { // The first content page is already created
-                 addPageWithBackground();
+                    addSpace(20); // Space after main title
+                    break;
+                case 'h2': // Chapter titles within content flow
+                    addSpace(10);
+                     addWrappedText(text, {
+                        font: 'Merriweather',
+                        fontSize: FONT_SIZE_H2,
+                        weight: 'bold',
+                        isTitle: true,
+                        lineHeightRatio: LINE_HEIGHT_RATIO_TITLE,
+                    });
+                    addSpace(10);
+                    break;
+                case 'h3': // Subchapter titles
+                    addSpace(15);
+                    addWrappedText(text, {
+                        font: 'MerriweatherSans',
+                        fontSize: FONT_SIZE_H3,
+                        weight: 'bold',
+                        isTitle: true,
+                        lineHeightRatio: LINE_HEIGHT_RATIO_TITLE,
+                    });
+                    addSpace(8);
+                    break;
+                case 'p':
+                     const isTocItem = el.classList.contains('toc-item');
+                     const isTocChapter = el.classList.contains('toc-chapter');
+                     const isTocSubchapter = el.classList.contains('toc-subchapter');
+                     const hasIndent = el.classList.contains('indent');
+                     
+                     addWrappedText(text, {
+                        font: isTocItem ? 'MerriweatherSans' : 'Merriweather',
+                        fontSize: isTocItem ? 10 : FONT_SIZE_BODY,
+                        align: isTocItem ? 'left' : 'justify',
+                        weight: isTocChapter ? 'bold' : 'normal',
+                        indent: isTocSubchapter ? 20 : (hasIndent ? 25 : 0),
+                        lineHeightRatio: isTocItem ? 1.4 : LINE_HEIGHT_RATIO_BODY,
+                     });
+                     // Add space after paragraphs
+                     addSpace(isTocItem ? (isTocChapter ? 8 : 2) : 8);
+                    break;
             }
-            Array.from(pageDiv.children).forEach(child => processNode(child));
         });
+    });
+
+    // --- 3. HEADERS AND FOOTERS ---
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 3; i <= pageCount; i++) { // Start from page 3 (content page 1)
+        doc.setPage(i);
+        
+        // Header
+        const headerFont = mapFont('MerriweatherSans', 'light');
+        doc.setFont(headerFont.fontName, headerFont.style);
+        doc.setFontSize(9); 
+        doc.setTextColor('#595959');
+        doc.text(bookTitle.toUpperCase(), marginPt, marginPt / 1.5, { align: 'left' });
+
+        // Footer (Page Number)
+        const footerFont = mapFont('MerriweatherSans', 'normal');
+        doc.setFont(footerFont.fontName, footerFont.style);
+        doc.setFontSize(9);
+        doc.setTextColor('#595959');
+        doc.text(String(i - 2), pageDimensions.width / 2, pageDimensions.height - (marginPt / 2), { align: 'center' });
     }
 
-    addHeadersAndFooters();
 
-    document.body.removeChild(renderContainer);
-    doc.save(`${bookTitle.replace(/\s/g, '_')}.pdf`);
+    // --- 4. FINALIZE ---
+    document.body.removeChild(renderContainer); // Cleanup
+    doc.save(`${bookTitle.replace(/[\s:]/g, '_').toLowerCase()}.pdf`);
 };
