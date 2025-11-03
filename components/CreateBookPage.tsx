@@ -480,20 +480,21 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
                 title: formData.title || 'livro-digital'
             }),
         });
+        
+        const responseText = await response.text();
 
         if (!response.ok) {
-            const errorText = await response.text();
             let errorMessage;
             try {
-                const errorJson = JSON.parse(errorText);
+                const errorJson = JSON.parse(responseText);
                 errorMessage = errorJson.details || errorJson.error || `O servidor respondeu com status ${response.status}`;
             } catch (e) {
-                errorMessage = errorText;
+                errorMessage = responseText;
             }
             throw new Error(errorMessage);
         }
-
-        const { downloadUrl } = await response.json();
+        
+        const { downloadUrl } = JSON.parse(responseText);
         window.open(downloadUrl, '_blank');
 
     } catch (error) {
