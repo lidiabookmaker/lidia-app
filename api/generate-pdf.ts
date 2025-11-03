@@ -38,9 +38,10 @@ export default async function handler(req, res) {
     const page = await browser.newPage();
 
     // 3. Gerar o PDF
-    // Carregamos o HTML enviado pelo frontend. `waitUntil: 'networkidle0'`
-    // espera todas as conexões de rede (como fontes do Google Fonts) terminarem.
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    // Carregamos o HTML enviado pelo frontend. `waitUntil: 'networkidle2'`
+    // é um pouco menos restrito que 'networkidle0' e pode evitar timeouts
+    // se o carregamento de fontes for lento, sem comprometer o resultado.
+    await page.setContent(htmlContent, { waitUntil: 'networkidle2' });
 
     const pdfBuffer = await page.pdf({
       format: 'A5',

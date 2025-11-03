@@ -103,8 +103,8 @@ const App: React.FC = () => {
                         .from('profiles')
                         .update({
                             status: 'ativa_free',
-                            // FIX: Reverted to 10 credits for pre-MVP testing purposes.
-                            book_credits: 10,
+                            // FIX: Increased credits to 20 for pre-MVP testing purposes, as per user request.
+                            book_credits: 20,
                         })
                         .eq('id', session.user.id)
                         .select()
@@ -201,7 +201,7 @@ const App: React.FC = () => {
             .from('profiles')
             .update({
                 status: plan === 'pro' ? 'ativa_pro' : 'ativa_free',
-                book_credits: plan === 'pro' ? 10 : 1,
+                book_credits: plan === 'pro' ? 20 : 1,
             })
             .eq('id', userId);
         if (error) console.error("Error activating user", error);
