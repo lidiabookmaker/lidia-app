@@ -482,8 +482,15 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.details || errorData.error || `O servidor respondeu com status ${response.status}`);
+            const errorText = await response.text();
+            let errorMessage;
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorMessage = errorJson.details || errorJson.error || `O servidor respondeu com status ${response.status}`;
+            } catch (e) {
+                errorMessage = errorText;
+            }
+            throw new Error(errorMessage);
         }
 
         const { downloadUrl } = await response.json();
