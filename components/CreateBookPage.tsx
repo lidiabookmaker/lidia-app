@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
-import { downloadAsPdf } from '../services/pdf-generator';
 import type { UserProfile, Book, BookGenerationFormData, Page } from '../types';
 import { Button } from './ui/Button';
 import { Input, TextArea } from './ui/Input';
@@ -471,13 +470,31 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
   const handleDownload = async () => {
     if (!generatedHtml) return;
     setIsDownloading(true);
+    setErrorMessage('');
     try {
-        await downloadAsPdf(formData.title, generatedHtml);
+        const response = await fetch('/api/generate-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                htmlContent: generatedHtml,
+                title: formData.title || 'livro-digital'
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.details || errorData.error || `O servidor respondeu com status ${response.status}`);
+        }
+
+        const { downloadUrl } = await response.json();
+        window.open(downloadUrl, '_blank');
+
     } catch (error) {
         console.error("PDF Download failed:", error);
-        alert(`Ocorreu um erro ao gerar o PDF: ${error instanceof Error ? error.message : String(error)}`);
+        const err = error as Error;
+        setErrorMessage(`Ocorreu um erro ao gerar o PDF: ${err.message}`);
     } finally {
-        setTimeout(() => setIsDownloading(false), 1500);
+        setIsDownloading(false);
     }
   };
 
@@ -534,6 +551,13 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
                     <p className="text-red-700 mt-2">{errorMessage}</p>
                   </Card>
                 )}
+                 {errorMessage && generationState !== 'generating' && (
+                  <Card className="border-2 border-red-300 bg-red-50 mt-4">
+                    <h3 className="text-lg font-bold text-red-800">Erro no Download</h3>
+                    <p className="text-red-700 mt-2">{errorMessage}</p>
+                  </Card>
+                )}
+
 
                 {generationState === 'success' && generatedHtml && (
                   <Card className="border-2 border-green-300 bg-green-50">

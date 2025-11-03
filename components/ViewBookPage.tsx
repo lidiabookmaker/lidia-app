@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import type { Book } from '../types';
 import { Button } from './ui/Button';
-import { downloadAsPdf } from '../services/pdf-generator';
 
 const ArrowLeftIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
@@ -14,19 +13,40 @@ interface ViewBookPageProps {
 
 export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) => {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
 
   const handleDownload = async () => {
-    if (!book.content) return;
+    if (!book.content) {
+        setDownloadError("O conteúdo do livro não está disponível para download.");
+        return;
+    };
     setIsDownloading(true);
+    setDownloadError('');
+
     try {
-        await downloadAsPdf(book.title, book.content);
+        const response = await fetch('/api/generate-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                htmlContent: book.content,
+                title: book.title
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.details || errorData.error || `O servidor respondeu com status ${response.status}`);
+        }
+
+        const { downloadUrl } = await response.json();
+        window.open(downloadUrl, '_blank');
+
     } catch (error) {
         console.error("PDF Download failed:", error);
-        alert(`Ocorreu um erro ao gerar o PDF: ${error instanceof Error ? error.message : String(error)}`);
+        const err = error as Error;
+        setDownloadError(`Ocorreu um erro ao gerar o PDF: ${err.message}`);
     } finally {
-        // O download é síncrono, então o estado de carregamento pode ser encerrado rapidamente.
-        // Um pequeno timeout melhora a percepção do usuário.
-        setTimeout(() => setIsDownloading(false), 1500);
+        setIsDownloading(false);
     }
   };
 
@@ -49,6 +69,14 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
                 </Button>
             </div>
         </header>
+
+        {downloadError && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                <strong className="font-bold">Erro!</strong>
+                <span className="block sm:inline"> {downloadError}</span>
+            </div>
+        )}
+
         <main>
             <div className="text-center mb-6">
                 <h1 className="text-3xl font-bold text-gray-800 mb-1">{book.title}</h1>
