@@ -71,7 +71,7 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
                   onClick={handleDownload} 
                   className="w-full"
                   isLoading={isDownloading}
-                  loadingText="Gerando PDF..."
+                  loadingText="Gerando PDF... Isso pode levar um minuto."
                 >
                   Baixar PDF
                 </Button>

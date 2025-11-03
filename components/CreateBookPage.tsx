@@ -572,7 +572,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
                     <h3 className="text-lg font-bold text-green-800">Livro Gerado com Sucesso!</h3>
                     <p className="text-green-700 mt-2 mb-4">Seu livro está pronto. Visualize abaixo ou faça o download.</p>
                     <div className="flex space-x-4">
-                      <Button onClick={handleDownload} className="w-full" isLoading={isDownloading} loadingText="Preparando PDF...">Baixar em PDF</Button>
+                      <Button onClick={handleDownload} className="w-full" isLoading={isDownloading} loadingText="Preparando PDF... Isso pode levar um minuto.">Baixar em PDF</Button>
                     </div>
                   </Card>
                 )}

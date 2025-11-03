@@ -22,9 +22,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNav
 
   let creditsText;
   if (isFreeUser) {
-    creditsText = `Você pode criar mais ${credits} ${credits === 1 ? 'livro gratuito' : 'livros gratuitos'}.`;
+    creditsText = `Você pode criar mais ${credits} ${credits === 1 ? 'livro' : 'livros'}.`;
   } else { // ativa_pro
-    creditsText = `Você ainda pode criar ${credits} de 20 livros este mês.`;
+    creditsText = `Você ainda pode criar ${credits} de 100 livros este mês.`;
   }
 
   let createButtonText = "+ Criar Novo Livro";
