@@ -45,6 +45,7 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
   };
 
   const handleCancel = () => {
+    // Re-render iframe with original content
     const iframe = iframeRef.current;
     if (iframe && iframe.contentWindow) {
       iframe.contentWindow.document.open();
@@ -76,87 +77,84 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
 
   const handleDownload = async () => {
     if (!book.content) {
-      setDownloadError("O conteúdo do livro não está disponível para download.");
-      return;
-    }
-
+        setDownloadError("O conteúdo do livro não está disponível para download.");
+        return;
+    };
     setIsDownloading(true);
     setDownloadError('');
 
     let iframe: HTMLIFrameElement | null = null;
 
     try {
-      iframe = document.createElement('iframe');
-      iframe.style.position = 'absolute';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      iframe.style.visibility = 'hidden';
-      document.body.appendChild(iframe);
+        iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.style.visibility = 'hidden';
+        document.body.appendChild(iframe);
 
-      const iframeDoc = iframe.contentWindow?.document;
-      if (!iframeDoc) {
-        throw new Error("Não foi possível acessar o documento do iframe.");
-      }
-
-      iframeDoc.open();
-      iframeDoc.write(book.content);
-      iframeDoc.close();
-
-      const opt = {
-        margin: [20, 20, 20, 20],
-        filename: `${book.title.replace(/[^\w\s-]/g, '').replace(/[\s_]+/g, '-').toLowerCase()}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-            scale: 2, 
-            useCORS: true,
-            logging: false,
-            windowWidth: iframeDoc.documentElement.scrollWidth,
-            windowHeight: iframeDoc.documentElement.scrollHeight,
-        },
-        jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'] },
-      };
-
-      const worker = html2pdf().from(iframeDoc.body).set(opt);
-
-      worker.toPdf().get('pdf').then(function (pdf) {
-        const totalPages = pdf.internal.getNumberOfPages();
-        const startPage = 3; 
-        pdf.setFont('helvetica', 'normal');
-
-        for (let i = startPage; i <= totalPages; i++) {
-          pdf.setPage(i);
-          const pageWidth = pdf.internal.pageSize.getWidth();
-          const pageHeight = pdf.internal.pageSize.getHeight();
-          
-          pdf.setFontSize(9);
-          pdf.setTextColor(150);
-          pdf.text(book.title, pageWidth / 2, 15, { align: 'center' });
-          pdf.text(String(i), pageWidth / 2, pageHeight - 15, { align: 'center' });
+        const iframeDoc = iframe.contentWindow?.document;
+        if (!iframeDoc) {
+            throw new Error("Não foi possível acessar o documento do iframe.");
         }
-      });
 
-      await worker.save();
+        iframeDoc.open();
+        iframeDoc.write(book.content);
+        iframeDoc.close();
+        
+        const opt = {
+            // FIX: The margin property for html2pdf requires a tuple of 4 numbers.
+            // A simple array literal works here as the library is less strict than its typings suggest.
+            margin: [20, 20, 20, 20],
+            filename: `${book.title.replace(/[^\w\s-]/g, '').replace(/[\s_]+/g, '-').toLowerCase()}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+                scale: 2, 
+                useCORS: true,
+                logging: false,
+                windowWidth: iframeDoc.documentElement.scrollWidth,
+                windowHeight: iframeDoc.documentElement.scrollHeight,
+            },
+            jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] },
+        };
 
-      // ✅ GUARANTE FLUSH
-      await new Promise(resolve => setTimeout(resolve, 800));
+        const worker = html2pdf().from(iframeDoc.body).set(opt);
+        
+        worker.toPdf().get('pdf').then(function (pdf) {
+            const totalPages = pdf.internal.getNumberOfPages();
+            const startPage = 3; 
+            pdf.setFont('helvetica', 'normal');
 
-      // ✅ REMOVE IFRAME MAIS TARDE
-      setTimeout(() => {
-        if (iframe && iframe.parentNode) {
-          document.body.removeChild(iframe);
-        }
-      }, 1500);
+            for (let i = startPage; i <= totalPages; i++) {
+                pdf.setPage(i);
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                
+                pdf.setFontSize(9);
+                pdf.setTextColor(150);
+                pdf.text(book.title, pageWidth / 2, 15, { align: 'center' });
+                
+                pdf.text(String(i), pageWidth / 2, pageHeight - 15, { align: 'center' });
+            }
+        });
 
+        await worker.save();
+        await new Promise(r => setTimeout(r, 300));
+        
     } catch (error) {
-      console.error("Client-side PDF Download failed:", error);
-      const err = error as Error;
-      setDownloadError(`Ocorreu um erro ao gerar o PDF: ${err.message}`);
+        console.error("Client-side PDF Download failed:", error);
+        const err = error as Error;
+        setDownloadError(`Ocorreu um erro ao gerar o PDF: ${err.message}`);
     } finally {
-      setIsDownloading(false);
+        if (iframe && iframe.parentNode) {
+            document.body.removeChild(iframe);
+        }
+        setIsDownloading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
