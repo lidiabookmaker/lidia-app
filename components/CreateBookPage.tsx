@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
+import html2pdf from 'html2pdf.js';
 import type { UserProfile, Book, BookGenerationFormData, Page } from '../types';
 import { Button } from './ui/Button';
 import { Input, TextArea } from './ui/Input';
@@ -110,6 +111,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
               position: relative;
               overflow: hidden;
               background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1) 0%, rgba(10, 207, 131, 0.1) 100%);
+              page-break-after: always;
           }
           .cover-page .content-wrapper {
               position: relative;
@@ -471,40 +473,71 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     if (!generatedHtml) return;
     setIsDownloading(true);
     setErrorMessage('');
-    try {
-        const response = await fetch('/api/generate-pdf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                htmlContent: generatedHtml,
-                title: formData.title || 'livro-digital'
-            }),
-        });
-        
-        const responseText = await response.text();
 
-        if (!response.ok) {
-            let errorMessage;
-            try {
-                const errorJson = JSON.parse(responseText);
-                errorMessage = errorJson.details || errorJson.error || `O servidor respondeu com status ${response.status}`;
-            } catch (e) {
-                errorMessage = responseText;
-            }
-            throw new Error(errorMessage);
-        }
+    try {
+        const element = document.createElement('div');
+        element.innerHTML = generatedHtml;
+        // Make it invisible but renderable for html2pdf
+        element.style.position = 'fixed';
+        element.style.top = '0';
+        element.style.left = '0';
+        element.style.width = '14.8cm'; // A5 width
+        element.style.visibility = 'hidden';
+        element.style.zIndex = '-1';
+        document.body.appendChild(element);
+
+        const title = formData.title || 'livro-digital';
+        const opt = {
+            margin: [20, 20, 20, 20], // 2cm margins [top, left, bottom, right] in mm
+            filename: `${title.replace(/[^\w\s-]/g, '').replace(/[\s_]+/g, '-').toLowerCase()}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+                scale: 2, 
+                useCORS: true,
+                logging: false,
+                windowWidth: element.scrollWidth,
+                windowHeight: element.scrollHeight,
+            },
+            jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] }, // Respects page-break-after: always
+        };
+
+        const worker = html2pdf().from(element).set(opt);
         
-        const { downloadUrl } = JSON.parse(responseText);
-        window.open(downloadUrl, '_blank');
+        // Add header and footer to each page
+        worker.toPdf().get('pdf').then(function (pdf) {
+            const totalPages = pdf.internal.getNumberOfPages();
+            const startPage = 3; // Skip cover and copyright pages
+            pdf.setFont('helvetica', 'normal');
+
+            for (let i = startPage; i <= totalPages; i++) {
+                pdf.setPage(i);
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                
+                // Header (Book Title)
+                pdf.setFontSize(9);
+                pdf.setTextColor(150);
+                pdf.text(title, pageWidth / 2, 15, { align: 'center' });
+                
+                // Footer (Page Number)
+                pdf.text(String(i), pageWidth / 2, pageHeight - 15, { align: 'center' });
+            }
+        });
+
+        await worker.save();
+        
+        document.body.removeChild(element);
 
     } catch (error) {
-        console.error("PDF Download failed:", error);
+        console.error("Client-side PDF Download failed:", error);
         const err = error as Error;
         setErrorMessage(`Ocorreu um erro ao gerar o PDF: ${err.message}`);
     } finally {
         setIsDownloading(false);
     }
   };
+
 
   const isFormValid = formData.title && formData.summary && formData.niche;
 
@@ -572,7 +605,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
                     <h3 className="text-lg font-bold text-green-800">Livro Gerado com Sucesso!</h3>
                     <p className="text-green-700 mt-2 mb-4">Seu livro está pronto. Visualize abaixo ou faça o download.</p>
                     <div className="flex space-x-4">
-                      <Button onClick={handleDownload} className="w-full" isLoading={isDownloading} loadingText="Preparando PDF... Isso pode levar um minuto.">Baixar em PDF</Button>
+                      <Button onClick={handleDownload} className="w-full" isLoading={isDownloading} loadingText="Gerando PDF no seu navegador...">Baixar em PDF</Button>
                     </div>
                   </Card>
                 )}

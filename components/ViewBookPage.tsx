@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import html2pdf from 'html2pdf.js';
 import type { Book } from '../types';
 import { Button } from './ui/Button';
 
@@ -24,39 +25,68 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
     setDownloadError('');
 
     try {
-        const response = await fetch('/api/generate-pdf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                htmlContent: book.content,
-                title: book.title
-            }),
-        });
+        const element = document.createElement('div');
+        element.innerHTML = book.content;
+        // Make it invisible but renderable for html2pdf
+        element.style.position = 'fixed';
+        element.style.top = '0';
+        element.style.left = '0';
+        element.style.width = '14.8cm'; // A5 width for accurate rendering
+        element.style.visibility = 'hidden';
+        element.style.zIndex = '-1';
+        document.body.appendChild(element);
+
+        const opt = {
+            margin: [20, 20, 20, 20], // 2cm margins [top, left, bottom, right] in mm
+            filename: `${book.title.replace(/[^\w\s-]/g, '').replace(/[\s_]+/g, '-').toLowerCase()}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+                scale: 2, 
+                useCORS: true,
+                logging: false,
+                windowWidth: element.scrollWidth,
+                windowHeight: element.scrollHeight,
+            },
+            jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] }, // Respects page-break-after: always
+        };
+
+        const worker = html2pdf().from(element).set(opt);
         
-        const responseText = await response.text();
+        // Add header and footer to each page
+        worker.toPdf().get('pdf').then(function (pdf) {
+            const totalPages = pdf.internal.getNumberOfPages();
+            const startPage = 3; // Skip cover and copyright pages
+            pdf.setFont('helvetica', 'normal');
 
-        if (!response.ok) {
-            let errorMessage;
-            try {
-                const errorJson = JSON.parse(responseText);
-                errorMessage = errorJson.details || errorJson.error || `O servidor respondeu com status ${response.status}`;
-            } catch (e) {
-                errorMessage = responseText;
+            for (let i = startPage; i <= totalPages; i++) {
+                pdf.setPage(i);
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                
+                // Header (Book Title)
+                pdf.setFontSize(9);
+                pdf.setTextColor(150);
+                pdf.text(book.title, pageWidth / 2, 15, { align: 'center' });
+                
+                // Footer (Page Number)
+                pdf.text(String(i), pageWidth / 2, pageHeight - 15, { align: 'center' });
             }
-            throw new Error(errorMessage);
-        }
+        });
 
-        const { downloadUrl } = JSON.parse(responseText);
-        window.open(downloadUrl, '_blank');
+        await worker.save();
+        
+        document.body.removeChild(element);
 
     } catch (error) {
-        console.error("PDF Download failed:", error);
+        console.error("Client-side PDF Download failed:", error);
         const err = error as Error;
         setDownloadError(`Ocorreu um erro ao gerar o PDF: ${err.message}`);
     } finally {
         setIsDownloading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
@@ -71,7 +101,7 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
                   onClick={handleDownload} 
                   className="w-full"
                   isLoading={isDownloading}
-                  loadingText="Gerando PDF... Isso pode levar um minuto."
+                  loadingText="Gerando PDF no seu navegador..."
                 >
                   Baixar PDF
                 </Button>
