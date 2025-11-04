@@ -496,8 +496,9 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
 
         const title = formData.title || 'livro-digital';
         const opt = {
-            // FIX: Removed 'as const' to make the margin array mutable, which is compatible with Html2PdfOptions.
-            margin: [20, 20, 20, 20], // 2cm margins [top, left, bottom, right] in mm
+            // FIX: The margin property for html2pdf requires a mutable tuple of 4 numbers.
+            // `as const` creates a readonly tuple, which is incompatible.
+            margin: [20, 20, 20, 20],
             filename: `${title.replace(/[^\w\s-]/g, '').replace(/[\s_]+/g, '-').toLowerCase()}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { 
@@ -532,13 +533,14 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         });
 
         await worker.save();
+        await new Promise(r => setTimeout(r, 300));
         
     } catch (error) {
         console.error("Client-side PDF Download failed:", error);
         const err = error as Error;
         setErrorMessage(`Ocorreu um erro ao gerar o PDF: ${err.message}`);
     } finally {
-        if (iframe) {
+        if (iframe && iframe.parentNode) {
             document.body.removeChild(iframe);
         }
         setIsDownloading(false);

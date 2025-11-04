@@ -242,6 +242,27 @@ const App: React.FC = () => {
         await fetchBooks();
     };
 
+    const handleUpdateBook = async (bookId: string, content: string) => {
+        if (!user) return;
+
+        const { data: updatedBook, error } = await supabase
+            .from('books')
+            .update({ content })
+            .eq('id', bookId)
+            .select()
+            .single();
+
+        if (error || !updatedBook) {
+            console.error("Error updating book", error);
+            throw error || new Error("Book update failed to return data.");
+        }
+
+        // Update local state to avoid a full refetch
+        setBooks(prevBooks => 
+            prevBooks.map(b => b.id === bookId ? { ...b, content: updatedBook.content } : b)
+        );
+    };
+
 
      const handleViewBook = (bookId: string) => {
         setViewedBookId(bookId);
@@ -296,7 +317,7 @@ const App: React.FC = () => {
                     handleNavigation(user);
                     return <LoadingSpinner />;
                 }
-                return <ViewBookPage book={bookToView} onNavigate={handleNavigate} />;
+                return <ViewBookPage book={bookToView} onNavigate={handleNavigate} onUpdateBook={handleUpdateBook} />;
             case 'admin-users':
                 if (user.role !== 'admin') { handleNavigation(user); return null; }
                 return <UserManagementPage users={users} onUpdateUserStatus={handleUpdateUserStatus} onNavigate={handleNavigate} />;
