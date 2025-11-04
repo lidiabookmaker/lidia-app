@@ -19,7 +19,7 @@ export const Button: React.FC<ButtonProps> = ({ children, className, variant = '
 
   return (
     <button
-      className={`${baseClasses} ${variantClasses[variant]} ${className}`}
+      className={`${baseClasses} ${variantClasses[variant]} ${className || ''}`}
       disabled={isLoading || props.disabled}
       {...props}
     >

@@ -473,21 +473,30 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     if (!generatedHtml) return;
     setIsDownloading(true);
     setErrorMessage('');
+    
+    let iframe: HTMLIFrameElement | null = null;
 
     try {
-        const element = document.createElement('div');
-        element.innerHTML = generatedHtml;
-        // Make it invisible but renderable for html2pdf
-        element.style.position = 'fixed';
-        element.style.top = '0';
-        element.style.left = '0';
-        element.style.width = '14.8cm'; // A5 width
-        element.style.visibility = 'hidden';
-        element.style.zIndex = '-1';
-        document.body.appendChild(element);
+        iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.style.visibility = 'hidden';
+        document.body.appendChild(iframe);
+
+        const iframeDoc = iframe.contentWindow?.document;
+        if (!iframeDoc) {
+            throw new Error("Não foi possível acessar o documento do iframe.");
+        }
+
+        iframeDoc.open();
+        iframeDoc.write(generatedHtml);
+        iframeDoc.close();
 
         const title = formData.title || 'livro-digital';
         const opt = {
+            // FIX: Removed 'as const' to make the margin array mutable, which is compatible with Html2PdfOptions.
             margin: [20, 20, 20, 20], // 2cm margins [top, left, bottom, right] in mm
             filename: `${title.replace(/[^\w\s-]/g, '').replace(/[\s_]+/g, '-').toLowerCase()}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
@@ -495,19 +504,18 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
                 scale: 2, 
                 useCORS: true,
                 logging: false,
-                windowWidth: element.scrollWidth,
-                windowHeight: element.scrollHeight,
+                windowWidth: iframeDoc.documentElement.scrollWidth,
+                windowHeight: iframeDoc.documentElement.scrollHeight,
             },
             jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' },
-            pagebreak: { mode: ['css', 'legacy'] }, // Respects page-break-after: always
+            pagebreak: { mode: ['css', 'legacy'] },
         };
 
-        const worker = html2pdf().from(element).set(opt);
+        const worker = html2pdf().from(iframeDoc.body).set(opt);
         
-        // Add header and footer to each page
         worker.toPdf().get('pdf').then(function (pdf) {
             const totalPages = pdf.internal.getNumberOfPages();
-            const startPage = 3; // Skip cover and copyright pages
+            const startPage = 3; 
             pdf.setFont('helvetica', 'normal');
 
             for (let i = startPage; i <= totalPages; i++) {
@@ -515,25 +523,24 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
                 const pageWidth = pdf.internal.pageSize.getWidth();
                 const pageHeight = pdf.internal.pageSize.getHeight();
                 
-                // Header (Book Title)
                 pdf.setFontSize(9);
                 pdf.setTextColor(150);
                 pdf.text(title, pageWidth / 2, 15, { align: 'center' });
                 
-                // Footer (Page Number)
                 pdf.text(String(i), pageWidth / 2, pageHeight - 15, { align: 'center' });
             }
         });
 
         await worker.save();
         
-        document.body.removeChild(element);
-
     } catch (error) {
         console.error("Client-side PDF Download failed:", error);
         const err = error as Error;
         setErrorMessage(`Ocorreu um erro ao gerar o PDF: ${err.message}`);
     } finally {
+        if (iframe) {
+            document.body.removeChild(iframe);
+        }
         setIsDownloading(false);
     }
   };

@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import type { UserProfile, Page } from '../../types';
 import { Button } from '../ui/Button';
@@ -40,8 +41,8 @@ export const ActivationPage: React.FC<ActivationPageProps> = ({ users, onActivat
                   <tr key={user.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        <Button onClick={() => onActivateUser(user.id, 'pro')} className="py-1 px-3 text-xs">Ativar PRO</Button>
-                        <Button onClick={() => onActivateUser(user.id, 'free')} variant="success" className="py-1 px-3 text-xs">Ativar FREE</Button>
+                        <Button onClick={() => onActivateUser(user.id, 'pro')} variant="success" className="py-1 px-3 text-xs">Ativar PRO</Button>
+                        <Button onClick={() => onActivateUser(user.id, 'free')} variant="secondary" className="py-1 px-3 text-xs">Ativar FREE</Button>
                     </td>
                   </tr>
                 )) : (
