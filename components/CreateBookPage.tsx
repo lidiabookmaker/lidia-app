@@ -385,7 +385,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
                         srcDoc={generatedHtml}
                         title="Pré-visualização do Livro"
                         className="w-full border-0 h-[80vh]"
-                        sandbox="allow-same-origin"
+                        sandbox="allow-scripts allow-same-origin"
                     />
                 </div>
               </div>

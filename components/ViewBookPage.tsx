@@ -308,7 +308,7 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
                         srcDoc={book.content}
                         title={book.title}
                         className="w-full border-0 h-[80vh]"
-                        sandbox="allow-same-origin"
+                        sandbox="allow-scripts allow-same-origin"
                     />
                 </div>
             </div>
