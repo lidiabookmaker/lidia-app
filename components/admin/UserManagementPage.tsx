@@ -11,11 +11,14 @@ interface UserManagementPageProps {
   onNavigate: (page: Page) => void;
 }
 
+// FIX: Added missing status types 'ativa_starter' and 'ativa_premium' to align with the UserStatus type.
 const statusClasses: Record<UserStatus, string> = {
     ativa_pro: 'bg-indigo-100 text-indigo-800',
     ativa_free: 'bg-green-100 text-green-800',
     suspensa: 'bg-red-100 text-red-800',
     aguardando_ativacao: 'bg-yellow-100 text-yellow-800',
+    ativa_starter: 'bg-blue-100 text-blue-800',
+    ativa_premium: 'bg-purple-100 text-purple-800',
 };
 
 const formatStatus = (status: UserStatus) => {

@@ -1,5 +1,5 @@
 
-export type UserStatus = 'ativa_pro' | 'ativa_free' | 'suspensa' | 'aguardando_ativacao';
+export type UserStatus = 'ativa_pro' | 'ativa_free' | 'suspensa' | 'aguardando_ativacao' | 'ativa_starter' | 'ativa_premium';
 export type UserRole = 'user' | 'admin';
 // FIX: Added 'loading' to the Page type to handle the loading state after authentication.
 export type Page = 'landing' | 'login' | 'suspended-account' | 'dashboard' | 'create-book' | 'admin-users' | 'admin-settings' | 'view-book' | 'admin-activation' | 'loading';
@@ -44,4 +44,10 @@ export interface BookGenerationFormData {
     tone: string;
     niche: string;
     summary: string;
+}
+
+export interface PlanSetting {
+    plan_id: UserStatus;
+    plan_name: string;
+    book_credits: number;
 }

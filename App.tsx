@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import type { UserProfile, Book, Page } from './types';
+import type { UserProfile, Book, Page, PlanSetting, UserStatus } from './types';
 import { isSupabaseConfigured, supabase } from './services/supabase';
 import { isGeminiConfigured } from './services/geminiConfig';
 
@@ -21,6 +22,7 @@ const App: React.FC = () => {
     const [page, setPage] = useState<Page>('landing');
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [books, setBooks] = useState<Book[]>([]);
+    const [planSettings, setPlanSettings] = useState<PlanSetting[]>([]);
     const [viewedBookId, setViewedBookId] = useState<string | null>(null);
     const [authError, setAuthError] = useState<string | null>(null);
     // FIX: Re-added 'gemini' to config errors to enforce API key setup during pre-MVP.
@@ -49,6 +51,8 @@ const App: React.FC = () => {
         switch (currentUser.status) {
             case 'ativa_pro':
             case 'ativa_free':
+            case 'ativa_starter':
+            case 'ativa_premium':
                 setPage('dashboard');
                 break;
             case 'suspensa':
@@ -61,6 +65,15 @@ const App: React.FC = () => {
         }
     };
     
+    const fetchPlanSettings = async () => {
+        const { data, error } = await supabase.from('plan_settings').select('*');
+        if (error) {
+            console.error("Error fetching plan settings:", error);
+        } else {
+            setPlanSettings(data as PlanSetting[]);
+        }
+    };
+
     useEffect(() => {
         if (!isSupabaseConfigured) {
             if (initialAuthCheckCompleted.current === false) {
@@ -68,7 +81,7 @@ const App: React.FC = () => {
             }
             return;
         };
-
+        
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (!initialAuthCheckCompleted.current) {
                 initialAuthCheckCompleted.current = true;
@@ -99,12 +112,25 @@ const App: React.FC = () => {
                 
                 // Auto-activate new users
                 if (profile.status === 'aguardando_ativacao') {
+                    // Fetch settings again to ensure they are fresh before activating
+                    const { data: currentSettings, error: settingsError } = await supabase.from('plan_settings').select('*');
+                    if (settingsError || !currentSettings) {
+                        console.error("Could not fetch plan settings for auto-activation, using fallback.", settingsError);
+                         await supabase.auth.signOut();
+                        setAuthError("Não foi possível buscar configurações de plano. Ativação falhou.");
+                        setPage('login');
+                        setUser(null);
+                        return;
+                    }
+                    
+                    const freePlan = (currentSettings as PlanSetting[]).find(p => p.plan_id === 'ativa_free');
+                    const creditsForFreePlan = freePlan ? freePlan.book_credits : 1;
+
                     const { data: updatedProfile, error: updateError } = await supabase
                         .from('profiles')
                         .update({
                             status: 'ativa_free',
-                            // FIX: Increased credits to 100 for all users for extended testing.
-                            book_credits: 100,
+                            book_credits: creditsForFreePlan,
                         })
                         .eq('id', session.user.id)
                         .select()
@@ -155,12 +181,14 @@ const App: React.FC = () => {
     useEffect(() => {
         if (user) {
             fetchBooks();
+            fetchPlanSettings(); // Fetched for all authenticated users
             if (user.role === 'admin') {
                 fetchAllUsers();
             }
         } else {
             setBooks([]);
             setUsers([]);
+            setPlanSettings([]); // Clear settings on logout
         }
     }, [user]);
 
@@ -210,14 +238,13 @@ const App: React.FC = () => {
         else fetchAllUsers();
     };
 
-    const handleActivateUser = async (userId: string, plan: 'pro' | 'free') => {
+    const handleActivateUser = async (userId: string, status: UserStatus) => {
+         const plan = planSettings.find(p => p.plan_id === status);
+         const credits = plan ? plan.book_credits : 0;
+
          const { error } = await supabase
             .from('profiles')
-            .update({
-                status: plan === 'pro' ? 'ativa_pro' : 'ativa_free',
-                // FIX: Increased credits to 100 for all activated users for extended testing.
-                book_credits: 100,
-            })
+            .update({ status: status, book_credits: credits })
             .eq('id', userId);
         if (error) console.error("Error activating user", error);
         else fetchAllUsers();
@@ -229,6 +256,22 @@ const App: React.FC = () => {
         setViewedBookId(newBookId);
         setPage('view-book');
     };
+    
+    const handleUpdatePlanSettings = async (updatedSettings: PlanSetting[]) => {
+        if(user?.role !== 'admin') throw new Error("Apenas administradores podem alterar as configurações.");
+        
+        // Supabase upsert can take an array of objects
+        const { error } = await supabase.from('plan_settings').upsert(updatedSettings);
+
+        if (error) {
+            console.error("Error updating plan settings:", error);
+            throw error;
+        }
+        
+        // Refetch to confirm
+        await fetchPlanSettings();
+    };
+
 
     const handleUpdateBook = async (bookId: string, content: string) => {
         if (!user) return;
@@ -314,7 +357,7 @@ const App: React.FC = () => {
                 return <ActivationPage users={users} onActivateUser={handleActivateUser} onNavigate={handleNavigate} />;
             case 'admin-settings':
                 if (user.role !== 'admin') { handleNavigation(user); return null; }
-                return <SettingsPage onNavigate={handleNavigate} />;
+                return <SettingsPage onNavigate={handleNavigate} planSettings={planSettings} onUpdatePlanSettings={handleUpdatePlanSettings} />;
             default:
                 handleNavigation(user);
                 return <LoadingSpinner />;

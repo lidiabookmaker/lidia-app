@@ -40,6 +40,8 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
   const [progress, setProgress] = useState({ message: '', details: '' });
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const pollingInterval = useRef<number | null>(null);
+  const [isLegacyBook, setIsLegacyBook] = useState(false);
+  const [isLegacyGenerating, setIsLegacyGenerating] = useState(false);
 
   const fetchBookStatus = async () => {
     const { data, error } = await supabase.from('books').select('status, pdf_final_url').eq('id', book.id).single();
@@ -89,7 +91,13 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
           console.error("Error fetching book parts:", error);
           setProgress({ message: 'Erro', details: 'Não foi possível carregar as partes do livro.' });
       } else {
-          setParts(data || []);
+          if (data && data.length > 0) {
+              setParts(data);
+              setIsLegacyBook(false);
+          } else {
+              setParts([]);
+              setIsLegacyBook(true);
+          }
       }
   };
 
@@ -155,7 +163,7 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
       for (const part of parts) {
         setProgress({ message: 'Gerando PDF...', details: `Processando parte ${part.part_index + 1} de ${parts.length}: ${part.part_name}` });
 
-        const opt = { margin: 0, filename: 'part.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false }, jsPDF: { unit: 'cm', format: 'a5', orientation: 'portrait' } };
+        const opt = { margin: 0, filename: 'part.pdf', image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 1.5, useCORS: true, logging: false }, jsPDF: { unit: 'cm', format: 'a5', orientation: 'portrait' } };
         
         const tempContainer = document.createElement('div');
         tempContainer.innerHTML = part.html_content;
@@ -196,12 +204,71 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
     }
   };
   
+  const generateLegacyPdf = async () => {
+    setIsLegacyGenerating(true);
+    setProgress({ message: 'Gerando PDF...', details: 'Usando o método antigo. Isso pode demorar ou falhar em livros muito grandes.' });
+
+    try {
+        const element = document.createElement('div');
+        // The full HTML is stored in the content field for legacy books
+        element.innerHTML = currentBook.content || '';
+        document.body.appendChild(element);
+
+        const opt = {
+            margin: 0,
+            filename: `${currentBook.title.replace(/ /g, '_')}.pdf`,
+            image: { type: 'jpeg', quality: 0.95 },
+            html2canvas: { scale: 1.5, useCORS: true, logging: false },
+            jsPDF: { unit: 'cm', format: 'a5', orientation: 'portrait' }
+        };
+
+        // Use the save() method to trigger a direct download
+        await html2pdf().from(element).set(opt).save();
+
+        document.body.removeChild(element);
+        setProgress({ message: '', details: '' });
+
+    } catch (error) {
+        console.error("Legacy PDF Generation Error:", error);
+        setProgress({ message: 'Ocorreu um Erro', details: `O método antigo de geração falhou. ${(error as Error).message}` });
+    } finally {
+        setIsLegacyGenerating(false);
+    }
+};
+
   const getPublicUrl = (path: string) => {
       const { data } = supabase.storage.from('books').getPublicUrl(path);
       return data.publicUrl;
   }
 
   const renderPipelineControls = () => {
+    if (isLegacyBook) {
+        return (
+            <Card className="bg-yellow-50 border-yellow-300 border text-center">
+                <h3 className="text-xl font-bold text-yellow-800">Livro Antigo Detectado</h3>
+                <p className="text-yellow-700 mt-2">
+                    Este livro foi criado com uma versão anterior e não usa o novo sistema de geração de PDF em partes.
+                    Você pode tentar gerar o PDF usando o método antigo, mas ele pode falhar em livros muito grandes.
+                </p>
+                <Button 
+                    onClick={generateLegacyPdf} 
+                    className="mt-6 text-lg" 
+                    isLoading={isLegacyGenerating}
+                    loadingText="Gerando PDF..."
+                >
+                    <GenerateIcon />
+                    Gerar PDF (Método Antigo)
+                </Button>
+                {isLegacyGenerating && progress.details && (
+                    <p className="text-yellow-700 mt-2 text-sm">{progress.details}</p>
+                )}
+                {!isLegacyGenerating && progress.message === 'Ocorreu um Erro' && (
+                     <p className="text-red-700 mt-2 text-sm">{progress.details}</p>
+                )}
+            </Card>
+        );
+    }
+
     if(isProcessing || currentBook.status === 'processing_parts' || currentBook.status === 'assembling_pdf') {
         let message = 'Processando...';
         let details = 'Aguarde um momento.';
