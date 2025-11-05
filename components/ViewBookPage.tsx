@@ -176,7 +176,8 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
       await supabase.from('books').update({ status: 'assembling_pdf' }).eq('id', book.id);
       setCurrentBook(prev => ({...prev, status: 'assembling_pdf'}));
       
-      const { error: functionError } = await supabase.functions.invoke('merge-pdfs', { body: { bookId: book.id } });
+      // FIX: Changed function name to match the file name 'api/generate-pdf.ts'.
+      const { error: functionError } = await supabase.functions.invoke('generate-pdf', { body: { bookId: book.id } });
       if (functionError) throw new Error(`Falha na montagem do PDF: ${functionError.message}`);
       
       startPolling(); // Start checking for the 'ready' status
