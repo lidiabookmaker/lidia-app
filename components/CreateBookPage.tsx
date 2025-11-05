@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import html2pdf from 'html2pdf.js';
-import type { UserProfile, Book, BookGenerationFormData, Page } from '../types';
+import type { UserProfile, Book, BookGenerationFormData, Page, BookPart } from '../types';
 import { Button } from './ui/Button';
 import { Input, TextArea } from './ui/Input';
 import { Card } from './ui/Card';
 import { GEMINI_API_KEY } from '../services/geminiConfig';
+import { supabase } from '../services/supabase';
 
 // --- Tipos para a nova estrutura do livro ---
 interface SubChapter {
@@ -30,14 +31,16 @@ const ArrowLeftIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
 );
 
+type RenderablePart = 'full' | 'cover' | 'copyright' | 'toc' | 'introduction' | 'conclusion' | { type: 'chapter'; index: number };
+
 interface CreateBookPageProps {
   user: UserProfile;
-  onBookCreated: (newBookData: Omit<Book, 'id' | 'created_at'>, updatedCredits: number) => Promise<void>;
+  onGenerationComplete: (newBookId: string) => Promise<void>;
   onNavigate: (page: Page) => void;
   onBeforeGenerate: () => Promise<{ allow: boolean; message: string }>;
 }
 
-export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCreated, onNavigate, onBeforeGenerate }) => {
+export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerationComplete, onNavigate, onBeforeGenerate }) => {
   const [formData, setFormData] = useState<BookGenerationFormData>({
     title: '',
     subtitle: '',
@@ -51,7 +54,6 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
   const [generationState, setGenerationState] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [generatedHtml, setGeneratedHtml] = useState<string | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -73,265 +75,86 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
     return text.split('\n').filter(p => p.trim() !== '').map(p => `<p class="font-merriweather ${addIndent ? 'indent' : ''}">${p}</p>`).join('');
   }
 
-  const generateBookHTML = (bookData: BookGenerationFormData, bookContent: DetailedBookContent): string => {
+  const generateBookHTML = (bookData: BookGenerationFormData, bookContent: DetailedBookContent, partToRender: RenderablePart = 'full'): string => {
     const year = new Date().getFullYear();
-    const pageBgColor = '#FFFFFF'; // Fundo branco conforme solicitado
+    const pageBgColor = '#FFFFFF';
     
     const styles = `
       <style>
           @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@400;700&family=Merriweather+Sans:wght@300;400;600;700&display=swap');
-          
-          body {
-              font-family: 'Merriweather', serif;
-              font-size: 11pt;
-              color: #262626;
-              margin: 0;
-              background-color: #f0f0f0;
-          }
-          .page-container {
-               width: 14.8cm;
-               min-height: 21cm;
-               margin: 1cm auto;
-               padding: 2cm;
-               background: ${pageBgColor};
-               box-shadow: 0 0 10px rgba(0,0,0,0.1);
-               box-sizing: border-box;
-               page-break-after: always;
-           }
-          
-          /* --- Cover Page (CSS Version) --- */
-          .cover-page {
-              padding: 0;
-              text-align: center;
-              height: 21cm;
-              width: 14.8cm;
-              margin: 1cm auto;
-              box-shadow: 0 0 10px rgba(0,0,0,0.1);
-              box-sizing: border-box;
-              position: relative;
-              overflow: hidden;
-              background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1) 0%, rgba(10, 207, 131, 0.1) 100%);
-              page-break-after: always;
-          }
-          .cover-page .content-wrapper {
-              position: relative;
-              z-index: 10;
-              height: 100%;
-              width: 100%;
-          }
-          .cover-page .title, .cover-page .subtitle, .cover-page .author {
-              position: absolute;
-              left: 50%;
-              transform: translateX(-50%);
-              width: 90%;
-              padding: 0 1cm;
-              box-sizing: border-box;
-          }
-          .cover-page .title {
-              font-family: 'League Gothic', sans-serif;
-              font-size: 4.5rem;
-              text-transform: uppercase;
-              margin: 0;
-              line-height: 1.1;
-              color: #0d47a1;
-              top: 30mm;
-          }
-          .cover-page .subtitle {
-              font-family: 'Merriweather Sans', sans-serif;
-              font-size: 1.125rem;
-              margin: 0;
-              color: #212121;
-              font-style: italic;
-              top: 100mm;
-          }
-          .cover-page .author {
-              font-family: 'Merriweather Sans', sans-serif;
-              font-size: 1rem;
-              font-weight: 400;
-              margin: 0;
-              color: #212121;
-              top: 140mm;
-          }
-          .onda {
-            position: absolute;
-            top: 155mm;
-            width: 200%;
-            height: 100mm;
-            left: -50%;
-            border-radius: 45%;
-            z-index: 1;
-          }
-          .onda1 {
-            background: linear-gradient(90deg, #0052A5 0%, #0ACF83 100%);
-            transform: rotate(-8deg);
-            animation: wave1 15s ease-in-out infinite alternate;
-          }
-          .onda2 {
-            background: linear-gradient(90deg, #0ACF83 0%, #0052A5 100%);
-            opacity: 0.75;
-            transform: rotate(-5deg);
-            animation: wave2 12s ease-in-out infinite alternate;
-          }
-          .onda3 {
-            background: linear-gradient(90deg, #0077FF 0%, #00FFB3 100%);
-            opacity: 0.5;
-            transform: rotate(-2deg);
-            animation: wave3 10s ease-in-out infinite alternate;
-          }
-
-          @keyframes wave1 {
-            from { transform: rotate(-8deg) translateX(-20px); }
-            to { transform: rotate(-10deg) translateX(20px); }
-          }
-          @keyframes wave2 {
-            from { transform: rotate(-5deg) translateX(-10px); }
-            to { transform: rotate(-3deg) translateX(10px); }
-          }
-          @keyframes wave3 {
-            from { transform: rotate(-2deg); }
-            to { transform: rotate(0deg); }
-          }
-
-          /* --- Copyright Page --- */
-          .copyright-page {
-              display: flex;
-              flex-direction: column;
-              justify-content: flex-end;
-          }
-          .copyright-page .content {
-              text-align: center;
-              font-family: 'Merriweather Sans', sans-serif;
-              font-size: 8pt;
-              color: #595959;
-          }
-
-          /* --- Content Pages --- */
-          .content-page h1.font-merriweather {
-              font-family: 'Merriweather', serif;
-              font-weight: 700;
-              font-size: 24pt;
-              margin-bottom: 24pt;
-              color: #333;
-              text-align: left;
-          }
-          .content-page h2.font-merriweather {
-              font-family: 'Merriweather', serif;
-              font-weight: 700;
-              font-size: 18pt;
-              margin-top: 18pt;
-              margin-bottom: 12pt;
-              color: #333;
-          }
-          .content-page h3.font-merriweather-sans {
-              font-family: 'Merriweather Sans', sans-serif;
-              font-weight: 700;
-              font-size: 14pt;
-              margin-top: 14pt;
-              margin-bottom: 8pt;
-              color: #444;
-          }
-          .content-page p.font-merriweather {
-              line-height: 1.6;
-              margin-bottom: 11pt;
-              text-align: justify;
-          }
-          .content-page p.indent {
-              text-indent: 1.5em;
-          }
-          .toc-item {
-              font-family: 'Merriweather Sans', sans-serif;
-              margin-bottom: 4pt;
-          }
-          .toc-chapter {
-              font-weight: 700;
-              margin-top: 8pt;
-          }
-          .toc-subchapter {
-              margin-left: 20px;
-          }
-
-          /* --- Chapter Title Page --- */
-          .chapter-title-page {
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              text-align: center;
-          }
-           .chapter-title-standalone {
-              font-family: 'Merriweather', serif;
-              font-size: 24pt;
-           }
+          body { font-family: 'Merriweather', serif; font-size: 11pt; color: #262626; margin: 0; background-color: #f0f0f0; }
+          .page-container { width: 14.8cm; min-height: 21cm; margin: 1cm auto; padding: 2cm; background: ${pageBgColor}; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; page-break-after: always; }
+          .cover-page { padding: 0; text-align: center; height: 21cm; width: 14.8cm; margin: 1cm auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; position: relative; overflow: hidden; background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1) 0%, rgba(10, 207, 131, 0.1) 100%); page-break-after: always; }
+          .cover-page .content-wrapper { position: relative; z-index: 10; height: 100%; width: 100%; }
+          .cover-page .title, .cover-page .subtitle, .cover-page .author { position: absolute; left: 50%; transform: translateX(-50%); width: 90%; padding: 0 1cm; box-sizing: border-box; }
+          .cover-page .title { font-family: 'League Gothic', sans-serif; font-size: 4.5rem; text-transform: uppercase; margin: 0; line-height: 1.1; color: #0d47a1; top: 30mm; }
+          .cover-page .subtitle { font-family: 'Merriweather Sans', sans-serif; font-size: 1.125rem; margin: 0; color: #212121; font-style: italic; top: 100mm; }
+          .cover-page .author { font-family: 'Merriweather Sans', sans-serif; font-size: 1rem; font-weight: 400; margin: 0; color: #212121; top: 140mm; }
+          .onda { position: absolute; top: 155mm; width: 200%; height: 100mm; left: -50%; border-radius: 45%; z-index: 1; }
+          .onda1 { background: linear-gradient(90deg, #0052A5 0%, #0ACF83 100%); transform: rotate(-8deg); animation: wave1 15s ease-in-out infinite alternate; }
+          .onda2 { background: linear-gradient(90deg, #0ACF83 0%, #0052A5 100%); opacity: 0.75; transform: rotate(-5deg); animation: wave2 12s ease-in-out infinite alternate; }
+          .onda3 { background: linear-gradient(90deg, #0077FF 0%, #00FFB3 100%); opacity: 0.5; transform: rotate(-2deg); animation: wave3 10s ease-in-out infinite alternate; }
+          @keyframes wave1 { from { transform: rotate(-8deg) translateX(-20px); } to { transform: rotate(-10deg) translateX(20px); } }
+          @keyframes wave2 { from { transform: rotate(-5deg) translateX(-10px); } to { transform: rotate(-3deg) translateX(10px); } }
+          @keyframes wave3 { from { transform: rotate(-2deg); } to { transform: rotate(0deg); } }
+          .copyright-page { display: flex; flex-direction: column; justify-content: flex-end; }
+          .copyright-page .content { text-align: center; font-family: 'Merriweather Sans', sans-serif; font-size: 8pt; color: #595959; }
+          .content-page h1.font-merriweather { font-family: 'Merriweather', serif; font-weight: 700; font-size: 24pt; margin-bottom: 24pt; color: #333; text-align: left; }
+          .content-page h2.font-merriweather { font-family: 'Merriweather', serif; font-weight: 700; font-size: 18pt; margin-top: 18pt; margin-bottom: 12pt; color: #333; }
+          .content-page h3.font-merriweather-sans { font-family: 'Merriweather Sans', sans-serif; font-weight: 700; font-size: 14pt; margin-top: 14pt; margin-bottom: 8pt; color: #444; }
+          .content-page p.font-merriweather { line-height: 1.6; margin-bottom: 11pt; text-align: justify; }
+          .content-page p.indent { text-indent: 1.5em; }
+          .toc-item { font-family: 'Merriweather Sans', sans-serif; margin-bottom: 4pt; }
+          .toc-chapter { font-weight: 700; margin-top: 8pt; }
+          .toc-subchapter { margin-left: 20px; }
+          .chapter-title-page { display: flex; justify-content: center; align-items: center; text-align: center; }
+          .chapter-title-standalone { font-family: 'Merriweather', serif; font-size: 24pt; }
       </style>
     `;
 
-    const coverPage = `
-        <div class="cover-page" data-page="cover">
-            <div class="content-wrapper">
-                <h1 class="title">${bookData.title}</h1>
-                <p class="subtitle">${bookData.subtitle}</p>
-                <p class="author">${bookData.author}</p>
-            </div>
-            <div class="onda onda1"></div>
-            <div class="onda onda2"></div>
-            <div class="onda onda3"></div>
-        </div>`;
+    const coverPage = `<div class="cover-page" data-page="cover"><div class="content-wrapper"><h1 class="title">${bookData.title}</h1><p class="subtitle">${bookData.subtitle}</p><p class="author">${bookData.author}</p></div><div class="onda onda1"></div><div class="onda onda2"></div><div class="onda onda3"></div></div>`;
+    const copyrightPage = `<div class="page-container copyright-page" data-page="copyright"><div class="content"><p>Copyright © ${year} ${bookData.author}</p><p>Todos os direitos reservados.</p><p>Este livro ou qualquer parte dele não pode ser reproduzido ou usado de forma alguma sem a permissão expressa por escrito do editor, exceto pelo uso de breves citações em uma resenha do livro.</p></div></div>`;
+    const tocPage = `<div class="page-container content-page"><h1 class="font-merriweather">${bookContent.table_of_contents.title}</h1>${bookContent.table_of_contents.content.split('\n').map(line => { line = line.trim(); if (!line) return ''; if (line.match(/^capítulo \\d+:/i)) { return `<p class="toc-item toc-chapter">${line}</p>`; } return `<p class="toc-item toc-subchapter">${line}</p>`; }).join('')}</div>`;
+    const introPage = `<div class="page-container content-page"><h1 class="font-merriweather">${bookContent.introduction.title}</h1>${formatContentForHTML(bookContent.introduction.content)}</div>`;
+    const conclusionPage = `<div class="page-container content-page"><h1 class="font-merriweather">${bookContent.conclusion.title}</h1>${formatContentForHTML(bookContent.conclusion.content)}</div>`;
+    const chapterPages = bookContent.chapters.map(chapter => `<div class="page-container chapter-title-page"> <h1 class="chapter-title-standalone">${chapter.title}</h1></div><div class="page-container content-page"><h2 class="font-merriweather">${chapter.title}</h2>${formatContentForHTML(chapter.introduction, false)}${chapter.subchapters.map(sub => `<h3 class="font-merriweather-sans">${sub.title}</h3>${formatContentForHTML(sub.content)}`).join('')}</div>`);
+
+    let content = '';
+    if (partToRender === 'full') {
+      content = `${coverPage}${copyrightPage}${tocPage}${introPage}${chapterPages.join('')}${conclusionPage}`;
+    } else if (partToRender === 'cover') {
+      content = coverPage;
+    } else if (partToRender === 'copyright') {
+      content = copyrightPage;
+    } else if (partToRender === 'toc') {
+        content = tocPage;
+    } else if (partToRender === 'introduction') {
+      content = introPage;
+    } else if (partToRender === 'conclusion') {
+      content = conclusionPage;
+    } else if (typeof partToRender === 'object' && partToRender.type === 'chapter') {
+      content = chapterPages[partToRender.index];
+    }
     
-    const copyrightPage = `
-        <div class="page-container copyright-page" data-page="copyright">
-            <div class="content">
-                <p>Copyright © ${year} ${bookData.author}</p>
-                <p>Todos os direitos reservados.</p>
-                <p>Este livro ou qualquer parte dele não pode ser reproduzido ou usado de forma alguma sem a permissão expressa por escrito do editor, exceto pelo uso de breves citações em uma resenha do livro.</p>
-            </div>
-        </div>`;
-
-    const contentStart = `<div data-page="content-start">`;
-    const contentEnd = `</div>`;
-
-    let mainContent = '';
-    
-    // Table of Contents
-    mainContent += `<div class="page-container content-page">`;
-    mainContent += `<h1 class="font-merriweather">${bookContent.table_of_contents.title}</h1>`;
-    mainContent += bookContent.table_of_contents.content.split('\n').map(line => {
-        line = line.trim();
-        if (!line) return '';
-        if (line.match(/^capítulo \d+:/i)) {
-            return `<p class="toc-item toc-chapter">${line}</p>`;
-        }
-        return `<p class="toc-item toc-subchapter">${line}</p>`;
-    }).join('');
-    mainContent += `</div>`;
-    
-    // Introduction
-    mainContent += `<div class="page-container content-page">`;
-    mainContent += `<h1 class="font-merriweather">${bookContent.introduction.title}</h1>`;
-    mainContent += formatContentForHTML(bookContent.introduction.content);
-    mainContent += `</div>`;
-
-    // Chapters
-    bookContent.chapters.forEach(chapter => {
-      mainContent += `<div class="page-container chapter-title-page" data-page="title-chapter-${chapter.title.replace(/\s/g, '_')}">
-                        <h1 class="chapter-title-standalone">${chapter.title}</h1>
-                      </div>`;
-      mainContent += `<div class="page-container content-page">`;
-      mainContent += `<h2 class="font-merriweather">${chapter.title}</h2>`;
-      mainContent += formatContentForHTML(chapter.introduction, false);
-      chapter.subchapters.forEach(subchapter => {
-        mainContent += `<h3 class="font-merriweather-sans">${subchapter.title}</h3>`;
-        mainContent += formatContentForHTML(subchapter.content);
-      });
-      mainContent += `</div>`;
-    });
-
-    // Conclusion
-    mainContent += `<div class="page-container content-page">`;
-    mainContent += `<h1 class="font-merriweather">${bookContent.conclusion.title}</h1>`;
-    mainContent += formatContentForHTML(bookContent.conclusion.content);
-    mainContent += `</div>`;
-
-    return `<html><head><title>${bookData.title}</title>${styles}</head><body>${coverPage}${copyrightPage}${contentStart}${mainContent}${contentEnd}</body></html>`;
+    return `<html><head><title>${bookData.title}</title>${styles}</head><body>${content}</body></html>`;
   };
+
+  const splitBookIntoParts = (formData: BookGenerationFormData, bookContent: DetailedBookContent, bookId: string, finalTitle: string): Omit<BookPart, 'id' | 'pdf_url' | 'created_at'>[] => {
+    const parts: Omit<BookPart, 'id' | 'pdf_url' | 'created_at'>[] = [];
+    let partIndex = 0;
+    const finalBookData = { ...formData, title: finalTitle };
+
+    parts.push({ book_id: bookId, part_index: partIndex++, part_name: 'Capa', html_content: generateBookHTML(finalBookData, bookContent, 'cover'), });
+    parts.push({ book_id: bookId, part_index: partIndex++, part_name: 'Copyright', html_content: generateBookHTML(finalBookData, bookContent, 'copyright'), });
+    parts.push({ book_id: bookId, part_index: partIndex++, part_name: 'Sumário', html_content: generateBookHTML(finalBookData, bookContent, 'toc'), });
+    parts.push({ book_id: bookId, part_index: partIndex++, part_name: 'Introdução', html_content: generateBookHTML(finalBookData, bookContent, 'introduction'), });
+    bookContent.chapters.forEach((_, index) => {
+        parts.push({ book_id: bookId, part_index: partIndex++, part_name: `Capítulo ${index + 1}`, html_content: generateBookHTML(finalBookData, bookContent, { type: 'chapter', index }), });
+    });
+    parts.push({ book_id: bookId, part_index: partIndex++, part_name: 'Conclusão', html_content: generateBookHTML(finalBookData, bookContent, 'conclusion'), });
+    return parts;
+};
+
 
   const handleGenerateBook = async () => {
     const { allow, message } = await onBeforeGenerate();
@@ -439,25 +262,47 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
       const finalTitle = bookContent.optimized_title;
       updateLog(`Título otimizado pela IA: "${finalTitle}"`);
 
-      updateLog("Formatando o livro em HTML...");
+      updateLog("Formatando o livro em HTML para pré-visualização...");
       const finalBookData = { ...formData, title: finalTitle };
-      const html = generateBookHTML(finalBookData, bookContent);
-      setGeneratedHtml(html);
+      const fullHtml = generateBookHTML(finalBookData, bookContent, 'full');
+      setGeneratedHtml(fullHtml);
       updateLog("Formatação HTML concluída.");
 
       updateLog("Salvando o livro no banco de dados...");
-      const newBookData: Omit<Book, 'id' | 'created_at'> = {
-          user_id: user.id,
-          title: finalTitle,
-          subtitle: formData.subtitle,
-          author: formData.author,
-          content: html
-      };
-      
-      const newCredits = user.book_credits - 1;
-      await onBookCreated(newBookData, newCredits);
+      const { data: newBook, error: bookError } = await supabase
+        .from('books')
+        .insert({
+            user_id: user.id,
+            title: finalTitle,
+            subtitle: formData.subtitle,
+            author: formData.author,
+            content: fullHtml,
+            status: 'content_ready',
+        })
+        .select()
+        .single();
+    
+      if (bookError) throw bookError;
+      updateLog(`Registro principal do livro criado com ID: ${newBook.id}`);
 
-      updateLog("Livro criado e salvo com sucesso! Você pode visualizá-lo e fazer o download.");
+      updateLog("Dividindo o livro em partes para o pipeline de PDF...");
+      const bookParts = splitBookIntoParts(formData, bookContent, newBook.id, finalTitle);
+      
+      const { error: partsError } = await supabase.from('book_parts').insert(bookParts);
+      if (partsError) throw partsError;
+      updateLog(`${bookParts.length} partes do livro salvas no banco de dados.`);
+
+      const newCredits = user.book_credits - 1;
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ book_credits: newCredits })
+        .eq('id', user.id);
+      if (profileError) throw profileError;
+      updateLog("Créditos do usuário atualizados.");
+      
+      await onGenerationComplete(newBook.id);
+
+      updateLog("Livro criado com sucesso! Redirecionando para a página de visualização e geração de PDF.");
       setGenerationState('success');
 
     } catch (error) {
@@ -468,85 +313,6 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
         setGenerationState('error');
     }
   };
-
-  const handleDownload = async () => {
-    if (!generatedHtml) return;
-    setIsDownloading(true);
-    setErrorMessage('');
-    
-    let iframe: HTMLIFrameElement | null = null;
-
-    try {
-        iframe = document.createElement('iframe');
-        iframe.style.position = 'absolute';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = '0';
-        iframe.style.visibility = 'hidden';
-        document.body.appendChild(iframe);
-
-        const iframeDoc = iframe.contentWindow?.document;
-        if (!iframeDoc) {
-            throw new Error("Não foi possível acessar o documento do iframe.");
-        }
-
-        iframeDoc.open();
-        iframeDoc.write(generatedHtml);
-        iframeDoc.close();
-
-        const title = formData.title || 'livro-digital';
-        const opt = {
-            // FIX: The margin property for html2pdf requires a mutable tuple of 4 numbers.
-            // `as const` creates a readonly tuple, which is incompatible.
-            margin: [20, 20, 20, 20],
-            filename: `${title.replace(/[^\w\s-]/g, '').replace(/[\s_]+/g, '-').toLowerCase()}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { 
-                scale: 2, 
-                useCORS: true,
-                logging: false,
-                windowWidth: iframeDoc.documentElement.scrollWidth,
-                windowHeight: iframeDoc.documentElement.scrollHeight,
-            },
-            jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' },
-            pagebreak: { mode: ['css', 'legacy'] },
-        };
-
-        const worker = html2pdf().from(iframeDoc.body).set(opt);
-        
-        worker.toPdf().get('pdf').then(function (pdf) {
-            const totalPages = pdf.internal.getNumberOfPages();
-            const startPage = 3; 
-            pdf.setFont('helvetica', 'normal');
-
-            for (let i = startPage; i <= totalPages; i++) {
-                pdf.setPage(i);
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const pageHeight = pdf.internal.pageSize.getHeight();
-                
-                pdf.setFontSize(9);
-                pdf.setTextColor(150);
-                pdf.text(title, pageWidth / 2, 15, { align: 'center' });
-                
-                pdf.text(String(i), pageWidth / 2, pageHeight - 15, { align: 'center' });
-            }
-        });
-
-        await worker.save();
-        await new Promise(r => setTimeout(r, 300));
-        
-    } catch (error) {
-        console.error("Client-side PDF Download failed:", error);
-        const err = error as Error;
-        setErrorMessage(`Ocorreu um erro ao gerar o PDF: ${err.message}`);
-    } finally {
-        if (iframe && iframe.parentNode) {
-            document.body.removeChild(iframe);
-        }
-        setIsDownloading(false);
-    }
-  };
-
 
   const isFormValid = formData.title && formData.summary && formData.niche;
 
@@ -601,21 +367,11 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onBookCrea
                     <p className="text-red-700 mt-2">{errorMessage}</p>
                   </Card>
                 )}
-                 {errorMessage && generationState !== 'generating' && (
-                  <Card className="border-2 border-red-300 bg-red-50 mt-4">
-                    <h3 className="text-lg font-bold text-red-800">Erro no Download</h3>
-                    <p className="text-red-700 mt-2">{errorMessage}</p>
-                  </Card>
-                )}
 
-
-                {generationState === 'success' && generatedHtml && (
+                {generationState === 'success' && (
                   <Card className="border-2 border-green-300 bg-green-50">
-                    <h3 className="text-lg font-bold text-green-800">Livro Gerado com Sucesso!</h3>
-                    <p className="text-green-700 mt-2 mb-4">Seu livro está pronto. Visualize abaixo ou faça o download.</p>
-                    <div className="flex space-x-4">
-                      <Button onClick={handleDownload} className="w-full" isLoading={isDownloading} loadingText="Gerando PDF no seu navegador...">Baixar em PDF</Button>
-                    </div>
+                    <h3 className="text-lg font-bold text-green-800">Conteúdo Gerado!</h3>
+                    <p className="text-green-700 mt-2 mb-4">Seu livro foi criado e está pronto para a geração do PDF. Você será redirecionado em instantes.</p>
                   </Card>
                 )}
               </div>

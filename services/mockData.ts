@@ -56,6 +56,8 @@ export const mockBooks: Book[] = [
     author: 'user@example.com',
     // FIX: Changed 'createdAt' to 'created_at' to match the 'Book' type definition.
     created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+    // FIX: Added missing 'status' property to match the 'Book' type.
+    status: 'ready',
   },
    {
     id: 'b2',
@@ -66,5 +68,7 @@ export const mockBooks: Book[] = [
     author: 'user@example.com',
     // FIX: Changed 'createdAt' to 'created_at' to match the 'Book' type definition.
     created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+    // FIX: Added missing 'status' property to match the 'Book' type.
+    status: 'ready',
   },
 ];

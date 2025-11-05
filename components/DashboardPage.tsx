@@ -1,5 +1,5 @@
 import React from 'react';
-import type { UserProfile, Book, Page } from '../types';
+import type { UserProfile, Book, Page, BookStatus } from '../types';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 
@@ -14,6 +14,28 @@ interface DashboardPageProps {
 const BookIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-12 w-12 text-indigo-500 mb-2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
 );
+
+const bookStatusClasses: Record<BookStatus, string> = {
+    content_ready: 'bg-blue-100 text-blue-800',
+    processing_parts: 'bg-yellow-100 text-yellow-800 animate-pulse',
+    assembling_pdf: 'bg-yellow-100 text-yellow-800 animate-pulse',
+    ready: 'bg-green-100 text-green-800',
+    error: 'bg-red-100 text-red-800',
+    generating_content: 'bg-gray-100 text-gray-800 animate-pulse'
+};
+
+const formatBookStatus = (status: BookStatus) => {
+    const map: Record<BookStatus, string> = {
+        generating_content: 'Gerando...',
+        content_ready: 'Pronto para PDF',
+        processing_parts: 'Processando...',
+        assembling_pdf: 'Montando...',
+        ready: 'Pronto',
+        error: 'Erro'
+    };
+    return map[status] || status;
+};
+
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNavigate, onLogout, onViewBook }) => {
   const isFreeUser = user.status === 'ativa_free';
@@ -74,9 +96,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNav
                     <BookIcon />
                   <h4 className="text-xl font-bold text-gray-800">{book.title}</h4>
                   <p className="text-gray-500 text-sm mt-1">{book.subtitle}</p>
-                   <p className="text-gray-500 text-xs mt-2">Criado em: {new Date(book.created_at).toLocaleDateString()}</p>
+                   <div className="flex justify-between items-center mt-2">
+                        <p className="text-gray-500 text-xs">Criado em: {new Date(book.created_at).toLocaleDateString()}</p>
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${bookStatusClasses[book.status] || bookStatusClasses.content_ready}`}>
+                            {formatBookStatus(book.status)}
+                        </span>
+                   </div>
                    <div className="mt-auto pt-4 flex space-x-2">
-                       <Button onClick={() => onViewBook(book.id)} variant="secondary" className="w-full text-sm py-2">Visualizar</Button>
+                       <Button onClick={() => onViewBook(book.id)} variant="secondary" className="w-full text-sm py-2">Visualizar e Gerar PDF</Button>
                    </div>
                 </Card>
               ))}

@@ -138,6 +138,20 @@ const App: React.FC = () => {
     }, [isSupabaseConfigured, user]); // Added user dependency to the effect hook
 
 
+    const fetchUserProfile = async () => {
+        if(!user) return;
+        let { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+        if (error) {
+            console.error("Error fetching user profile", error);
+        } else if (profile) {
+            setUser({ ...profile, email: user.email });
+        }
+    };
+
     useEffect(() => {
         if (user) {
             fetchBooks();
@@ -209,37 +223,11 @@ const App: React.FC = () => {
         else fetchAllUsers();
     };
     
-    const handleBookCreated = async (newBookData: Omit<Book, 'id' | 'created_at'>, updatedCredits: number) => {
-        if (!user) return;
-        
-        const { data: newBook, error: bookError } = await supabase
-            .from('books')
-            .insert(newBookData)
-            .select()
-            .single();
-        
-        if (bookError || !newBook) {
-            console.error("Error creating book", bookError);
-            // This throw is critical. It will be caught by the calling component (CreateBookPage)
-            // and allow it to display a specific error message to the user, preventing the "silent fail".
-            throw bookError;
-        }
-
-        const { data: updatedProfile, error: profileError } = await supabase
-            .from('profiles')
-            .update({ book_credits: updatedCredits })
-            .eq('id', user.id)
-            .select()
-            .single();
-
-        if (profileError || !updatedProfile) {
-            console.error("Error updating profile", profileError);
-            // Even if profile update fails, we proceed to show the created book.
-            // This could be enhanced with more robust error handling.
-        } else {
-            setUser({ ...user, ...updatedProfile });
-        }
+    const handleGenerationComplete = async (newBookId: string) => {
         await fetchBooks();
+        await fetchUserProfile();
+        setViewedBookId(newBookId);
+        setPage('view-book');
     };
 
     const handleUpdateBook = async (bookId: string, content: string) => {
@@ -310,7 +298,7 @@ const App: React.FC = () => {
             case 'dashboard':
                 return <DashboardPage user={user} books={books} onNavigate={handleNavigate} onLogout={handleLogout} onViewBook={handleViewBook} />;
             case 'create-book':
-                return <CreateBookPage user={user} onBookCreated={handleBookCreated} onNavigate={handleNavigate} onBeforeGenerate={handleBeforeGenerate} />;
+                return <CreateBookPage user={user} onGenerationComplete={handleGenerationComplete} onNavigate={handleNavigate} onBeforeGenerate={handleBeforeGenerate} />;
             case 'view-book':
                 const bookToView = books.find(b => b.id === viewedBookId);
                 if (!bookToView) {
