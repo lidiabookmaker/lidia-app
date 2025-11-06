@@ -64,11 +64,11 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
 
   const handleSave = async () => {
     const iframe = iframeRef.current;
-    if (!iframe?.contentWindow?.document?.body?.innerHTML) return;
+    if (!iframe?.contentWindow?.document?.documentElement?.outerHTML) return;
     setIsSaving(true);
     setSaveError('');
     try {
-      const updatedContent = iframe.contentWindow.document.body.innerHTML;
+      const updatedContent = iframe.contentWindow.document.documentElement.outerHTML;
       await onUpdateBook(book.id, updatedContent);
       setIsEditing(false);
     } catch (error) {
@@ -82,25 +82,25 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
   const handleGeneratePdf = async () => {
     setIsGenerating(true);
     try {
-        const originalContent = currentBook.content || '';
+        const iframe = iframeRef.current;
+        const originalContent = iframe?.contentWindow?.document.documentElement.outerHTML || currentBook.content || '';
+        
         if (!originalContent) {
             alert("O conteúdo do livro está vazio. Não é possível gerar o PDF.");
             setIsGenerating(false);
             return;
         }
 
-        // Create a temporary document to manipulate the HTML for better PDF generation
         const parser = new DOMParser();
         const doc = parser.parseFromString(originalContent, 'text/html');
         const style = doc.querySelector('style');
         
         if (style) {
-            // This is the key change: Override the fixed height for content pages
-            // to allow their content to flow across multiple PDF pages.
-            // The original .page-container styles (like width and page-break-after) are preserved.
             style.textContent += `
               .content-page {
                 height: auto !important;
+                overflow: visible !important;
+                display: block !important;
               }
             `;
         }
@@ -109,7 +109,7 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
 
 
         const opt = {
-            margin:       [2.4, 2, 2.7, 2], // [top, left, bottom, right] in cm
+            margin:       0,
             filename:     `${currentBook.title.replace(/ /g, '_')}.pdf`,
             pagebreak:    { mode: ['css', 'legacy'], after: '.page-container' },
             image:        { type: 'jpeg', quality: 0.98 },
@@ -123,7 +123,6 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
             const totalPages = pdf.internal.getNumberOfPages();
             const bookTitle = currentBook.title.toUpperCase();
             
-            // Define fonts and colors
             const headerFont = 'Helvetica';
             const footerFont = 'Helvetica';
             const royalBlue = '#002366';
@@ -131,29 +130,26 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
             for (let i = 1; i <= totalPages; i++) {
                 pdf.setPage(i);
 
-                // Skip header and footer for the first page (cover)
                 if (i === 1) continue;
 
-                // --- Add Header ---
                 pdf.setFont(headerFont, 'normal');
                 pdf.setFontSize(8);
                 pdf.setTextColor(royalBlue);
                 const headerTextWidth = pdf.getStringUnitWidth(bookTitle) * pdf.getFontSize() / pdf.internal.scaleFactor;
                 const headerX = (pdf.internal.pageSize.getWidth() - headerTextWidth) / 2;
-                pdf.text(bookTitle, headerX, 1.3); // 1.3cm from top
+                pdf.text(bookTitle, headerX, 1.3);
 
-                // --- Add Footer (Page Number) ---
                 pdf.setFont(footerFont, 'bold');
                 pdf.setFontSize(16);
                 pdf.setTextColor('#000000');
-                pdf.setGState(new pdf.GState({opacity: 0.4})); // Set opacity
+                pdf.setGState(new pdf.GState({opacity: 0.4}));
                 
                 const pageNumText = String(i);
                 const footerTextWidth = pdf.getStringUnitWidth(pageNumText) * pdf.getFontSize() / pdf.internal.scaleFactor;
                 const footerX = (pdf.internal.pageSize.getWidth() - footerTextWidth) / 2;
-                pdf.text(pageNumText, footerX, pdf.internal.pageSize.getHeight() - 1.35); // 1.35cm from bottom
+                pdf.text(pageNumText, footerX, pdf.internal.pageSize.getHeight() - 1.35);
                 
-                pdf.setGState(new pdf.GState({opacity: 1})); // Reset opacity
+                pdf.setGState(new pdf.GState({opacity: 1}));
             }
         }).save();
 
