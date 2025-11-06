@@ -79,11 +79,11 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
     if (paragraphs.length === 0) return '';
     
     // Aplica o recuo apenas no primeiro parágrafo se addIndent for true
-    let html = `<p class="font-merriweather ${addIndent ? 'indent' : ''}">${paragraphs[0].trim()}</p>`;
+    let html = `<p class="font-merriweather indent">${paragraphs[0].trim()}</p>`;
     
-    // Adiciona os parágrafos restantes sem recuo
+    // Adiciona os parágrafos restantes com recuo
     for (let i = 1; i < paragraphs.length; i++) {
-        html += `<p class="font-merriweather">${paragraphs[i].trim()}</p>`;
+        html += `<p class="font-merriweather indent">${paragraphs[i].trim()}</p>`;
     }
     
     return html;
@@ -136,16 +136,16 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
           .chapter-title-page { display: flex; justify-content: center; align-items: center; text-align: center; }
           .chapter-title-standalone { font-family: 'Merriweather', serif; font-size: 24pt; }
 
-          .html2pdf__page-break { height: 0; } /* Make page breaks invisible */
+          .html2pdf__page-break { page-break-after: always; height: 0; display: block; }
       </style>
     `;
 
     const coverPage = `<div class="cover-page" data-page="cover"><div class="content-wrapper"><h1 class="title">${bookData.title}</h1><p class="subtitle">${bookData.subtitle}</p><p class="author">${bookData.author}</p></div><div class="onda onda1"></div><div class="onda onda2"></div><div class="onda onda3"></div></div>`;
     const copyrightPage = `<div class="copyright-page" data-page="copyright"><div class="content"><p>Copyright © ${year} ${bookData.author}</p><p>Todos os direitos reservados.</p><p>Este livro ou qualquer parte dele não pode ser reproduzido ou usado de forma alguma sem a permissão expressa por escrito do editor, exceto pelo uso de breves citações em uma resenha do livro.</p></div></div>`;
     const tocPage = `<div class="page-container content-page toc-page"><h1 class="font-merriweather">${bookContent.table_of_contents.title}</h1>${bookContent.table_of_contents.content.split('\n').map(line => { line = line.trim(); if (!line) return ''; if (line.match(/^capítulo \\d+:/i)) { return `<p class="toc-item toc-chapter">${line}</p>`; } return `<p class="toc-item toc-subchapter">${line}</p>`; }).join('')}</div>`;
-    const introPage = `<div class="page-container content-page" style="page-break-after: always;"><h1 class="font-merriweather">${bookContent.introduction.title}</h1>${formatContentForHTML(bookContent.introduction.content, true)}</div>`;
+    const introPage = `<div class="page-container content-page"><h1 class="font-merriweather">${bookContent.introduction.title}</h1>${formatContentForHTML(bookContent.introduction.content, true)}</div>`;
     const conclusionPage = `<div class="html2pdf__page-break"></div><div class="page-container content-page"><h1 class="font-merriweather">${bookContent.conclusion.title}</h1>${formatContentForHTML(bookContent.conclusion.content, true)}</div>`;
-    const chapterPages = bookContent.chapters.map(chapter => `<div class="html2pdf__page-break"></div><div class="chapter-title-page"> <h1 class="chapter-title-standalone">${chapter.title}</h1></div><div class="page-container content-page" style="page-break-after: always;"><h2 class="font-merriweather">${chapter.title}</h2>${formatContentForHTML(chapter.introduction, true)}${chapter.subchapters.map(sub => `<h3 class="font-merriweather-sans">${sub.title}</h3>${formatContentForHTML(sub.content)}`).join('')}</div>`);
+    const chapterPages = bookContent.chapters.map(chapter => `<div class="html2pdf__page-break"></div><div class="chapter-title-page"> <h1 class="chapter-title-standalone">${chapter.title}</h1></div><div class="html2pdf__page-break"></div><div class="page-container content-page"><h2 class="font-merriweather">${chapter.title}</h2>${formatContentForHTML(chapter.introduction, true)}${chapter.subchapters.map(sub => `<h3 class="font-merriweather-sans">${sub.title}</h3>${formatContentForHTML(sub.content)}`).join('')}</div>`);
 
     let content = '';
     if (partToRender === 'full') {
@@ -275,15 +275,37 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
         O conteúdo total do livro deve ter aproximadamente 22.800 palavras.
       `;
 
-      updateLog("Enviando requisição para o modelo Gemini 2.5 Pro...");
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: bookSchema
-        }
-      });
+      updateLog("Enviando requisição para a IA...");
+      
+      let response;
+      const modelsToTry: ('gemini-2.5-pro' | 'gemini-2.5-flash')[] = ['gemini-2.5-pro', 'gemini-2.5-flash'];
+      
+      for (const model of modelsToTry) {
+          try {
+              updateLog(`Tentando com o modelo: ${model}...`);
+              response = await ai.models.generateContent({
+                  model: model,
+                  contents: prompt,
+                  config: {
+                      responseMimeType: "application/json",
+                      responseSchema: bookSchema
+                  }
+              });
+              updateLog(`Sucesso com o modelo: ${model}.`);
+              break; // Success, exit the loop
+          } catch (error) {
+              const err = error as Error;
+              if (model === modelsToTry[modelsToTry.length - 1] || !err.message.toLowerCase().includes('overloaded')) {
+                  throw error; // Re-throw if it's the last model or not an overload error
+              }
+              updateLog(`Modelo ${model} sobrecarregado. Tentando o próximo modelo...`);
+          }
+      }
+
+      if (!response) {
+          throw new Error("Todos os modelos de IA falharam ou estão indisponíveis.");
+      }
+
       updateLog("Resposta recebida da IA.");
 
       let jsonText = response.text.trim();
