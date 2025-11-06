@@ -60,7 +60,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNav
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow-sm">
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-indigo-600">Lidia Book Maker</h1>
+          <img src="/logo.png" alt="LIDIA Logo" className="h-10" />
           <div className="flex items-center space-x-4">
              {user.role === 'admin' && <Button onClick={() => onNavigate('admin-users')} variant="secondary">Admin</Button>}
             <span className="text-gray-600 hidden sm:block">Olá, {user.email}</span>

@@ -10,7 +10,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center text-center px-4">
       <header className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-indigo-600">Lidia Book Maker</h1>
+        <img src="/logo.png" alt="LIDIA Logo" className="h-10" />
         <Button onClick={() => onNavigate('login')} variant="secondary">Login</Button>
       </header>
       <main className="max-w-4xl mx-auto">

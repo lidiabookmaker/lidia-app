@@ -75,7 +75,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialError }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
-      <h1 className="text-3xl font-bold text-indigo-600 mb-4">Lidia Book Maker</h1>
+      <img src="/logo.png" alt="LIDIA Logo" className="h-12 mb-6" />
       <Card className="w-full max-w-md">
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">{isLogin ? 'Bem-vindo de volta!' : 'Crie sua conta'}</h2>
         
