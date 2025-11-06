@@ -231,15 +231,21 @@ const App: React.FC = () => {
     };
 
     const handleUpdateUser = async (userId: string, status: UserStatus) => {
-         const plan = planSettings.find(p => p.plan_id === status);
-         const credits = plan ? plan.book_credits : 0;
+        const plan = planSettings.find(p => p.plan_id === status);
+        const credits = status === 'suspensa' ? 0 : (plan ? plan.book_credits : 0);
 
-         const { error } = await supabase
+        const { error } = await supabase
             .from('profiles')
             .update({ status: status, book_credits: credits })
             .eq('id', userId);
-        if (error) console.error("Error updating user", error);
-        else fetchAllUsers();
+        
+        if (error) {
+            console.error("Error updating user:", error);
+            alert(`Erro ao atualizar o usuário: ${error.message}\n\nPossível causa: Verifique se as políticas de segurança (RLS) no Supabase permitem que administradores modifiquem perfis de usuários.`);
+            throw error;
+        }
+        
+        await fetchAllUsers();
     };
     
     const handleGenerationComplete = async (newBookId: string) => {
