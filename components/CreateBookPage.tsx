@@ -75,7 +75,18 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
     if (!text || typeof text !== 'string') {
         return '';
     }
-    return text.split('\n').filter(p => p.trim() !== '').map(p => `<p class="font-merriweather ${addIndent ? 'indent' : ''}">${p.trim()}</p>`).join('');
+    const paragraphs = text.split('\n').filter(p => p.trim() !== '');
+    if (paragraphs.length === 0) return '';
+    
+    // Aplica o recuo apenas no primeiro parágrafo se addIndent for true
+    let html = `<p class="font-merriweather ${addIndent ? 'indent' : ''}">${paragraphs[0].trim()}</p>`;
+    
+    // Adiciona os parágrafos restantes sem recuo
+    for (let i = 1; i < paragraphs.length; i++) {
+        html += `<p class="font-merriweather">${paragraphs[i].trim()}</p>`;
+    }
+    
+    return html;
   }
 
   const generateBookHTML = (bookData: BookGenerationFormData, bookContent: DetailedBookContent, partToRender: RenderablePart = 'full'): string => {
@@ -84,10 +95,17 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
     
     const styles = `
       <style>
-          @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@400;700&family=Merriweather+Sans:wght@300;400;600;700&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@300;400;700;900&family=Merriweather+Sans:wght@300;400;600;700&display=swap');
+          
           body { font-family: 'Merriweather', serif; font-size: 11pt; color: #262626; margin: 0; background-color: #f0f0f0; }
-          .page-container { width: 14.8cm; min-height: 21cm; margin: 0 auto; padding: 2cm; background: ${pageBgColor}; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; page-break-after: always; }
-          .cover-page { padding: 0; text-align: center; height: 21cm; width: 14.8cm; margin: 0 auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; position: relative; overflow: hidden; background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1) 0%, rgba(10, 207, 131, 0.1) 100%); page-break-after: always; }
+          
+          .page-container { width: 14.8cm; min-height: 21cm; margin: 0 auto; padding: 0; background: ${pageBgColor}; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; }
+          
+          .cover-page, .copyright-page, .chapter-title-page { height: 21cm; width: 14.8cm; margin: 0 auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; page-break-after: always; }
+
+          .content-page { padding: 2.3cm 2cm 2.7cm 2cm; /* Margens internas para conteúdo */ }
+          
+          .cover-page { padding: 0; text-align: center; position: relative; overflow: hidden; background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1) 0%, rgba(10, 207, 131, 0.1) 100%); }
           .cover-page .content-wrapper { position: relative; z-index: 10; height: 100%; width: 100%; }
           .cover-page .title, .cover-page .subtitle, .cover-page .author { position: absolute; left: 50%; transform: translateX(-50%); width: 90%; padding: 0 1cm; box-sizing: border-box; }
           .cover-page .title { font-family: 'League Gothic', sans-serif; font-size: 4.5rem; text-transform: uppercase; margin: 0; line-height: 1.1; color: #0d47a1; top: 30mm; }
@@ -100,27 +118,34 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
           @keyframes wave1 { from { transform: rotate(-8deg) translateX(-20px); } to { transform: rotate(-10deg) translateX(20px); } }
           @keyframes wave2 { from { transform: rotate(-5deg) translateX(-10px); } to { transform: rotate(-3deg) translateX(10px); } }
           @keyframes wave3 { from { transform: rotate(-2deg); } to { transform: rotate(0deg); } }
-          .copyright-page { display: flex; flex-direction: column; justify-content: flex-end; }
+
+          .copyright-page { display: flex; flex-direction: column; justify-content: flex-end; padding: 2.7cm 2cm; }
           .copyright-page .content { text-align: center; font-family: 'Merriweather Sans', sans-serif; font-size: 8pt; color: #595959; }
+          
           .content-page h1.font-merriweather { font-family: 'Merriweather', serif; font-weight: 700; font-size: 24pt; margin-bottom: 24pt; color: #333; text-align: left; }
           .content-page h2.font-merriweather { font-family: 'Merriweather', serif; font-weight: 700; font-size: 18pt; margin-top: 18pt; margin-bottom: 12pt; color: #333; }
           .content-page h3.font-merriweather-sans { font-family: 'Merriweather Sans', sans-serif; font-weight: 700; font-size: 14pt; margin-top: 14pt; margin-bottom: 8pt; color: #444; }
-          .content-page p.font-merriweather { line-height: 1.6; margin-bottom: 11pt; text-align: justify; }
+          .content-page p.font-merriweather { line-height: 1.6; margin-bottom: 11pt; text-align: justify; font-weight: 300; }
           .content-page p.indent { text-indent: 1.5em; }
+
+          .toc-page { page-break-after: always; }
           .toc-item { font-family: 'Merriweather Sans', sans-serif; margin-bottom: 4pt; }
           .toc-chapter { font-weight: 700; margin-top: 8pt; }
           .toc-subchapter { margin-left: 20px; }
+          
           .chapter-title-page { display: flex; justify-content: center; align-items: center; text-align: center; }
           .chapter-title-standalone { font-family: 'Merriweather', serif; font-size: 24pt; }
+
+          .html2pdf__page-break { height: 0; } /* Make page breaks invisible */
       </style>
     `;
 
     const coverPage = `<div class="cover-page" data-page="cover"><div class="content-wrapper"><h1 class="title">${bookData.title}</h1><p class="subtitle">${bookData.subtitle}</p><p class="author">${bookData.author}</p></div><div class="onda onda1"></div><div class="onda onda2"></div><div class="onda onda3"></div></div>`;
-    const copyrightPage = `<div class="page-container copyright-page" data-page="copyright"><div class="content"><p>Copyright © ${year} ${bookData.author}</p><p>Todos os direitos reservados.</p><p>Este livro ou qualquer parte dele não pode ser reproduzido ou usado de forma alguma sem a permissão expressa por escrito do editor, exceto pelo uso de breves citações em uma resenha do livro.</p></div></div>`;
-    const tocPage = `<div class="page-container content-page"><h1 class="font-merriweather">${bookContent.table_of_contents.title}</h1>${bookContent.table_of_contents.content.split('\n').map(line => { line = line.trim(); if (!line) return ''; if (line.match(/^capítulo \\d+:/i)) { return `<p class="toc-item toc-chapter">${line}</p>`; } return `<p class="toc-item toc-subchapter">${line}</p>`; }).join('')}</div>`;
-    const introPage = `<div class="page-container content-page"><h1 class="font-merriweather">${bookContent.introduction.title}</h1>${formatContentForHTML(bookContent.introduction.content)}</div>`;
-    const conclusionPage = `<div class="page-container content-page"><h1 class="font-merriweather">${bookContent.conclusion.title}</h1>${formatContentForHTML(bookContent.conclusion.content)}</div>`;
-    const chapterPages = bookContent.chapters.map(chapter => `<div class="page-container chapter-title-page"> <h1 class="chapter-title-standalone">${chapter.title}</h1></div><div class="page-container content-page"><h2 class="font-merriweather">${chapter.title}</h2>${formatContentForHTML(chapter.introduction, false)}${chapter.subchapters.map(sub => `<h3 class="font-merriweather-sans">${sub.title}</h3>${formatContentForHTML(sub.content)}`).join('')}</div>`);
+    const copyrightPage = `<div class="copyright-page" data-page="copyright"><div class="content"><p>Copyright © ${year} ${bookData.author}</p><p>Todos os direitos reservados.</p><p>Este livro ou qualquer parte dele não pode ser reproduzido ou usado de forma alguma sem a permissão expressa por escrito do editor, exceto pelo uso de breves citações em uma resenha do livro.</p></div></div>`;
+    const tocPage = `<div class="page-container content-page toc-page"><h1 class="font-merriweather">${bookContent.table_of_contents.title}</h1>${bookContent.table_of_contents.content.split('\n').map(line => { line = line.trim(); if (!line) return ''; if (line.match(/^capítulo \\d+:/i)) { return `<p class="toc-item toc-chapter">${line}</p>`; } return `<p class="toc-item toc-subchapter">${line}</p>`; }).join('')}</div>`;
+    const introPage = `<div class="page-container content-page" style="page-break-after: always;"><h1 class="font-merriweather">${bookContent.introduction.title}</h1>${formatContentForHTML(bookContent.introduction.content, true)}</div>`;
+    const conclusionPage = `<div class="html2pdf__page-break"></div><div class="page-container content-page"><h1 class="font-merriweather">${bookContent.conclusion.title}</h1>${formatContentForHTML(bookContent.conclusion.content, true)}</div>`;
+    const chapterPages = bookContent.chapters.map(chapter => `<div class="html2pdf__page-break"></div><div class="chapter-title-page"> <h1 class="chapter-title-standalone">${chapter.title}</h1></div><div class="page-container content-page" style="page-break-after: always;"><h2 class="font-merriweather">${chapter.title}</h2>${formatContentForHTML(chapter.introduction, true)}${chapter.subchapters.map(sub => `<h3 class="font-merriweather-sans">${sub.title}</h3>${formatContentForHTML(sub.content)}`).join('')}</div>`);
 
     let content = '';
     if (partToRender === 'full') {

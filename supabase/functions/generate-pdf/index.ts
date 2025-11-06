@@ -4,7 +4,7 @@
 declare const Deno: any;
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { PDFDocument } from 'https://esm.sh/pdf-lib@1.17.1'
+import { PDFDocument, rgb, StandardFonts } from 'https://esm.sh/pdf-lib@1.17.1'
 
 console.log('Function "generate-pdf" initializing...');
 
@@ -50,6 +50,16 @@ Deno.serve(async (req: Request) => {
       { auth: { persistSession: false } }
     );
 
+    // Fetch book title along with parts
+    const { data: bookData, error: bookError } = await supabaseAdmin
+      .from('books')
+      .select('title')
+      .eq('id', bookId)
+      .single();
+
+    if (bookError) throw new Error(`Não foi possível encontrar o livro com ID ${bookId}: ${bookError.message}`);
+    const bookTitle = bookData.title;
+
     // 1. Busca os URLs de todas as partes do livro, na ordem correta.
     const { data: parts, error: partsError } = await supabaseAdmin
       .from('book_parts')
@@ -85,11 +95,49 @@ Deno.serve(async (req: Request) => {
       console.log(`Parte ${part.part_index} juntada.`);
     }
 
-    // 4. Salva os bytes do PDF finalizado.
+    // 4. Adicionar cabeçalhos e rodapés
+    console.log('Adicionando cabeçalhos e rodapés...');
+    const pageCount = mergedPdf.getPageCount();
+    const sansFont = await mergedPdf.embedFont(StandardFonts.Helvetica);
+    const serifBoldFont = await mergedPdf.embedFont(StandardFonts.HelveticaBold);
+    const royalBlue = rgb(0/255, 35/255, 102/255); // #002366
+
+    for (let i = 0; i < pageCount; i++) {
+        // Pula a primeira página (capa)
+        if (i === 0) continue;
+
+        const page = mergedPdf.getPages()[i];
+        const { width, height } = page.getSize();
+
+        // Adiciona cabeçalho (título do livro)
+        page.drawText(bookTitle.toUpperCase(), {
+            x: width / 2,
+            y: height - 40, // Aproximadamente no meio da margem superior de 2.3cm
+            font: sansFont,
+            size: 8,
+            color: royalBlue,
+            // A biblioteca pdf-lib não tem uma propriedade 'align', o alinhamento é feito no 'x'
+            // Para centralizar, calculamos a largura do texto, mas para um título curto, x: width/2 é suficiente.
+        });
+
+        // Adiciona rodapé (número da página)
+        page.drawText(String(i + 1), {
+            x: width / 2,
+            y: 40, // Aproximadamente no meio da margem inferior de 2.7cm
+            font: serifBoldFont,
+            size: 16,
+            color: rgb(0, 0, 0),
+            opacity: 0.4,
+        });
+    }
+    console.log('Cabeçalhos e rodapés adicionados.');
+
+
+    // 5. Salva os bytes do PDF finalizado.
     const mergedPdfBytes = await mergedPdf.save();
     console.log('Junção de PDFs completa.');
 
-    // 5. Envia o PDF final para o Storage.
+    // 6. Envia o PDF final para o Storage.
     const finalPdfPath = `${bookId}/final/final.pdf`;
     console.log(`Enviando PDF final para: ${finalPdfPath}`);
     const { error: uploadError } = await supabaseAdmin
@@ -102,7 +150,7 @@ Deno.serve(async (req: Request) => {
     
     if (uploadError) throw uploadError;
 
-    // 6. Atualiza o status do livro e a URL do PDF final.
+    // 7. Atualiza o status do livro e a URL do PDF final.
     console.log(`Atualizando status do livro para 'pronto'.`);
     const { error: updateError } = await supabaseAdmin
       .from('books')
