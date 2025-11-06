@@ -72,7 +72,10 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
   };
 
   const formatContentForHTML = (text: string, addIndent = true) => {
-    return text.split('\n').filter(p => p.trim() !== '').map(p => `<p class="font-merriweather ${addIndent ? 'indent' : ''}">${p}</p>`).join('');
+    if (!text || typeof text !== 'string') {
+        return '';
+    }
+    return text.split('\n').filter(p => p.trim() !== '').map(p => `<p class="font-merriweather ${addIndent ? 'indent' : ''}">${p.trim()}</p>`).join('');
   }
 
   const generateBookHTML = (bookData: BookGenerationFormData, bookContent: DetailedBookContent, partToRender: RenderablePart = 'full'): string => {
@@ -83,8 +86,8 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
       <style>
           @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@400;700&family=Merriweather+Sans:wght@300;400;600;700&display=swap');
           body { font-family: 'Merriweather', serif; font-size: 11pt; color: #262626; margin: 0; background-color: #f0f0f0; }
-          .page-container { width: 14.8cm; min-height: 21cm; margin: 1cm auto; padding: 2cm; background: ${pageBgColor}; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; page-break-after: always; }
-          .cover-page { padding: 0; text-align: center; height: 21cm; width: 14.8cm; margin: 1cm auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; position: relative; overflow: hidden; background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1) 0%, rgba(10, 207, 131, 0.1) 100%); page-break-after: always; }
+          .page-container { width: 14.8cm; min-height: 21cm; margin: 0 auto; padding: 2cm; background: ${pageBgColor}; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; page-break-after: always; }
+          .cover-page { padding: 0; text-align: center; height: 21cm; width: 14.8cm; margin: 0 auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; position: relative; overflow: hidden; background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1) 0%, rgba(10, 207, 131, 0.1) 100%); page-break-after: always; }
           .cover-page .content-wrapper { position: relative; z-index: 10; height: 100%; width: 100%; }
           .cover-page .title, .cover-page .subtitle, .cover-page .author { position: absolute; left: 50%; transform: translateX(-50%); width: 90%; padding: 0 1cm; box-sizing: border-box; }
           .cover-page .title { font-family: 'League Gothic', sans-serif; font-size: 4.5rem; text-transform: uppercase; margin: 0; line-height: 1.1; color: #0d47a1; top: 30mm; }
@@ -212,6 +215,9 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
         O formato da resposta DEVE ser um JSON válido que corresponda ao esquema fornecido.
         NÃO inclua markdown (como \`\`\`json) na sua resposta. A resposta deve ser APENAS o JSON.
 
+        **Instruções Gerais de Conteúdo:**
+        - Para todos os campos de texto como 'content' e 'introduction', o texto DEVE ser dividido em múltiplos parágrafos para boa legibilidade. Use o caractere de nova linha (\\n) para separar os parágrafos dentro da string do JSON. Cada parágrafo deve ter um tamanho razoável, evitando "paredes de texto".
+
         **Instruções para o Título:**
         - **Sugestão de Título (do usuário):** "${formData.title}"
         - A partir da sugestão do usuário, crie um **Título Final Otimizado** para a capa do livro.
@@ -230,13 +236,13 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
         **Resumo do conteúdo desejado:** ${formData.summary}
         
         **Estrutura e Contagem de Palavras (siga o mais próximo possível):**
-        - **Introdução:** (Aproximadamente 400 palavras). O título DEVE ser "Introdução".
+        - **Introdução:** (Aproximadamente 400 palavras, divididas em múltiplos parágrafos usando \\n). O título DEVE ser "Introdução".
         - **Sumário:** O título DEVE ser "Sumário". O conteúdo deve ser APENAS a lista de todos os 10 capítulos e seus 3 subcapítulos, formatada como texto simples com quebras de linha. Exemplo: 'Capítulo 1: Título do Capítulo\\n- Subcapítulo 1.1\\n- Subcapítulo 1.2'. NÃO inclua nenhum parágrafo de introdução ou texto descritivo para o sumário.
         - **Capítulos:** Crie exatamente 10 capítulos. O total de palavras por capítulo deve ser aproximadamente 2100 palavras.
-          - **Introdução do Capítulo:** (Aproximadamente 300 palavras). Uma breve introdução para o capítulo.
+          - **Introdução do Capítulo:** (Aproximadamente 300 palavras, divididas em múltiplos parágrafos usando \\n). Uma breve introdução para o capítulo.
           - **Subcapítulos:** Crie exatamente 3 subcapítulos para cada capítulo.
-            - **Conteúdo de cada Subcapítulo:** (Aproximadamente 600 palavras). Conteúdo detalhado e bem escrito para cada subcapítulo.
-        - **Conclusão:** (Aproximadamente 600 palavras). Um capítulo de conclusão. O título DEVE ser "Conclusão".
+            - **Conteúdo de cada Subcapítulo:** (Aproximadamente 600 palavras, divididas em múltiplos parágrafos usando \\n). Conteúdo detalhado e bem escrito para cada subcapítulo.
+        - **Conclusão:** (Aproximadamente 600 palavras, divididas em múltiplos parágrafos usando \\n). Um capítulo de conclusão. O título DEVE ser "Conclusão".
 
         **Instruções Adicionais para Títulos de Capítulo:**
         - Para o título de cada capítulo na estrutura JSON (\`chapters[].title\`), forneça APENAS o nome do capítulo (ex: "Os Pilares da Alimentação Saudável"), sem o prefixo numérico como "Capítulo 1:".
