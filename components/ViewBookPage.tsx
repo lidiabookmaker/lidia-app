@@ -14,7 +14,7 @@ const EditIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
 );
 const SaveIcon = () => (
-    <svg xmlns="http://www.w.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
 );
 const DownloadIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
@@ -82,21 +82,42 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
   const handleGeneratePdf = async () => {
     setIsGenerating(true);
     try {
-        const content = currentBook.content || '';
-        if (!content) {
+        const originalContent = currentBook.content || '';
+        if (!originalContent) {
             alert("O conteúdo do livro está vazio. Não é possível gerar o PDF.");
+            setIsGenerating(false);
             return;
         }
+
+        // Create a temporary document to manipulate the HTML for better PDF generation
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(originalContent, 'text/html');
+        const style = doc.querySelector('style');
+        
+        if (style) {
+            // This is the key change: Override the fixed height for content pages
+            // to allow their content to flow across multiple PDF pages.
+            // The original .page-container styles (like width and page-break-after) are preserved.
+            style.textContent += `
+              .content-page {
+                height: auto !important;
+              }
+            `;
+        }
+        
+        const modifiedContent = doc.documentElement.outerHTML;
+
 
         const opt = {
             margin:       [2.4, 2, 2.7, 2], // [top, left, bottom, right] in cm
             filename:     `${currentBook.title.replace(/ /g, '_')}.pdf`,
+            pagebreak:    { mode: ['css', 'legacy'], after: '.page-container' },
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true, logging: false },
             jsPDF:        { unit: 'cm', format: 'a5', orientation: 'portrait' }
         };
 
-        const worker = html2pdf().from(content).set(opt);
+        const worker = html2pdf().from(modifiedContent).set(opt);
         
         worker.toPdf().get('pdf').then(function (pdf) {
             const totalPages = pdf.internal.getNumberOfPages();
