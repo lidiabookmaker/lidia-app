@@ -5,7 +5,6 @@ import type { UserProfile, Book, BookGenerationFormData, Page, BookPart } from '
 import { Button } from './ui/Button';
 import { Input, TextArea } from './ui/Input';
 import { Card } from './ui/Card';
-import { GEMINI_API_KEY } from '../services/geminiConfig';
 import { supabase } from '../services/supabase';
 
 // --- Tipos para a nova estrutura do livro ---
@@ -28,10 +27,8 @@ interface DetailedBookContent {
 // --- Fim dos Tipos ---
 
 const ArrowLeftIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+    <svg xmlns="http://www.w.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
 );
-
-type RenderablePart = 'full' | 'cover' | 'copyright' | 'toc' | 'introduction' | 'conclusion' | { type: 'chapter'; index: number };
 
 interface CreateBookPageProps {
   user: UserProfile;
@@ -78,34 +75,51 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
     const paragraphs = text.split('\n').filter(p => p.trim() !== '');
     if (paragraphs.length === 0) return '';
     
-    // Aplica o recuo apenas no primeiro parágrafo se addIndent for true
-    let html = `<p class="font-merriweather indent">${paragraphs[0].trim()}</p>`;
+    let html = `<p class="font-merriweather ${addIndent ? 'indent' : ''}">${paragraphs[0].trim()}</p>`;
     
-    // Adiciona os parágrafos restantes com recuo
     for (let i = 1; i < paragraphs.length; i++) {
         html += `<p class="font-merriweather indent">${paragraphs[i].trim()}</p>`;
     }
     
     return html;
   }
-
-  const generateBookHTML = (bookData: BookGenerationFormData, bookContent: DetailedBookContent, partToRender: RenderablePart = 'full'): string => {
+  
+  const generateBookHTML = (bookData: BookGenerationFormData, bookContent: DetailedBookContent): string => {
     const year = new Date().getFullYear();
-    const pageBgColor = '#FFFFFF';
-    
+    const finalBookData = { ...bookData, title: bookContent.optimized_title };
+
     const styles = `
       <style>
           @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@300;400;700;900&family=Merriweather+Sans:wght@300;400;600;700&display=swap');
           
-          body { font-family: 'Merriweather', serif; font-size: 11pt; color: #262626; margin: 0; background-color: #f0f0f0; }
-          
-          .page-container { width: 14.8cm; min-height: 21cm; margin: 0 auto; padding: 0; background: ${pageBgColor}; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; }
-          
-          .cover-page, .copyright-page, .chapter-title-page { height: 21cm; width: 14.8cm; margin: 0 auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; page-break-after: always; }
+          body { 
+            font-family: 'Merriweather', serif; 
+            font-size: 11pt;
+            font-weight: 300;
+            color: #262626; 
+            margin: 0; 
+            -webkit-print-color-adjust: exact; 
+            print-color-adjust: exact;
+          }
 
-          .content-page { padding: 2.3cm 2cm 2.7cm 2cm; /* Margens internas para conteúdo */ }
+          .page-container {
+            width: 14.8cm;
+            height: 21cm;
+            position: relative;
+            box-sizing: border-box;
+            page-break-after: always;
+            background: white;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+          }
           
-          .cover-page { padding: 0; text-align: center; position: relative; overflow: hidden; background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1) 0%, rgba(10, 207, 131, 0.1) 100%); }
+          .cover-page {
+            text-align: center;
+            position: relative;
+            background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1) 0%, rgba(10, 207, 131, 0.1) 100%);
+          }
+          
           .cover-page .content-wrapper { position: relative; z-index: 10; height: 100%; width: 100%; }
           .cover-page .title, .cover-page .subtitle, .cover-page .author { position: absolute; left: 50%; transform: translateX(-50%); width: 90%; padding: 0 1cm; box-sizing: border-box; }
           .cover-page .title { font-family: 'League Gothic', sans-serif; font-size: 4.5rem; text-transform: uppercase; margin: 0; line-height: 1.1; color: #0d47a1; top: 30mm; }
@@ -119,69 +133,54 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
           @keyframes wave2 { from { transform: rotate(-5deg) translateX(-10px); } to { transform: rotate(-3deg) translateX(10px); } }
           @keyframes wave3 { from { transform: rotate(-2deg); } to { transform: rotate(0deg); } }
 
-          .copyright-page { display: flex; flex-direction: column; justify-content: flex-end; padding: 2.7cm 2cm; }
+          .copyright-page { justify-content: flex-end; padding: 2.7cm 2cm; }
           .copyright-page .content { text-align: center; font-family: 'Merriweather Sans', sans-serif; font-size: 8pt; color: #595959; }
           
-          .content-page h1.font-merriweather { font-family: 'Merriweather', serif; font-weight: 700; font-size: 24pt; margin-bottom: 24pt; color: #333; text-align: left; }
-          .content-page h2.font-merriweather { font-family: 'Merriweather', serif; font-weight: 700; font-size: 18pt; margin-top: 18pt; margin-bottom: 12pt; color: #333; }
-          .content-page h3.font-merriweather-sans { font-family: 'Merriweather Sans', sans-serif; font-weight: 700; font-size: 14pt; margin-top: 14pt; margin-bottom: 8pt; color: #444; }
-          .content-page p.font-merriweather { line-height: 1.6; margin-bottom: 11pt; text-align: justify; font-weight: 300; }
+          .content-page { padding: 2.4cm 2cm 2.7cm 2cm; }
+          .content-page h1 { font-family: 'Merriweather', serif; font-weight: 700; font-size: 24pt; margin-bottom: 1.5em; color: #333; text-align: left; }
+          .content-page h2 { font-family: 'Merriweather', serif; font-weight: 700; font-size: 18pt; margin-top: 1.5em; margin-bottom: 1em; color: #333; }
+          .content-page h3 { font-family: 'Merriweather Sans', sans-serif; font-weight: 700; font-size: 14pt; margin-top: 1.5em; margin-bottom: 0.5em; color: #444; }
+          .content-page p { line-height: 15.02pt; /* 5.3mm */ margin-bottom: 15.02pt; text-align: justify; }
           .content-page p.indent { text-indent: 1.5em; }
 
-          .toc-page { page-break-after: always; }
-          .toc-item { font-family: 'Merriweather Sans', sans-serif; margin-bottom: 4pt; }
+          .toc-item { font-family: 'Merriweather Sans', sans-serif; margin-bottom: 4pt; line-height: 15.02pt; }
           .toc-chapter { font-weight: 700; margin-top: 8pt; }
           .toc-subchapter { margin-left: 20px; }
           
           .chapter-title-page { display: flex; justify-content: center; align-items: center; text-align: center; }
-          .chapter-title-standalone { font-family: 'Merriweather', serif; font-size: 24pt; }
+          .chapter-title-page h1 { font-family: 'Merriweather', serif; font-size: 24pt; }
+          
+          /* For every even page number, if it's a chapter title page, add a page break before */
+          .chapter-title-page:nth-of-type(even) {
+            page-break-before: always;
+          }
 
-          .html2pdf__page-break { page-break-after: always; height: 0; display: block; }
       </style>
     `;
 
-    const coverPage = `<div class="cover-page" data-page="cover"><div class="content-wrapper"><h1 class="title">${bookData.title}</h1><p class="subtitle">${bookData.subtitle}</p><p class="author">${bookData.author}</p></div><div class="onda onda1"></div><div class="onda onda2"></div><div class="onda onda3"></div></div>`;
-    const copyrightPage = `<div class="copyright-page" data-page="copyright"><div class="content"><p>Copyright © ${year} ${bookData.author}</p><p>Todos os direitos reservados.</p><p>Este livro ou qualquer parte dele não pode ser reproduzido ou usado de forma alguma sem a permissão expressa por escrito do editor, exceto pelo uso de breves citações em uma resenha do livro.</p></div></div>`;
-    const tocPage = `<div class="page-container content-page toc-page"><h1 class="font-merriweather">${bookContent.table_of_contents.title}</h1>${bookContent.table_of_contents.content.split('\n').map(line => { line = line.trim(); if (!line) return ''; if (line.match(/^capítulo \\d+:/i)) { return `<p class="toc-item toc-chapter">${line}</p>`; } return `<p class="toc-item toc-subchapter">${line}</p>`; }).join('')}</div>`;
-    const introPage = `<div class="page-container content-page"><h1 class="font-merriweather">${bookContent.introduction.title}</h1>${formatContentForHTML(bookContent.introduction.content, true)}</div>`;
-    const conclusionPage = `<div class="html2pdf__page-break"></div><div class="page-container content-page"><h1 class="font-merriweather">${bookContent.conclusion.title}</h1>${formatContentForHTML(bookContent.conclusion.content, true)}</div>`;
-    const chapterPages = bookContent.chapters.map(chapter => `<div class="html2pdf__page-break"></div><div class="chapter-title-page"> <h1 class="chapter-title-standalone">${chapter.title}</h1></div><div class="html2pdf__page-break"></div><div class="page-container content-page"><h2 class="font-merriweather">${chapter.title}</h2>${formatContentForHTML(chapter.introduction, true)}${chapter.subchapters.map(sub => `<h3 class="font-merriweather-sans">${sub.title}</h3>${formatContentForHTML(sub.content)}`).join('')}</div>`);
+    const coverPage = `<div class="page-container cover-page"><div class="content-wrapper"><h1 class="title">${finalBookData.title}</h1><p class="subtitle">${finalBookData.subtitle}</p><p class="author">${finalBookData.author}</p></div><div class="onda onda1"></div><div class="onda onda2"></div><div class="onda onda3"></div></div>`;
+    const copyrightPage = `<div class="page-container copyright-page"><div class="content"><p>Copyright &copy; ${year} ${finalBookData.author}</p><p>Todos os direitos reservados.</p><p>Este livro ou qualquer parte dele não pode ser reproduzido ou usado de forma alguma sem a permissão expressa por escrito do editor, exceto pelo uso de breves citações em uma resenha do livro.</p></div></div>`;
+    const tocPage = `<div class="page-container content-page"><h1>${bookContent.table_of_contents.title}</h1>${bookContent.table_of_contents.content.split('\n').map(line => { line = line.trim(); if (!line) return ''; if (line.match(/^capítulo \\d+:/i)) { return `<p class="toc-item toc-chapter">${line}</p>`; } return `<p class="toc-item toc-subchapter">${line}</p>`; }).join('')}</div>`;
+    const introPage = `<div class="page-container content-page"><h1>${bookContent.introduction.title}</h1>${formatContentForHTML(bookContent.introduction.content, true)}</div>`;
+    const conclusionPage = `<div class="page-container content-page"><h1>${bookContent.conclusion.title}</h1>${formatContentForHTML(bookContent.conclusion.content, true)}</div>`;
 
-    let content = '';
-    if (partToRender === 'full') {
-      content = `${coverPage}${copyrightPage}${tocPage}${introPage}${chapterPages.join('')}${conclusionPage}`;
-    } else if (partToRender === 'cover') {
-      content = coverPage;
-    } else if (partToRender === 'copyright') {
-      content = copyrightPage;
-    } else if (partToRender === 'toc') {
-        content = tocPage;
-    } else if (partToRender === 'introduction') {
-      content = introPage;
-    } else if (partToRender === 'conclusion') {
-      content = conclusionPage;
-    } else if (typeof partToRender === 'object' && partToRender.type === 'chapter') {
-      content = chapterPages[partToRender.index];
-    }
+    let chapterHtml = bookContent.chapters.map((chapter) => {
+        const chapterTitlePage = `<div class="page-container chapter-title-page"><h1>${chapter.title}</h1></div>`;
+        const chapterContent = `<div class="page-container content-page"><h2 class="font-merriweather">${chapter.title}</h2>${formatContentForHTML(chapter.introduction, false)}${chapter.subchapters.map(sub => `<h3 class="font-merriweather-sans">${sub.title}</h3>${formatContentForHTML(sub.content)}`).join('')}</div>`;
+        return chapterTitlePage + chapterContent;
+    }).join('');
+
+    const allContent = [
+        coverPage,
+        copyrightPage,
+        tocPage,
+        introPage,
+        chapterHtml,
+        conclusionPage
+    ].join('');
     
-    return `<html><head><title>${bookData.title}</title>${styles}</head><body>${content}</body></html>`;
+    return `<html><head><title>${finalBookData.title}</title>${styles}</head><body>${allContent}</body></html>`;
   };
-
-  const splitBookIntoParts = (formData: BookGenerationFormData, bookContent: DetailedBookContent, bookId: string, finalTitle: string): Omit<BookPart, 'id' | 'pdf_url' | 'created_at'>[] => {
-    const parts: Omit<BookPart, 'id' | 'pdf_url' | 'created_at'>[] = [];
-    let partIndex = 0;
-    const finalBookData = { ...formData, title: finalTitle };
-
-    parts.push({ book_id: bookId, part_index: partIndex++, part_name: 'Capa', html_content: generateBookHTML(finalBookData, bookContent, 'cover'), });
-    parts.push({ book_id: bookId, part_index: partIndex++, part_name: 'Copyright', html_content: generateBookHTML(finalBookData, bookContent, 'copyright'), });
-    parts.push({ book_id: bookId, part_index: partIndex++, part_name: 'Sumário', html_content: generateBookHTML(finalBookData, bookContent, 'toc'), });
-    parts.push({ book_id: bookId, part_index: partIndex++, part_name: 'Introdução', html_content: generateBookHTML(finalBookData, bookContent, 'introduction'), });
-    bookContent.chapters.forEach((_, index) => {
-        parts.push({ book_id: bookId, part_index: partIndex++, part_name: `Capítulo ${index + 1}`, html_content: generateBookHTML(finalBookData, bookContent, { type: 'chapter', index }), });
-    });
-    parts.push({ book_id: bookId, part_index: partIndex++, part_name: 'Conclusão', html_content: generateBookHTML(finalBookData, bookContent, 'conclusion'), });
-    return parts;
-};
 
 
   const handleGenerateBook = async () => {
@@ -199,7 +198,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
 
     try {
       updateLog("Inicializando o cliente da API do Gemini...");
-      const ai = new GoogleGenAI({apiKey: GEMINI_API_KEY});
+      const ai = new GoogleGenAI({apiKey: "AIzaSyCyh43BgOsfCijaBuKIhxHrdEnZhwWON1Q"});
 
       const bookSchema = {
           type: Type.OBJECT,
@@ -260,19 +259,19 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
         **Nicho/Assunto:** ${formData.niche}
         **Resumo do conteúdo desejado:** ${formData.summary}
         
-        **Estrutura e Contagem de Palavras (siga o mais próximo possível):**
-        - **Introdução:** (Aproximadamente 400 palavras, divididas em múltiplos parágrafos usando \\n). O título DEVE ser "Introdução".
+        **Estrutura e Contagem de Palavras (REGRAS OBRIGATÓRIAS):**
+        - **Introdução:** No mínimo 400 palavras, divididas em múltiplos parágrafos usando \\n. O título DEVE ser "Introdução".
         - **Sumário:** O título DEVE ser "Sumário". O conteúdo deve ser APENAS a lista de todos os 10 capítulos e seus 3 subcapítulos, formatada como texto simples com quebras de linha. Exemplo: 'Capítulo 1: Título do Capítulo\\n- Subcapítulo 1.1\\n- Subcapítulo 1.2'. NÃO inclua nenhum parágrafo de introdução ou texto descritivo para o sumário.
-        - **Capítulos:** Crie exatamente 10 capítulos. O total de palavras por capítulo deve ser aproximadamente 2100 palavras.
-          - **Introdução do Capítulo:** (Aproximadamente 300 palavras, divididas em múltiplos parágrafos usando \\n). Uma breve introdução para o capítulo.
+        - **Capítulos:** Crie exatamente 10 capítulos. O total de palavras por capítulo deve ser no mínimo 2100 palavras.
+          - **Introdução do Capítulo:** No mínimo 300 palavras, divididas em múltiplos parágrafos usando \\n.
           - **Subcapítulos:** Crie exatamente 3 subcapítulos para cada capítulo.
-            - **Conteúdo de cada Subcapítulo:** (Aproximadamente 600 palavras, divididas em múltiplos parágrafos usando \\n). Conteúdo detalhado e bem escrito para cada subcapítulo.
-        - **Conclusão:** (Aproximadamente 600 palavras, divididas em múltiplos parágrafos usando \\n). Um capítulo de conclusão. O título DEVE ser "Conclusão".
-
+            - **Conteúdo de cada Subcapítulo:** No mínimo 600 palavras, divididas em múltiplos parágrafos usando \\n.
+        - **Conclusão:** No mínimo 600 palavras, divididas em múltiplos parágrafos usando \\n. O título DEVE ser "Conclusão".
+        
         **Instruções Adicionais para Títulos de Capítulo:**
         - Para o título de cada capítulo na estrutura JSON (\`chapters[].title\`), forneça APENAS o nome do capítulo (ex: "Os Pilares da Alimentação Saudável"), sem o prefixo numérico como "Capítulo 1:".
 
-        O conteúdo total do livro deve ter aproximadamente 22.800 palavras.
+        É CRUCIAL que o conteúdo total do livro atinja no mínimo 22.800 palavras. A IA deve expandir os tópicos com detalhes, exemplos e analogias para atingir este volume.
       `;
 
       updateLog("Enviando requisição para a IA...");
@@ -292,11 +291,11 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
                   }
               });
               updateLog(`Sucesso com o modelo: ${model}.`);
-              break; // Success, exit the loop
+              break; 
           } catch (error) {
               const err = error as Error;
               if (model === modelsToTry[modelsToTry.length - 1] || !err.message.toLowerCase().includes('overloaded')) {
-                  throw error; // Re-throw if it's the last model or not an overload error
+                  throw error;
               }
               updateLog(`Modelo ${model} sobrecarregado. Tentando o próximo modelo...`);
           }
@@ -316,8 +315,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
       updateLog(`Título otimizado pela IA: "${finalTitle}"`);
 
       updateLog("Formatando o livro em HTML para pré-visualização...");
-      const finalBookData = { ...formData, title: finalTitle };
-      const fullHtml = generateBookHTML(finalBookData, bookContent, 'full');
+      const fullHtml = generateBookHTML(formData, bookContent);
       setGeneratedHtml(fullHtml);
       updateLog("Formatação HTML concluída.");
 
@@ -329,7 +327,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
             title: finalTitle,
             subtitle: formData.subtitle,
             author: formData.author,
-            content: fullHtml,
+            content: fullHtml, // Store the full HTML
             status: 'content_ready',
         })
         .select()
@@ -337,14 +335,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
     
       if (bookError) throw bookError;
       updateLog(`Registro principal do livro criado com ID: ${newBook.id}`);
-
-      updateLog("Dividindo o livro em partes para o pipeline de PDF...");
-      const bookParts = splitBookIntoParts(formData, bookContent, newBook.id, finalTitle);
       
-      const { error: partsError } = await supabase.from('book_parts').insert(bookParts);
-      if (partsError) throw partsError;
-      updateLog(`${bookParts.length} partes do livro salvas no banco de dados.`);
-
       const newCredits = user.book_credits - 1;
       const { error: profileError } = await supabase
         .from('profiles')

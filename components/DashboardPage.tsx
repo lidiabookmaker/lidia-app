@@ -9,10 +9,11 @@ interface DashboardPageProps {
   onNavigate: (page: Page) => void;
   onLogout: () => void;
   onViewBook: (bookId: string) => void;
+  logoUrl: string | null;
 }
 
 const BookIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-12 w-12 text-indigo-500 mb-2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-12 w-12 text-indigo-500 mb-2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
 );
 
 const bookStatusClasses: Record<BookStatus, string> = {
@@ -37,7 +38,7 @@ const formatBookStatus = (status: BookStatus) => {
 };
 
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNavigate, onLogout, onViewBook }) => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNavigate, onLogout, onViewBook, logoUrl }) => {
   const isFreeUser = user.status === 'ativa_free';
   const credits = user.book_credits;
   const canCreateBook = credits > 0;
@@ -60,7 +61,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, books, onNav
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow-sm">
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <img src="/logo.png" alt="LIDIA Logo" className="h-10" />
+          <img src={logoUrl || '/logo.png'} alt="LIDIA Logo" className="h-10" />
           <div className="flex items-center space-x-4">
              {user.role === 'admin' && <Button onClick={() => onNavigate('admin-users')} variant="secondary">Admin</Button>}
             <span className="text-gray-600 hidden sm:block">Olá, {user.email}</span>

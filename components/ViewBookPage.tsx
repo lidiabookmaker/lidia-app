@@ -8,19 +8,19 @@ import { LoadingSpinner } from './ui/LoadingSpinner';
 
 
 const ArrowLeftIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
 );
 const EditIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
 );
 const SaveIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    <svg xmlns="http://www.w.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
 );
 const DownloadIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
 );
 const GenerateIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m10 15-2-2 2-2"/><path d="m14 15 2-2-2-2"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m10 15-2-2 2-2"/><path d="m14 15 2-2-2-2"/></svg>
 );
 
 
@@ -32,79 +32,12 @@ interface ViewBookPageProps {
 
 export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, onUpdateBook }) => {
   const [currentBook, setCurrentBook] = useState<Book>(book);
-  const [parts, setParts] = useState<BookPart[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState({ message: '', details: '' });
+  const [isGenerating, setIsGenerating] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const pollingInterval = useRef<number | null>(null);
-  const [isLegacyBook, setIsLegacyBook] = useState(false);
-  const [isLegacyGenerating, setIsLegacyGenerating] = useState(false);
-
-  const fetchBookStatus = async () => {
-    const { data, error } = await supabase.from('books').select('status, pdf_final_url').eq('id', book.id).single();
-    if (error) {
-      console.error('Error polling book status:', error);
-      // Stop polling on error to avoid spamming
-      stopPolling();
-      return;
-    }
-    if (data) {
-        setCurrentBook(prev => ({...prev, status: data.status, pdf_final_url: data.pdf_final_url}));
-        if (data.status === 'ready' || data.status === 'error') {
-            stopPolling();
-            setIsProcessing(false);
-        }
-    }
-  };
-
-  const startPolling = () => {
-    if (pollingInterval.current) return;
-    pollingInterval.current = window.setInterval(fetchBookStatus, 5000);
-  };
-
-  const stopPolling = () => {
-    if (pollingInterval.current) {
-      clearInterval(pollingInterval.current);
-      pollingInterval.current = null;
-    }
-  };
-
-  useEffect(() => {
-    const currentStatus = currentBook.status;
-    if (currentStatus === 'processing_parts' || currentStatus === 'assembling_pdf') {
-      setIsProcessing(true);
-      startPolling();
-    } else {
-      setIsProcessing(false);
-      stopPolling();
-    }
-    // Cleanup on component unmount
-    return () => stopPolling();
-  }, [currentBook.status, book.id]);
   
-  const fetchBookParts = async () => {
-      const { data, error } = await supabase.from('book_parts').select('*').eq('book_id', book.id).order('part_index', { ascending: true });
-      if (error) {
-          console.error("Error fetching book parts:", error);
-          setProgress({ message: 'Erro', details: 'Não foi possível carregar as partes do livro.' });
-      } else {
-          if (data && data.length > 0) {
-              setParts(data);
-              setIsLegacyBook(false);
-          } else {
-              setParts([]);
-              setIsLegacyBook(true);
-          }
-      }
-  };
-
-  useEffect(() => {
-    fetchBookParts();
-  }, [book.id]);
-
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -145,196 +78,72 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
       setIsSaving(false);
     }
   };
-
-  const generatePdfPipeline = async () => {
-    if (parts.length === 0) {
-      setProgress({ message: 'Erro', details: 'Nenhuma parte do livro encontrada para gerar PDF.' });
-      return;
-    }
-    setIsProcessing(true);
-    setSaveError('');
-    
-    try {
-      // 1. Set status to processing_parts
-      await supabase.from('books').update({ status: 'processing_parts' }).eq('id', book.id);
-      setCurrentBook(prev => ({...prev, status: 'processing_parts'}));
-
-      // 2. Loop and generate PDF for each part
-      for (const part of parts) {
-        setProgress({ message: 'Gerando PDF...', details: `Processando parte ${part.part_index + 1} de ${parts.length}: ${part.part_name}` });
-
-        const opt = {
-          margin: [2.3, 2.0, 2.7, 2.0], // [top, left, bottom, right] in cm
-          filename: 'part.pdf',
-          image: { type: 'jpeg', quality: 0.95 },
-          html2canvas: { scale: 1.5, useCORS: true, logging: false },
-          jsPDF: { unit: 'cm', format: 'a5', orientation: 'portrait' }
-        };
-        
-        const tempContainer = document.createElement('div');
-        tempContainer.innerHTML = part.html_content;
-        document.body.appendChild(tempContainer);
-        
-        const pdfBlob = await html2pdf().from(tempContainer).set(opt).output('blob');
-        document.body.removeChild(tempContainer);
-
-        const filePath = `${book.id}/parts/${part.part_index}.pdf`;
-        const { error: uploadError } = await supabase.storage.from('books').upload(filePath, pdfBlob, { upsert: true });
-        if (uploadError) throw new Error(`Falha no upload da parte ${part.part_index}: ${uploadError.message}`);
-
-        await supabase.from('book_parts').update({ pdf_url: filePath }).eq('id', part.id);
-      }
-
-      // 3. Set status to assembling_pdf and invoke merge function
-      setProgress({ message: 'Montando PDF final...', details: 'Aguarde, isso pode levar alguns instantes.' });
-      await supabase.from('books').update({ status: 'assembling_pdf' }).eq('id', book.id);
-      setCurrentBook(prev => ({...prev, status: 'assembling_pdf'}));
-      
-      const { error: functionError } = await supabase.functions.invoke('generate-pdf', { body: { bookId: book.id } });
-      if (functionError) {
-        // More specific error for the user
-        if (functionError.message.includes("Failed to send a request")) {
-             throw new Error("Falha na montagem do PDF: Não foi possível conectar à função serverless. Verifique se a função 'generate-pdf' foi implantada corretamente no Supabase.");
-        }
-        throw new Error(`Falha na montagem do PDF: ${functionError.message}`);
-      }
-      
-      startPolling(); // Start checking for the 'ready' status
-
-    } catch (error) {
-      console.error("PDF Pipeline Error:", error);
-      await supabase.from('books').update({ status: 'error' }).eq('id', book.id);
-      setCurrentBook(prev => ({...prev, status: 'error'}));
-      setProgress({ message: 'Ocorreu um Erro', details: (error as Error).message });
-      setIsProcessing(false);
-    }
-  };
   
-  const generateLegacyPdf = async () => {
-    setIsLegacyGenerating(true);
-    setProgress({ message: 'Gerando PDF...', details: 'Usando o método antigo. Isso pode demorar ou falhar em livros muito grandes.' });
-
+  const handleGeneratePdf = async () => {
+    setIsGenerating(true);
     try {
-        const element = document.createElement('div');
-        // The full HTML is stored in the content field for legacy books
-        element.innerHTML = currentBook.content || '';
-        document.body.appendChild(element);
+        const content = currentBook.content || '';
+        if (!content) {
+            alert("O conteúdo do livro está vazio. Não é possível gerar o PDF.");
+            return;
+        }
 
         const opt = {
-            margin: [2.3, 2.0, 2.7, 2.0], // [top, left, bottom, right] in cm
-            filename: `${currentBook.title.replace(/ /g, '_')}.pdf`,
-            image: { type: 'jpeg', quality: 0.95 },
-            html2canvas: { scale: 1.5, useCORS: true, logging: false },
-            jsPDF: { unit: 'cm', format: 'a5', orientation: 'portrait' }
+            margin:       [2.4, 2, 2.7, 2], // [top, left, bottom, right] in cm
+            filename:     `${currentBook.title.replace(/ /g, '_')}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'cm', format: 'a5', orientation: 'portrait' }
         };
 
-        // Use the save() method to trigger a direct download
-        await html2pdf().from(element).set(opt).save();
+        const worker = html2pdf().from(content).set(opt);
+        
+        worker.toPdf().get('pdf').then(function (pdf) {
+            const totalPages = pdf.internal.getNumberOfPages();
+            const bookTitle = currentBook.title.toUpperCase();
+            
+            // Define fonts and colors
+            const headerFont = 'Helvetica';
+            const footerFont = 'Helvetica';
+            const royalBlue = '#002366';
 
-        document.body.removeChild(element);
-        setProgress({ message: '', details: '' });
+            for (let i = 1; i <= totalPages; i++) {
+                pdf.setPage(i);
+
+                // Skip header and footer for the first page (cover)
+                if (i === 1) continue;
+
+                // --- Add Header ---
+                pdf.setFont(headerFont, 'normal');
+                pdf.setFontSize(8);
+                pdf.setTextColor(royalBlue);
+                const headerTextWidth = pdf.getStringUnitWidth(bookTitle) * pdf.getFontSize() / pdf.internal.scaleFactor;
+                const headerX = (pdf.internal.pageSize.getWidth() - headerTextWidth) / 2;
+                pdf.text(bookTitle, headerX, 1.3); // 1.3cm from top
+
+                // --- Add Footer (Page Number) ---
+                pdf.setFont(footerFont, 'bold');
+                pdf.setFontSize(16);
+                pdf.setTextColor('#000000');
+                pdf.setGState(new pdf.GState({opacity: 0.4})); // Set opacity
+                
+                const pageNumText = String(i);
+                const footerTextWidth = pdf.getStringUnitWidth(pageNumText) * pdf.getFontSize() / pdf.internal.scaleFactor;
+                const footerX = (pdf.internal.pageSize.getWidth() - footerTextWidth) / 2;
+                pdf.text(pageNumText, footerX, pdf.internal.pageSize.getHeight() - 1.35); // 1.35cm from bottom
+                
+                pdf.setGState(new pdf.GState({opacity: 1})); // Reset opacity
+            }
+        }).save();
+
 
     } catch (error) {
-        console.error("Legacy PDF Generation Error:", error);
-        setProgress({ message: 'Ocorreu um Erro', details: `O método antigo de geração falhou. ${(error as Error).message}` });
+        console.error("PDF Generation Error:", error);
+        alert(`Ocorreu um erro ao gerar o PDF: ${(error as Error).message}`);
     } finally {
-        setIsLegacyGenerating(false);
+        setIsGenerating(false);
     }
 };
-
-  const getPublicUrl = (path: string) => {
-      const { data } = supabase.storage.from('books').getPublicUrl(path);
-      return data.publicUrl;
-  }
-
-  const renderPipelineControls = () => {
-    if (isLegacyBook) {
-        return (
-            <Card className="bg-yellow-50 border-yellow-300 border text-center">
-                <h3 className="text-xl font-bold text-yellow-800">Livro Antigo Detectado</h3>
-                <p className="text-yellow-700 mt-2">
-                    Este livro foi criado com uma versão anterior e não usa o novo sistema de geração de PDF em partes.
-                    Você pode tentar gerar o PDF usando o método antigo, mas ele pode falhar em livros muito grandes.
-                </p>
-                <Button 
-                    onClick={generateLegacyPdf} 
-                    className="mt-6 text-lg" 
-                    isLoading={isLegacyGenerating}
-                    loadingText="Gerando PDF..."
-                >
-                    <GenerateIcon />
-                    Gerar PDF (Método Antigo)
-                </Button>
-                {isLegacyGenerating && progress.details && (
-                    <p className="text-yellow-700 mt-2 text-sm">{progress.details}</p>
-                )}
-                {!isLegacyGenerating && progress.message === 'Ocorreu um Erro' && (
-                     <p className="text-red-700 mt-2 text-sm">{progress.details}</p>
-                )}
-            </Card>
-        );
-    }
-
-    if(isProcessing || currentBook.status === 'processing_parts' || currentBook.status === 'assembling_pdf') {
-        let message = 'Processando...';
-        let details = 'Aguarde um momento.';
-        if (currentBook.status === 'processing_parts') {
-            message = progress.message || 'Gerando partes do PDF...';
-            details = progress.details || `Renderizando cada página do seu livro.`;
-        }
-        if (currentBook.status === 'assembling_pdf') {
-            message = 'Montando PDF final...';
-            details = 'Juntando todas as partes. Isso pode levar alguns minutos.';
-        }
-        return (
-            <Card className="bg-indigo-50 border-indigo-200 border text-center">
-                <h3 className="text-xl font-bold text-indigo-800">{message}</h3>
-                <p className="text-indigo-700 mt-2">{details}</p>
-                <div className="mt-4">
-                    <LoadingSpinner/>
-                </div>
-            </Card>
-        );
-    }
-
-    if (currentBook.status === 'ready' && currentBook.pdf_final_url) {
-        return (
-             <Card className="bg-green-50 border-green-200 border text-center">
-                <h3 className="text-xl font-bold text-green-800">Seu PDF está pronto!</h3>
-                <a href={getPublicUrl(currentBook.pdf_final_url)} target="_blank" rel="noopener noreferrer" download>
-                    <Button variant="success" className="mt-4 inline-flex items-center text-lg">
-                        <DownloadIcon />
-                        Baixar PDF Final
-                    </Button>
-                </a>
-            </Card>
-        );
-    }
-    
-    if (currentBook.status === 'error') {
-        return (
-             <Card className="bg-red-50 border-red-200 border text-center">
-                <h3 className="text-xl font-bold text-red-800">Ocorreu um Erro</h3>
-                <p className="text-red-700 mt-2">{progress.details || "Não foi possível gerar o PDF."}</p>
-                 <Button onClick={generatePdfPipeline} className="mt-4">
-                    Tentar Novamente
-                </Button>
-            </Card>
-        );
-    }
-
-
-    return (
-        <Card className="text-center">
-            <h3 className="text-xl font-bold text-gray-800">Gerar PDF do Livro</h3>
-            <p className="text-gray-600 mt-2">Este processo irá renderizar cada parte do livro individualmente e depois juntá-las em um único arquivo PDF.</p>
-            <Button onClick={generatePdfPipeline} className="mt-6 text-lg" disabled={parts.length === 0}>
-                <GenerateIcon/>
-                Iniciar Geração do PDF
-            </Button>
-        </Card>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
@@ -355,7 +164,7 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
                         </Button>
                     </>
                 ) : (
-                    <Button onClick={handleEdit} variant="secondary" className="w-full inline-flex items-center" disabled={isProcessing}>
+                    <Button onClick={handleEdit} variant="secondary" className="w-full inline-flex items-center" disabled={isGenerating}>
                         <EditIcon /> Editar Conteúdo
                     </Button>
                 )}
@@ -376,7 +185,20 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
                 <p className="text-sm text-gray-500 mt-1">por {book.author}</p>
             </div>
             
-            {renderPipelineControls()}
+             <Card className="text-center">
+                <h3 className="text-xl font-bold text-gray-800">Gerar PDF do Livro</h3>
+                <p className="text-gray-600 mt-2">Clique no botão abaixo para gerar e baixar o arquivo PDF final do seu livro.</p>
+                <Button 
+                  onClick={handleGeneratePdf} 
+                  className="mt-6 text-lg" 
+                  isLoading={isGenerating}
+                  loadingText="Gerando PDF..."
+                  disabled={isEditing}
+                >
+                    <GenerateIcon/>
+                    Gerar PDF Final
+                </Button>
+            </Card>
 
             <div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Pré-visualização do Conteúdo</h2>

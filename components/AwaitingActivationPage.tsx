@@ -6,9 +6,10 @@ import type { UserProfile } from '../types';
 interface AwaitingActivationPageProps {
   user: UserProfile | null;
   onLogout: () => void;
+  logoUrl: string | null;
 }
 
-export const AwaitingActivationPage: React.FC<AwaitingActivationPageProps> = ({ user, onLogout }) => {
+export const AwaitingActivationPage: React.FC<AwaitingActivationPageProps> = ({ user, onLogout, logoUrl }) => {
     const [notified, setNotified] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -25,7 +26,7 @@ export const AwaitingActivationPage: React.FC<AwaitingActivationPageProps> = ({ 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
        <header className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center">
-        <img src="/logo.png" alt="LIDIA Logo" className="h-10" />
+        <img src={logoUrl || '/logo.png'} alt="LIDIA Logo" className="h-10" />
         <Button onClick={onLogout} variant="secondary">Sair</Button>
       </header>
       <Card className="w-full max-w-lg text-center">

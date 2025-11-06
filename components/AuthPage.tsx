@@ -6,6 +6,7 @@ import { supabase } from '../services/supabase';
 
 interface AuthPageProps {
   initialError?: string | null;
+  logoUrl: string | null;
 }
 
 const GoogleIcon = () => (
@@ -18,7 +19,7 @@ const GoogleIcon = () => (
 );
 
 
-export const AuthPage: React.FC<AuthPageProps> = ({ initialError }) => {
+export const AuthPage: React.FC<AuthPageProps> = ({ initialError, logoUrl }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,15 +37,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialError }) => {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // O listener onAuthStateChange em App.tsx cuidará da navegação.
       } else {
         const { error } = await supabase.auth.signUp({ 
             email, 
             password,
-            options: {
-                // O trigger no banco de dados criará o perfil
-                // com o status 'aguardando_ativacao'
-            }
         });
         if (error) throw error;
         setMessage('Verifique seu e-mail para confirmar o cadastro!');
@@ -75,7 +71,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialError }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
-      <img src="/logo.png" alt="LIDIA Logo" className="h-12 mb-6" />
+      <img src={logoUrl || '/logo.png'} alt="LIDIA Logo" className="h-12 mb-6" />
       <Card className="w-full max-w-md">
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">{isLogin ? 'Bem-vindo de volta!' : 'Crie sua conta'}</h2>
         

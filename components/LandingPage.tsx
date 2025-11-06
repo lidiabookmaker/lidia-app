@@ -4,13 +4,14 @@ import type { Page } from '../types';
 
 interface LandingPageProps {
   onNavigate: (page: 'login') => void;
+  logoUrl: string | null;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, logoUrl }) => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center text-center px-4">
       <header className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center">
-        <img src="/logo.png" alt="LIDIA Logo" className="h-10" />
+        <img src={logoUrl || '/logo.png'} alt="LIDIA Logo" className="h-10" />
         <Button onClick={() => onNavigate('login')} variant="secondary">Login</Button>
       </header>
       <main className="max-w-4xl mx-auto">

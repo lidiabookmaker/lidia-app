@@ -4,13 +4,14 @@ import { Card } from './ui/Card';
 
 interface SuspendedAccountPageProps {
   onLogout: () => void;
+  logoUrl: string | null;
 }
 
-export const SuspendedAccountPage: React.FC<SuspendedAccountPageProps> = ({ onLogout }) => {
+export const SuspendedAccountPage: React.FC<SuspendedAccountPageProps> = ({ onLogout, logoUrl }) => {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
        <header className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center">
-        <img src="/logo.png" alt="LIDIA Logo" className="h-10" />
+        <img src={logoUrl || '/logo.png'} alt="LIDIA Logo" className="h-10" />
         <Button onClick={onLogout} variant="secondary">Sair</Button>
       </header>
       <Card className="w-full max-w-lg text-center">

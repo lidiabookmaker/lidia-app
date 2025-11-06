@@ -17,6 +17,13 @@ import { ActivationPage } from './components/admin/ActivationPage';
 import { ViewBookPage } from './components/ViewBookPage';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { ConfigurationErrorPage } from './components/ConfigurationErrorPage';
+import { AwaitingActivationPage } from './components/AwaitingActivationPage';
+
+
+interface Branding {
+    logoUrl: string | null;
+    faviconUrl: string | null;
+}
 
 const App: React.FC = () => {
     const [user, setUser] = useState<UserProfile | null>(null);
@@ -26,13 +33,43 @@ const App: React.FC = () => {
     const [planSettings, setPlanSettings] = useState<PlanSetting[]>([]);
     const [viewedBookId, setViewedBookId] = useState<string | null>(null);
     const [authError, setAuthError] = useState<string | null>(null);
-    // FIX: Re-added 'gemini' to config errors to enforce API key setup during pre-MVP.
     const [configErrors, setConfigErrors] = useState<('supabase' | 'gemini')[]>([]);
     const [isConfigChecked, setIsConfigChecked] = useState(false);
+    const [branding, setBranding] = useState<Branding>({ logoUrl: null, faviconUrl: null });
     const initialAuthCheckCompleted = useRef(false);
 
+    // Fetch branding on initial load
     useEffect(() => {
-        // FIX: Re-added Gemini config check for the pre-MVP phase.
+        const fetchBranding = async () => {
+            if (!isSupabaseConfigured) return;
+            const { data, error } = await supabase
+                .from('branding')
+                .select('logo_url, favicon_url')
+                .eq('id', 1)
+                .single();
+            
+            if (error) {
+                console.error("Error fetching branding:", error);
+            } else if (data) {
+                setBranding({ logoUrl: data.logo_url, faviconUrl: data.favicon_url });
+            }
+        };
+
+        fetchBranding();
+    }, [isSupabaseConfigured]);
+
+    // Update favicon dynamically
+    useEffect(() => {
+        const favicon = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+        if (favicon && branding.faviconUrl) {
+            favicon.href = branding.faviconUrl;
+        } else if (favicon && !branding.faviconUrl) {
+            favicon.href = '/favicon.png'; // Fallback
+        }
+    }, [branding.faviconUrl]);
+
+
+    useEffect(() => {
         const missingKeys: ('supabase' | 'gemini')[] = [];
         if (!isSupabaseConfigured) {
             missingKeys.push('supabase');
@@ -58,6 +95,9 @@ const App: React.FC = () => {
                 break;
             case 'suspensa':
                 setPage('suspended-account');
+                break;
+            case 'aguardando_ativacao':
+                setPage('awaiting-activation');
                 break;
             default:
                 console.warn(`Unhandled user status: ${currentUser.status}. Defaulting to login.`);
@@ -90,7 +130,6 @@ const App: React.FC = () => {
             }
 
             if (session?.user) {
-                // FIX: Prevent re-render/loading loop on token refresh events for an already active user.
                 if (user && session.user.id === user.id) {
                     return;
                 }
@@ -111,44 +150,6 @@ const App: React.FC = () => {
                     return;
                 }
                 
-                // Auto-activate new users
-                if (profile.status === 'aguardando_ativacao') {
-                    // Fetch settings again to ensure they are fresh before activating
-                    const { data: currentSettings, error: settingsError } = await supabase.from('plan_settings').select('*');
-                    if (settingsError || !currentSettings) {
-                        console.error("Could not fetch plan settings for auto-activation, using fallback.", settingsError);
-                         await supabase.auth.signOut();
-                        setAuthError("Não foi possível buscar configurações de plano. Ativação falhou.");
-                        setPage('login');
-                        setUser(null);
-                        return;
-                    }
-                    
-                    const freePlan = (currentSettings as PlanSetting[]).find(p => p.plan_id === 'ativa_free');
-                    const creditsForFreePlan = freePlan ? freePlan.book_credits : 1;
-
-                    const { data: updatedProfile, error: updateError } = await supabase
-                        .from('profiles')
-                        .update({
-                            status: 'ativa_free',
-                            book_credits: creditsForFreePlan,
-                        })
-                        .eq('id', session.user.id)
-                        .select()
-                        .single();
-                    
-                    if (updateError || !updatedProfile) {
-                        console.error("Failed to auto-activate user:", updateError);
-                        await supabase.auth.signOut();
-                        setAuthError("Não foi possível ativar sua conta automaticamente. Por favor, contate o suporte.");
-                        setPage('login');
-                        setUser(null);
-                        return;
-                    }
-                    // Use the updated profile from now on
-                    profile = updatedProfile;
-                }
-
                 const userWithEmail = { ...profile, email: session.user.email };
                 setUser(userWithEmail);
                 handleNavigation(userWithEmail);
@@ -162,7 +163,7 @@ const App: React.FC = () => {
         return () => {
             subscription.unsubscribe();
         };
-    }, [isSupabaseConfigured, user]); // Added user dependency to the effect hook
+    }, [isSupabaseConfigured, user]);
 
 
     const fetchUserProfile = async () => {
@@ -182,14 +183,14 @@ const App: React.FC = () => {
     useEffect(() => {
         if (user) {
             fetchBooks();
-            fetchPlanSettings(); // Fetched for all authenticated users
+            fetchPlanSettings();
             if (user.role === 'admin') {
                 fetchAllUsers();
             }
         } else {
             setBooks([]);
             setUsers([]);
-            setPlanSettings([]); // Clear settings on logout
+            setPlanSettings([]);
         }
     }, [user]);
 
@@ -223,7 +224,6 @@ const App: React.FC = () => {
             setPage('dashboard');
             return;
         }
-        // FIX: Force a refetch when navigating to the dashboard to ensure the book list is always up-to-date.
         if (newPage === 'dashboard') {
             fetchBooks();
         }
@@ -258,7 +258,6 @@ const App: React.FC = () => {
     const handleUpdatePlanSettings = async (updatedSettings: PlanSetting[]) => {
         if(user?.role !== 'admin') throw new Error("Apenas administradores podem alterar as configurações.");
         
-        // Supabase upsert can take an array of objects
         const { error } = await supabase.from('plan_settings').upsert(updatedSettings);
 
         if (error) {
@@ -266,7 +265,6 @@ const App: React.FC = () => {
             throw error;
         }
         
-        // Refetch to confirm
         await fetchPlanSettings();
     };
 
@@ -286,7 +284,6 @@ const App: React.FC = () => {
             throw error || new Error("Book update failed to return data.");
         }
 
-        // Update local state to avoid a full refetch
         setBooks(prevBooks => 
             prevBooks.map(b => b.id === bookId ? { ...b, content: updatedBook.content } : b)
         );
@@ -330,14 +327,16 @@ const App: React.FC = () => {
         }
 
         if (!user) {
-             return page === 'login' ? <AuthPage initialError={authError} /> : <LandingPage onNavigate={handleNavigate} />;
+             return page === 'login' ? <AuthPage logoUrl={branding.logoUrl} initialError={authError} /> : <LandingPage logoUrl={branding.logoUrl} onNavigate={handleNavigate} />;
         }
 
         switch (page) {
             case 'suspended-account':
-                return <SuspendedAccountPage onLogout={handleLogout} />;
+                return <SuspendedAccountPage logoUrl={branding.logoUrl} onLogout={handleLogout} />;
+            case 'awaiting-activation':
+                return <AwaitingActivationPage logoUrl={branding.logoUrl} user={user} onLogout={handleLogout} />;
             case 'dashboard':
-                return <DashboardPage user={user} books={books} onNavigate={handleNavigate} onLogout={handleLogout} onViewBook={handleViewBook} />;
+                return <DashboardPage logoUrl={branding.logoUrl} user={user} books={books} onNavigate={handleNavigate} onLogout={handleLogout} onViewBook={handleViewBook} />;
             case 'create-book':
                 return <CreateBookPage user={user} onGenerationComplete={handleGenerationComplete} onNavigate={handleNavigate} onBeforeGenerate={handleBeforeGenerate} />;
             case 'view-book':
@@ -355,7 +354,7 @@ const App: React.FC = () => {
                 return <ActivationPage users={users} onUpdateUser={handleUpdateUser} onNavigate={handleNavigate} />;
             case 'admin-settings':
                 if (user.role !== 'admin') { handleNavigation(user); return null; }
-                return <SettingsPage onNavigate={handleNavigate} planSettings={planSettings} onUpdatePlanSettings={handleUpdatePlanSettings} />;
+                return <SettingsPage onNavigate={handleNavigate} planSettings={planSettings} onUpdatePlanSettings={handleUpdatePlanSettings} branding={branding} setBranding={setBranding} />;
             default:
                 handleNavigation(user);
                 return <LoadingSpinner />;
