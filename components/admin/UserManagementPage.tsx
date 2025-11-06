@@ -1,13 +1,13 @@
 
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { UserProfile, Page, UserStatus } from '../../types';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 
 interface UserManagementPageProps {
   users: UserProfile[];
-  onUpdateUserStatus: (userId: string, status: 'suspensa') => void;
+  onUpdateUser: (userId: string, status: UserStatus) => void;
   onNavigate: (page: Page) => void;
 }
 
@@ -22,10 +22,30 @@ const statusClasses: Record<UserStatus, string> = {
 };
 
 const formatStatus = (status: UserStatus) => {
-    return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
 
-export const UserManagementPage: React.FC<UserManagementPageProps> = ({ users, onUpdateUserStatus, onNavigate }) => {
+export const UserManagementPage: React.FC<UserManagementPageProps> = ({ users, onUpdateUser, onNavigate }) => {
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdown(null);
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
+
+  const availableStatuses: UserStatus[] = ['ativa_free', 'ativa_starter', 'ativa_pro', 'ativa_premium', 'suspensa'];
+
+  const handleStatusChange = (userId: string, status: UserStatus) => {
+    onUpdateUser(userId, status);
+    setOpenDropdown(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
       <header className="max-w-7xl mx-auto mb-8 flex justify-between items-center">
@@ -61,10 +81,38 @@ export const UserManagementPage: React.FC<UserManagementPageProps> = ({ users, o
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.book_credits}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      {(user.status === 'ativa_pro' || user.status === 'ativa_free') ? (
-                        <Button onClick={() => onUpdateUserStatus(user.id, 'suspensa')} variant="danger" className="py-1 px-3 text-xs">Suspender</Button>
-                      ) : null}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="relative inline-block text-left">
+                        <div>
+                          <Button
+                            variant="secondary"
+                            className="py-1 px-3 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdown(openDropdown === user.id ? null : user.id);
+                            }}
+                          >
+                            Ações
+                          </Button>
+                        </div>
+                        {openDropdown === user.id && (
+                          <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
+                            <div className="py-1" role="menu" aria-orientation="vertical">
+                              {availableStatuses.map(status => (
+                                <button
+                                  key={status}
+                                  onClick={() => handleStatusChange(user.id, status)}
+                                  disabled={user.status === status}
+                                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                                  role="menuitem"
+                                >
+                                  {formatStatus(status)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

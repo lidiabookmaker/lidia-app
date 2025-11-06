@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { UserProfile, Book, Page, PlanSetting, UserStatus } from './types';
 import { isSupabaseConfigured, supabase } from './services/supabase';
@@ -229,16 +230,7 @@ const App: React.FC = () => {
         setPage(newPage);
     };
 
-    const handleUpdateUserStatus = async (userId: string, newStatus: 'suspensa') => {
-       const { error } = await supabase
-        .from('profiles')
-        .update({ status: newStatus })
-        .eq('id', userId);
-        if (error) console.error("Error updating user status", error);
-        else fetchAllUsers();
-    };
-
-    const handleActivateUser = async (userId: string, status: UserStatus) => {
+    const handleUpdateUser = async (userId: string, status: UserStatus) => {
          const plan = planSettings.find(p => p.plan_id === status);
          const credits = plan ? plan.book_credits : 0;
 
@@ -246,7 +238,7 @@ const App: React.FC = () => {
             .from('profiles')
             .update({ status: status, book_credits: credits })
             .eq('id', userId);
-        if (error) console.error("Error activating user", error);
+        if (error) console.error("Error updating user", error);
         else fetchAllUsers();
     };
     
@@ -351,10 +343,10 @@ const App: React.FC = () => {
                 return <ViewBookPage book={bookToView} onNavigate={handleNavigate} onUpdateBook={handleUpdateBook} />;
             case 'admin-users':
                 if (user.role !== 'admin') { handleNavigation(user); return null; }
-                return <UserManagementPage users={users} onUpdateUserStatus={handleUpdateUserStatus} onNavigate={handleNavigate} />;
+                return <UserManagementPage users={users} onUpdateUser={handleUpdateUser} onNavigate={handleNavigate} />;
             case 'admin-activation':
                 if (user.role !== 'admin') { handleNavigation(user); return null; }
-                return <ActivationPage users={users} onActivateUser={handleActivateUser} onNavigate={handleNavigate} />;
+                return <ActivationPage users={users} onUpdateUser={handleUpdateUser} onNavigate={handleNavigate} />;
             case 'admin-settings':
                 if (user.role !== 'admin') { handleNavigation(user); return null; }
                 return <SettingsPage onNavigate={handleNavigate} planSettings={planSettings} onUpdatePlanSettings={handleUpdatePlanSettings} />;

@@ -7,11 +7,11 @@ import { Card } from '../ui/Card';
 
 interface ActivationPageProps {
   users: UserProfile[];
-  onActivateUser: (userId: string, status: UserStatus) => void;
+  onUpdateUser: (userId: string, status: UserStatus) => void;
   onNavigate: (page: Page) => void;
 }
 
-export const ActivationPage: React.FC<ActivationPageProps> = ({ users, onActivateUser, onNavigate }) => {
+export const ActivationPage: React.FC<ActivationPageProps> = ({ users, onUpdateUser, onNavigate }) => {
   const pendingUsers = users.filter(u => u.status === 'aguardando_ativacao');
 
   return (
@@ -41,10 +41,10 @@ export const ActivationPage: React.FC<ActivationPageProps> = ({ users, onActivat
                   <tr key={user.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        <Button onClick={() => onActivateUser(user.id, 'ativa_free')} variant="secondary" className="py-1 px-3 text-xs bg-green-200 text-green-800 hover:bg-green-300">Ativar FREE</Button>
-                        <Button onClick={() => onActivateUser(user.id, 'ativa_starter')} variant="secondary" className="py-1 px-3 text-xs bg-blue-200 text-blue-800 hover:bg-blue-300">Ativar STARTER</Button>
-                        <Button onClick={() => onActivateUser(user.id, 'ativa_pro')} variant="secondary" className="py-1 px-3 text-xs bg-indigo-200 text-indigo-800 hover:bg-indigo-300">Ativar PRO</Button>
-                        <Button onClick={() => onActivateUser(user.id, 'ativa_premium')} variant="success" className="py-1 px-3 text-xs">Ativar PREMIUM</Button>
+                        <Button onClick={() => onUpdateUser(user.id, 'ativa_free')} variant="secondary" className="py-1 px-3 text-xs bg-green-200 text-green-800 hover:bg-green-300">Ativar FREE</Button>
+                        <Button onClick={() => onUpdateUser(user.id, 'ativa_starter')} variant="secondary" className="py-1 px-3 text-xs bg-blue-200 text-blue-800 hover:bg-blue-300">Ativar STARTER</Button>
+                        <Button onClick={() => onUpdateUser(user.id, 'ativa_pro')} variant="secondary" className="py-1 px-3 text-xs bg-indigo-200 text-indigo-800 hover:bg-indigo-300">Ativar PRO</Button>
+                        <Button onClick={() => onUpdateUser(user.id, 'ativa_premium')} variant="success" className="py-1 px-3 text-xs">Ativar PREMIUM</Button>
                     </td>
                   </tr>
                 )) : (
