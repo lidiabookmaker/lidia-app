@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import html2pdf from 'html2pdf.js';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import type { Book, BookPart } from '../types';
 import { Button } from './ui/Button';
 import { supabase } from '../services/supabase';
 import { Card } from './ui/Card';
 import { LoadingSpinner } from './ui/LoadingSpinner';
-import { assembleFullHtml } from '../services/bookFormatter';
+import { assembleFullHtml, assemblePartHtml } from '../services/bookFormatter';
 
 
 const ArrowLeftIcon = () => (
@@ -24,10 +25,19 @@ interface ViewBookPageProps {
 export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoadingParts, setIsLoadingParts] = useState(true);
+  const [bookParts, setBookParts] = useState<BookPart[]>([]);
   const [fullHtml, setFullHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [log, setLog] = useState<string[]>([]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const logContainerRef = useRef<HTMLDivElement>(null);
   
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [log]);
+
   useEffect(() => {
     const fetchAndAssemble = async () => {
       setIsLoadingParts(true);
@@ -42,6 +52,7 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
         if (fetchError) throw fetchError;
         if (!parts || parts.length === 0) throw new Error("Nenhuma parte do livro foi encontrada.");
 
+        setBookParts(parts as BookPart[]);
         const assembledHtml = assembleFullHtml(book, parts as BookPart[]);
         setFullHtml(assembledHtml);
 
@@ -54,62 +65,115 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
     };
     fetchAndAssemble();
   }, [book.id, book]);
+
+  const updateLog = (message: string) => {
+    setLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
+  };
   
   const handleGeneratePdf = async () => {
+    if (bookParts.length === 0) {
+        alert("As partes do livro não estão carregadas. Tente novamente.");
+        return;
+    }
+    
     setIsGenerating(true);
+    setLog([]);
+    updateLog("Iniciando pipeline de geração de PDF...");
+
+    const generatedPdfParts: PDFDocument[] = [];
+    
     try {
-        const contentElement = iframeRef.current?.contentWindow?.document.documentElement;
-        if (!contentElement) {
-            alert("Não foi possível acessar o conteúdo do livro para gerar o PDF.");
-            setIsGenerating(false);
-            return;
+        // --- FASE 1: Geração individual de cada parte ---
+        for (const part of bookParts) {
+            updateLog(`Gerando PDF para a parte '${part.part_type}' (índice ${part.part_index})...`);
+            const partHtml = assemblePartHtml(book, part);
+
+            // FIX: Explicitly typed 'margin' as a tuple [number, number, number, number] to resolve TypeScript error.
+            const margin: [number, number, number, number] = part.part_type === 'cover' ? [0,0,0,0] : [2.4, 2, 2.7, 2];
+
+            const opt = {
+                margin:       margin, // cm: top, left, bottom, right
+                filename:     `part_${part.part_index}.pdf`,
+                image:        { type: 'jpeg' as const, quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'cm', format: 'a5', orientation: 'portrait' as const }
+            };
+            
+            const pdfBytes = await html2pdf().from(partHtml).set(opt).output('arraybuffer');
+            const partPdfDoc = await PDFDocument.load(pdfBytes);
+            
+            generatedPdfParts.push(partPdfDoc);
+            updateLog(`... Sucesso (${partPdfDoc.getPageCount()} páginas)`);
         }
 
-        const opt = {
-            margin:       [0, 0, 0, 0] as [number, number, number, number],
-            filename:     `${book.title.replace(/ /g, '_')}.pdf`,
-            pagebreak:    { mode: 'css', after: '.page-container' },
-            image:        { type: 'jpeg' as const, quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
-            // FIX: The type of 'orientation' was inferred as 'string' instead of the literal 'portrait'. Adding 'as const' ensures it's correctly typed as 'portrait', which is assignable to 'portrait' | 'landscape'.
-            jsPDF:        { unit: 'cm', format: 'a5', orientation: 'portrait' as const }
-        };
+        // --- FASE 2: Montagem final e Paginação ---
+        updateLog("Todas as partes geradas. Iniciando montagem final do documento...");
 
-        const worker = html2pdf().from(contentElement).set(opt);
-        
-        const pdf = await worker.toPdf().get('pdf');
+        const finalPdfDoc = await PDFDocument.create();
+        let pageCounter = 1;
 
-        const totalPages = pdf.internal.getNumberOfPages();
-        const bookTitle = book.title.toUpperCase();
-        
-        const headerFont = 'Helvetica';
-        const footerFont = 'Helvetica';
-        const royalBlue = '#002366';
+        const helveticaFont = await finalPdfDoc.embedFont(StandardFonts.Helvetica);
+        const helveticaBoldFont = await finalPdfDoc.embedFont(StandardFonts.HelveticaBold);
+        const royalBlue = rgb(0, 0.137, 0.4); // #002366
+        const blackTransparent = rgb(0, 0, 0);
 
-        for (let i = 1; i <= totalPages; i++) {
-            pdf.setPage(i);
-            if (i === 1) continue;
 
-            // Header
-            pdf.setFont(headerFont, 'normal');
-            pdf.setFontSize(8);
-            pdf.setTextColor(royalBlue);
-            pdf.text(bookTitle, pdf.internal.pageSize.getWidth() / 2, 1.3, { align: 'center' });
+        for (const partPdf of generatedPdfParts) {
+            const copiedPages = await finalPdfDoc.copyPages(partPdf, partPdf.getPageIndices());
+            for (const page of copiedPages) {
+                const addedPage = finalPdfDoc.addPage(page);
+                const { width, height } = addedPage.getSize();
 
-            // Footer
-            pdf.setFont(footerFont, 'bold');
-            pdf.setFontSize(16);
-            pdf.setTextColor('#000000');
-            pdf.setGState(new pdf.GState({opacity: 0.4}));
-            pdf.text(String(i), pdf.internal.pageSize.getWidth() / 2, pdf.internal.pageSize.getHeight() - 1.35, { align: 'center' });
-            pdf.setGState(new pdf.GState({opacity: 1}));
+                // Pula o "carimbo" na capa
+                if (pageCounter > 1) {
+                    // Header
+                    // FIX: Replaced unsupported 'xAlign' property by manually calculating the centered 'x' position based on text width.
+                    const headerText = book.title.toUpperCase();
+                    const headerTextWidth = helveticaFont.widthOfTextAtSize(headerText, 8);
+                    addedPage.drawText(headerText, {
+                        x: (width - headerTextWidth) / 2,
+                        y: height - 1.3 * 28.35, // 1.3cm from top
+                        font: helveticaFont,
+                        size: 8,
+                        color: royalBlue,
+                    });
+
+                    // Footer
+                    // FIX: Replaced unsupported 'xAlign' property by manually calculating the centered 'x' position based on text width.
+                    const footerText = String(pageCounter);
+                    const footerTextWidth = helveticaBoldFont.widthOfTextAtSize(footerText, 16);
+                    addedPage.drawText(footerText, {
+                        x: (width - footerTextWidth) / 2,
+                        y: 1.35 * 28.35, // 1.35cm from bottom
+                        font: helveticaBoldFont,
+                        size: 16,
+                        color: blackTransparent,
+                        opacity: 0.4,
+                    });
+                }
+                pageCounter++;
+            }
         }
         
-        await worker.save();
+        updateLog(`Montagem finalizada com ${pageCounter - 1} páginas. Preparando para download...`);
+        
+        const finalPdfBytes = await finalPdfDoc.save();
+
+        const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${book.title.replace(/ /g, '_')}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        updateLog("Download iniciado. Processo concluído!");
 
     } catch (error) {
-        console.error("PDF Generation Error:", error);
-        alert(`Ocorreu um erro ao gerar o PDF: ${(error as Error).message}`);
+        console.error("PDF Generation Pipeline Error:", error);
+        const errMessage = `Ocorreu um erro: ${(error as Error).message}`;
+        updateLog(`ERRO: ${errMessage}`);
+        alert(errMessage);
     } finally {
         setIsGenerating(false);
     }
@@ -136,29 +200,37 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
             </div>
         )}
 
-        <main className="space-y-8">
-            <div className="text-center">
+        <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="lg:col-span-2 text-center">
                 <h1 className="text-3xl font-bold text-gray-800 mb-1">{book.title}</h1>
                 <h2 className="text-xl text-gray-600">{book.subtitle}</h2>
                 <p className="text-sm text-gray-500 mt-1">por {book.author}</p>
             </div>
             
-             <Card className="text-center">
+             <Card className="lg:col-span-2 text-center">
                 <h3 className="text-xl font-bold text-gray-800">Gerar PDF do Livro</h3>
-                <p className="text-gray-600 mt-2">Clique no botão abaixo para gerar e baixar o arquivo PDF final do seu livro.</p>
+                <p className="text-gray-600 mt-2">Clique no botão abaixo para iniciar o processo de geração sequencial do PDF.</p>
                 <Button 
                   onClick={handleGeneratePdf} 
                   className="mt-6 text-lg" 
                   isLoading={isGenerating || isLoadingParts}
                   loadingText={isLoadingParts ? "Carregando conteúdo..." : "Gerando PDF..."}
-                  disabled={isLoadingParts || !!error}
+                  disabled={isLoadingParts || !!error || isGenerating}
                 >
                     <GenerateIcon/>
                     Gerar PDF Final
                 </Button>
             </Card>
 
-            <div>
+            <div className="lg:col-span-2">
+                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Log de Geração</h2>
+                 <div ref={logContainerRef} className="bg-gray-900 text-white font-mono text-sm p-4 rounded-lg h-64 overflow-y-auto mb-4 flex-grow">
+                  {log.length === 0 && <p className="text-gray-400">Aguardando início da geração...</p>}
+                  {log.map((line, index) => <p key={index} className="whitespace-pre-wrap">{line}</p>)}
+                </div>
+            </div>
+
+            <div className="lg:col-span-2">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Pré-visualização do Conteúdo</h2>
                 <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                     {isLoadingParts ? (
