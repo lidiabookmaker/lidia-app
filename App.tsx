@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { UserProfile, Book, Page, PlanSetting, UserStatus } from './types';
 import { isSupabaseConfigured, supabase } from './services/supabase';
@@ -268,28 +269,6 @@ const App: React.FC = () => {
         await fetchPlanSettings();
     };
 
-
-    const handleUpdateBook = async (bookId: string, content: string) => {
-        if (!user) return;
-
-        const { data: updatedBook, error } = await supabase
-            .from('books')
-            .update({ content })
-            .eq('id', bookId)
-            .select()
-            .single();
-
-        if (error || !updatedBook) {
-            console.error("Error updating book", error);
-            throw error || new Error("Book update failed to return data.");
-        }
-
-        setBooks(prevBooks => 
-            prevBooks.map(b => b.id === bookId ? { ...b, content: updatedBook.content } : b)
-        );
-    };
-
-
      const handleViewBook = (bookId: string) => {
         setViewedBookId(bookId);
         setPage('view-book');
@@ -345,7 +324,7 @@ const App: React.FC = () => {
                     handleNavigation(user);
                     return <LoadingSpinner />;
                 }
-                return <ViewBookPage book={bookToView} onNavigate={handleNavigate} onUpdateBook={handleUpdateBook} />;
+                return <ViewBookPage book={bookToView} onNavigate={handleNavigate} />;
             case 'admin-users':
                 if (user.role !== 'admin') { handleNavigation(user); return null; }
                 return <UserManagementPage users={users} onUpdateUser={handleUpdateUser} onNavigate={handleNavigate} />;

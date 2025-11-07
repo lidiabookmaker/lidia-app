@@ -18,8 +18,9 @@ const BookIcon = () => (
 
 const bookStatusClasses: Record<BookStatus, string> = {
     content_ready: 'bg-blue-100 text-blue-800',
+    // FIX: The 'processing_parts' and 'assembling_pdf' statuses were not defined in the BookStatus type. Renamed 'assembling_pdf' to 'generating_pdf' to match the type and added 'processing_parts' to the type definition.
     processing_parts: 'bg-yellow-100 text-yellow-800 animate-pulse',
-    assembling_pdf: 'bg-yellow-100 text-yellow-800 animate-pulse',
+    generating_pdf: 'bg-yellow-100 text-yellow-800 animate-pulse',
     ready: 'bg-green-100 text-green-800',
     error: 'bg-red-100 text-red-800',
     generating_content: 'bg-gray-100 text-gray-800 animate-pulse'
@@ -29,8 +30,9 @@ const formatBookStatus = (status: BookStatus) => {
     const map: Record<BookStatus, string> = {
         generating_content: 'Gerando...',
         content_ready: 'Pronto para PDF',
+        // FIX: Renamed 'assembling_pdf' to 'generating_pdf' to align with the BookStatus type.
         processing_parts: 'Processando...',
-        assembling_pdf: 'Montando...',
+        generating_pdf: 'Montando...',
         ready: 'Pronto',
         error: 'Erro'
     };

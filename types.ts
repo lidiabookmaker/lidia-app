@@ -1,5 +1,6 @@
 
 
+
 export type UserStatus = 'ativa_pro' | 'ativa_free' | 'suspensa' | 'aguardando_ativacao' | 'ativa_starter' | 'ativa_premium';
 export type UserRole = 'user' | 'admin';
 export type Page = 'landing' | 'login' | 'suspended-account' | 'dashboard' | 'create-book' | 'admin-users' | 'admin-settings' | 'view-book' | 'admin-activation' | 'loading' | 'awaiting-activation';
@@ -12,7 +13,8 @@ export interface UserProfile {
   book_credits: number;
 }
 
-export type BookStatus = 'generating_content' | 'content_ready' | 'processing_parts' | 'assembling_pdf' | 'ready' | 'error';
+// FIX: Added 'processing_parts' to the BookStatus type to accommodate all possible book states from the backend and fix type errors in DashboardPage.
+export type BookStatus = 'generating_content' | 'content_ready' | 'processing_parts' | 'generating_pdf' | 'ready' | 'error';
 
 export interface Book {
   id: string;
@@ -21,7 +23,7 @@ export interface Book {
   subtitle: string;
   author: string;
   created_at: string;
-  content?: string; // This will now hold the full HTML for viewing/editing
+  content?: string | null; // This is now legacy or for caching, the source of truth is book_parts
   status: BookStatus;
   pdf_final_url?: string | null;
 }
@@ -30,9 +32,8 @@ export interface BookPart {
     id: string;
     book_id: string;
     part_index: number;
-    part_name: string;
-    html_content: string;
-    pdf_url?: string | null;
+    part_type: string; // e.g., 'cover', 'copyright', 'chapter_title', 'chapter_content'
+    content: string; // Can be simple text from AI or generated HTML
 }
 
 
