@@ -27,7 +27,7 @@ interface DetailedBookContent {
 // --- Fim dos Tipos ---
 
 const ArrowLeftIcon = () => (
-    <svg xmlns="http://www.w.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
 );
 
 interface CreateBookPageProps {
@@ -88,6 +88,8 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
     const year = new Date().getFullYear();
     const finalBookData = { ...bookData, title: bookContent.optimized_title };
 
+    // This CSS is simplified. It styles the content but no longer attempts to control
+    // page layout (margins, headers, footers) which will now be handled by html2pdf.js and jsPDF.
     const styles = `
       <style>
           @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@300;400;700;900&family=Merriweather+Sans:wght@300;400;600;700&display=swap');
@@ -133,14 +135,15 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
           @keyframes wave2 { from { transform: rotate(-5deg) translateX(-10px); } to { transform: rotate(-3deg) translateX(10px); } }
           @keyframes wave3 { from { transform: rotate(-2deg); } to { transform: rotate(0deg); } }
 
-          .copyright-page { justify-content: flex-end; padding: 2.7cm 2cm; }
+          .copyright-page { justify-content: flex-end; padding: 2cm; }
           .copyright-page .content { text-align: center; font-family: 'Merriweather Sans', sans-serif; font-size: 8pt; color: #595959; }
           
-          .content-page { padding: 2.4cm 2cm 2.7cm 2cm; }
+          /* This class no longer defines margins via padding. */
+          .content-page { /* Padding is removed */ }
           .content-page h1 { font-family: 'Merriweather', serif; font-weight: 700; font-size: 24pt; margin-bottom: 1.5em; color: #333; text-align: left; }
           .content-page h2 { font-family: 'Merriweather', serif; font-weight: 700; font-size: 18pt; margin-top: 1.5em; margin-bottom: 1em; color: #333; }
           .content-page h3 { font-family: 'Merriweather Sans', sans-serif; font-weight: 700; font-size: 14pt; margin-top: 1.5em; margin-bottom: 0.5em; color: #444; }
-          .content-page p { line-height: 15.02pt; /* 5.3mm */ margin-bottom: 15.02pt; text-align: justify; }
+          .content-page p { line-height: 15.02pt; /* 5.3mm baseline grid */ margin-bottom: 15.02pt; text-align: justify; }
           .content-page p.indent { text-indent: 1.5em; }
 
           .toc-item { font-family: 'Merriweather Sans', sans-serif; margin-bottom: 4pt; line-height: 15.02pt; }
@@ -149,12 +152,6 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
           
           .chapter-title-page { display: flex; justify-content: center; align-items: center; text-align: center; }
           .chapter-title-page h1 { font-family: 'Merriweather', serif; font-size: 24pt; }
-          
-          /* For every even page number, if it's a chapter title page, add a page break before */
-          .chapter-title-page:nth-of-type(even) {
-            page-break-before: always;
-          }
-
       </style>
     `;
 

@@ -31,7 +31,6 @@ interface ViewBookPageProps {
 }
 
 export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, onUpdateBook }) => {
-  const [currentBook, setCurrentBook] = useState<Book>(book);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -55,6 +54,7 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
   const handleCancel = () => {
     const iframe = iframeRef.current;
     if (iframe && iframe.contentWindow) {
+      // Restore original content
       iframe.contentWindow.document.open();
       iframe.contentWindow.document.write(book.content || '');
       iframe.contentWindow.document.close();
@@ -82,77 +82,63 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
   const handleGeneratePdf = async () => {
     setIsGenerating(true);
     try {
-        const iframe = iframeRef.current;
-        const originalContent = iframe?.contentWindow?.document.documentElement.outerHTML || currentBook.content || '';
-        
-        if (!originalContent) {
-            alert("O conteúdo do livro está vazio. Não é possível gerar o PDF.");
+        const contentElement = iframeRef.current?.contentWindow?.document.documentElement;
+        if (!contentElement) {
+            alert("Não foi possível acessar o conteúdo do livro para gerar o PDF.");
             setIsGenerating(false);
             return;
         }
 
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(originalContent, 'text/html');
-        const style = doc.querySelector('style');
-        
-        if (style) {
-            style.textContent += `
-              .content-page {
-                height: auto !important;
-                overflow: visible !important;
-                display: block !important;
-              }
-            `;
-        }
-        
-        const modifiedContent = doc.documentElement.outerHTML;
-
-
         const opt = {
-            margin:       0,
-            filename:     `${currentBook.title.replace(/ /g, '_')}.pdf`,
-            pagebreak:    { mode: ['css', 'legacy'], after: '.page-container' },
+            // FIX: Explicitly cast margin to a tuple of 4 numbers to satisfy Html2PdfOptions type.
+            margin:       [2.4, 2, 2.7, 2] as [number, number, number, number], // [top, left, bottom, right] in cm
+            filename:     `${book.title.replace(/ /g, '_')}.pdf`,
+            pagebreak:    { mode: 'css', after: '.page-container' },
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            html2canvas:  { scale: 2, useCORS: true },
             jsPDF:        { unit: 'cm', format: 'a5', orientation: 'portrait' }
         };
 
-        const worker = html2pdf().from(modifiedContent).set(opt);
+        const worker = html2pdf().from(contentElement).set(opt);
         
-        worker.toPdf().get('pdf').then(function (pdf) {
-            const totalPages = pdf.internal.getNumberOfPages();
-            const bookTitle = currentBook.title.toUpperCase();
+        // FIX: Refactored promise chain to use async/await correctly, preventing an error where `.save()` was called on a Promise.
+        const pdf = await worker.toPdf().get('pdf');
+
+        const totalPages = pdf.internal.getNumberOfPages();
+        const bookTitle = book.title.toUpperCase();
+        
+        const headerFont = 'Helvetica'; // Standard PDF font, safe choice
+        const footerFont = 'Helvetica'; // Standard PDF font, safe choice
+        const royalBlue = '#002366';
+
+        for (let i = 1; i <= totalPages; i++) {
+            pdf.setPage(i);
+
+            // Skip adding headers/footers to the first page (cover)
+            if (i === 1) continue;
+
+            // --- Add Header ---
+            pdf.setFont(headerFont, 'normal');
+            pdf.setFontSize(8);
+            pdf.setTextColor(royalBlue);
+            pdf.text(bookTitle, pdf.internal.pageSize.getWidth() / 2, 1.3, { align: 'center' });
+
+            // --- Add Footer (Page Number) ---
+            pdf.setFont(footerFont, 'bold');
+            pdf.setFontSize(16);
+            pdf.setTextColor('#000000');
             
-            const headerFont = 'Helvetica';
-            const footerFont = 'Helvetica';
-            const royalBlue = '#002366';
-
-            for (let i = 1; i <= totalPages; i++) {
-                pdf.setPage(i);
-
-                if (i === 1) continue;
-
-                pdf.setFont(headerFont, 'normal');
-                pdf.setFontSize(8);
-                pdf.setTextColor(royalBlue);
-                const headerTextWidth = pdf.getStringUnitWidth(bookTitle) * pdf.getFontSize() / pdf.internal.scaleFactor;
-                const headerX = (pdf.internal.pageSize.getWidth() - headerTextWidth) / 2;
-                pdf.text(bookTitle, headerX, 1.3);
-
-                pdf.setFont(footerFont, 'bold');
-                pdf.setFontSize(16);
-                pdf.setTextColor('#000000');
-                pdf.setGState(new pdf.GState({opacity: 0.4}));
-                
-                const pageNumText = String(i);
-                const footerTextWidth = pdf.getStringUnitWidth(pageNumText) * pdf.getFontSize() / pdf.internal.scaleFactor;
-                const footerX = (pdf.internal.pageSize.getWidth() - footerTextWidth) / 2;
-                pdf.text(pageNumText, footerX, pdf.internal.pageSize.getHeight() - 1.35);
-                
-                pdf.setGState(new pdf.GState({opacity: 1}));
-            }
-        }).save();
-
+            // Apply 40% opacity using Graphic State
+            pdf.setGState(new pdf.GState({opacity: 0.4}));
+            
+            const pageNumText = String(i);
+            pdf.text(pageNumText, pdf.internal.pageSize.getWidth() / 2, pdf.internal.pageSize.getHeight() - 1.35, { align: 'center' });
+            
+            // Reset opacity to default for subsequent operations
+            pdf.setGState(new pdf.GState({opacity: 1}));
+        }
+        
+        await worker.save();
 
     } catch (error) {
         console.error("PDF Generation Error:", error);
@@ -160,7 +146,8 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate, on
     } finally {
         setIsGenerating(false);
     }
-};
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
