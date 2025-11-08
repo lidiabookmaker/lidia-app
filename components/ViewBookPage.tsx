@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import html2pdf from 'html2pdf.js';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import type { Book, BookPart } from '../types';
 import { Button } from './ui/Button';
 import { supabase } from '../services/supabase';
 import { Card } from './ui/Card';
 import { LoadingSpinner } from './ui/LoadingSpinner';
-import { assembleFullHtml, assemblePartHtml } from '../services/bookFormatter';
+import { assembleFullHtml, assemblePartHtml, getPartHtmlContent } from '../services/bookFormatter';
 
 
 const ArrowLeftIcon = () => (
@@ -70,93 +72,141 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
     setLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
   };
   
-  const handleGeneratePdf = async () => {
+const handleGeneratePdf = async () => {
+    const renderTarget = document.getElementById('render-target');
+    if (!renderTarget) {
+        alert("Erro crítico: Elemento de renderização não encontrado.");
+        return;
+    }
     if (bookParts.length === 0) {
         alert("As partes do livro não estão carregadas. Tente novamente.");
         return;
     }
-    
+
     setIsGenerating(true);
     setLog([]);
     updateLog("Iniciando pipeline de geração de PDF...");
 
-    const generatedPdfParts: PDFDocument[] = [];
-    
+    const generatedPdfBuffers: ArrayBuffer[] = [];
+
+    // Define quais partes do livro podem ter múltiplas páginas (complexas)
+    // e quais sempre terão uma única página (simples).
+    const complexPartTypes = ['toc', 'introduction', 'chapter_content', 'conclusion'];
+
     try {
-        // --- FASE 1: Geração individual de cada parte ---
+        // Itera sobre cada parte do livro na ordem correta para gerar os PDFs.
         for (const part of bookParts) {
             updateLog(`Gerando PDF para a parte '${part.part_type}' (índice ${part.part_index})...`);
-            const partHtml = assemblePartHtml(book, part);
 
-            // FIX: Explicitly typed 'margin' as a tuple [number, number, number, number] to resolve TypeScript error.
-            const margin: [number, number, number, number] = part.part_type === 'cover' ? [0,0,0,0] : [2.4, 2, 2.7, 2];
+            const isComplex = complexPartTypes.includes(part.part_type);
 
-            const opt = {
-                margin:       margin, // cm: top, left, bottom, right
-                filename:     `part_${part.part_index}.pdf`,
-                image:        { type: 'jpeg' as const, quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, logging: false },
-                jsPDF:        { unit: 'cm', format: 'a5', orientation: 'portrait' as const }
-            };
-            
-            const pdfBytes = await html2pdf().from(partHtml).set(opt).output('arraybuffer');
-            const partPdfDoc = await PDFDocument.load(pdfBytes);
-            
-            generatedPdfParts.push(partPdfDoc);
-            updateLog(`... Sucesso (${partPdfDoc.getPageCount()} páginas)`);
+            if (isComplex) {
+                // --- Abordagem para Conteúdo Longo (html2canvas + jspdf) ---
+                // Esta técnica renderiza o HTML completo da seção, captura-o como uma imagem longa
+                // e, em seguida, fatia essa imagem em páginas de um PDF. Isso nos dá controle
+                // total sobre a paginação e evita o truncamento de conteúdo.
+
+                const partHtml = getPartHtmlContent(book, part);
+                renderTarget.innerHTML = partHtml;
+                const elementToRender = renderTarget.querySelector('.page-container');
+                if (!elementToRender) throw new Error(`Container para renderização não encontrado na parte ${part.part_type}`);
+                
+                // 1. Captura o elemento como um canvas (imagem).
+                const canvas = await html2canvas(elementToRender as HTMLElement, {
+                    scale: 2, // Aumenta a resolução para melhor qualidade de impressão.
+                    useCORS: true,
+                    logging: false
+                });
+
+                const imgData = canvas.toDataURL('image/jpeg', 0.98);
+                const pdf = new jsPDF({ unit: 'cm', format: 'a5', orientation: 'portrait' });
+                
+                const pdfWidth = 14.8;
+                const pdfHeight = 21.0;
+                const imgWidth = canvas.width;
+                const imgHeight = canvas.height;
+                
+                // 2. Calcula a altura da imagem proporcional à largura do PDF.
+                const ratio = pdfWidth / imgWidth;
+                const scaledImgHeight = imgHeight * ratio;
+
+                // 3. Calcula o número de páginas necessárias para a imagem inteira.
+                const totalPages = Math.ceil(scaledImgHeight / pdfHeight);
+
+                // 4. "Fatia" a imagem longa em pedaços e adiciona cada um a uma nova página.
+                for (let i = 0; i < totalPages; i++) {
+                    if (i > 0) pdf.addPage();
+                    // O deslocamento Y negativo (-i * pdfHeight) move a imagem para cima,
+                    // revelando a próxima "fatia" a ser impressa na página.
+                    pdf.addImage(imgData, 'JPEG', 0, -i * pdfHeight, pdfWidth, scaledImgHeight);
+                }
+
+                generatedPdfBuffers.push(pdf.output('arraybuffer'));
+
+            } else {
+                // --- Abordagem para Conteúdo Simples (html2pdf.js) ---
+                // Para páginas com layout fixo e conteúdo que cabe em uma página (capa, copyright, etc.),
+                // o html2pdf.js é mais simples e direto.
+                const partFullHtml = assemblePartHtml(book, part);
+                const opt = {
+                    // FIX: Removed `as const` from margin arrays to fix readonly tuple type error.
+                    margin: part.part_type === 'cover' ? [0,0,0,0] : [2.4, 2, 2.7, 2],
+                    filename: `${part.part_type}.pdf`,
+                    image: { type: 'jpeg' as const, quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, logging: false },
+                    jsPDF: { unit: 'cm', format: 'a5', orientation: 'portrait' as const }
+                };
+                const pdfBytes = await html2pdf().from(partFullHtml).set(opt).output('arraybuffer');
+                generatedPdfBuffers.push(pdfBytes);
+            }
+            const tempDoc = await PDFDocument.load(generatedPdfBuffers[generatedPdfBuffers.length - 1]);
+            updateLog(`... Sucesso (${tempDoc.getPageCount()} páginas)`);
         }
 
-        // --- FASE 2: Montagem final e Paginação ---
+        // --- FASE FINAL: Montagem do Documento ---
         updateLog("Todas as partes geradas. Iniciando montagem final do documento...");
-
         const finalPdfDoc = await PDFDocument.create();
-        let pageCounter = 1;
 
+        for (const buffer of generatedPdfBuffers) {
+            const partPdfDoc = await PDFDocument.load(buffer);
+            const copiedPages = await finalPdfDoc.copyPages(partPdfDoc, partPdfDoc.getPageIndices());
+            copiedPages.forEach(page => finalPdfDoc.addPage(page));
+        }
+
+        updateLog("Adicionando cabeçalhos e numeração de página...");
+        const pages = finalPdfDoc.getPages();
         const helveticaFont = await finalPdfDoc.embedFont(StandardFonts.Helvetica);
         const helveticaBoldFont = await finalPdfDoc.embedFont(StandardFonts.HelveticaBold);
-        const royalBlue = rgb(0, 0.137, 0.4); // #002366
+        const royalBlue = rgb(0, 0.137, 0.4);
         const blackTransparent = rgb(0, 0, 0);
 
+        // Adiciona cabeçalho e rodapé em todas as páginas, exceto na primeira (capa).
+        for (let i = 0; i < pages.length; i++) {
+            const pageCounter = i + 1;
+            if (pageCounter > 1) {
+                const page = pages[i];
+                const { width, height } = page.getSize();
+                
+                const headerText = book.title.toUpperCase();
+                const headerTextWidth = helveticaFont.widthOfTextAtSize(headerText, 8);
+                page.drawText(headerText, {
+                    x: (width - headerTextWidth) / 2,
+                    y: height - 1.3 * 28.35,
+                    font: helveticaFont, size: 8, color: royalBlue,
+                });
 
-        for (const partPdf of generatedPdfParts) {
-            const copiedPages = await finalPdfDoc.copyPages(partPdf, partPdf.getPageIndices());
-            for (const page of copiedPages) {
-                const addedPage = finalPdfDoc.addPage(page);
-                const { width, height } = addedPage.getSize();
-
-                // Pula o "carimbo" na capa
-                if (pageCounter > 1) {
-                    // Header
-                    // FIX: Replaced unsupported 'xAlign' property by manually calculating the centered 'x' position based on text width.
-                    const headerText = book.title.toUpperCase();
-                    const headerTextWidth = helveticaFont.widthOfTextAtSize(headerText, 8);
-                    addedPage.drawText(headerText, {
-                        x: (width - headerTextWidth) / 2,
-                        y: height - 1.3 * 28.35, // 1.3cm from top
-                        font: helveticaFont,
-                        size: 8,
-                        color: royalBlue,
-                    });
-
-                    // Footer
-                    // FIX: Replaced unsupported 'xAlign' property by manually calculating the centered 'x' position based on text width.
-                    const footerText = String(pageCounter);
-                    const footerTextWidth = helveticaBoldFont.widthOfTextAtSize(footerText, 16);
-                    addedPage.drawText(footerText, {
-                        x: (width - footerTextWidth) / 2,
-                        y: 1.35 * 28.35, // 1.35cm from bottom
-                        font: helveticaBoldFont,
-                        size: 16,
-                        color: blackTransparent,
-                        opacity: 0.4,
-                    });
-                }
-                pageCounter++;
+                const footerText = String(pageCounter);
+                const footerTextWidth = helveticaBoldFont.widthOfTextAtSize(footerText, 16);
+                page.drawText(footerText, {
+                    x: (width - footerTextWidth) / 2,
+                    y: 1.35 * 28.35,
+                    font: helveticaBoldFont, size: 16, color: blackTransparent, opacity: 0.4,
+                });
             }
         }
         
-        updateLog(`Montagem finalizada com ${pageCounter - 1} páginas. Preparando para download...`);
-        
+        const finalPageCount = finalPdfDoc.getPageCount();
+        updateLog(`Montagem finalizada com ${finalPageCount} páginas. Preparando para download...`);
         const finalPdfBytes = await finalPdfDoc.save();
 
         const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
@@ -166,7 +216,6 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-
         updateLog("Download iniciado. Processo concluído!");
 
     } catch (error) {
@@ -175,6 +224,7 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
         updateLog(`ERRO: ${errMessage}`);
         alert(errMessage);
     } finally {
+        renderTarget.innerHTML = ''; // Limpa o container de renderização.
         setIsGenerating(false);
     }
   };
@@ -182,6 +232,9 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
+      {/* Este container é usado pelo html2canvas para renderizar o HTML fora da tela antes de capturá-lo como imagem. */}
+      <div id="render-target" style={{ position: 'absolute', left: '-9999px', top: 0, background: 'white' }}></div>
+
       <div className="max-w-7xl mx-auto">
         <header className="mb-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
             <Button onClick={() => onNavigate('dashboard')} variant="secondary" className="inline-flex items-center w-full sm:w-auto">

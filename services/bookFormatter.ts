@@ -47,7 +47,7 @@ const getStyles = () => `
     <style>
         @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@300;400;700;900&family=Merriweather+Sans:wght@300;400;600;700&display=swap');
         body { font-family: 'Merriweather', serif; font-size: 11pt; font-weight: 300; color: #262626; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .page-container { width: 14.8cm; position: relative; box-sizing: border-box; background: white; overflow: hidden; }
+        .page-container { width: 14.8cm; position: relative; box-sizing: border-box; background: white; }
         .page-container-fixed { height: 20.95cm; display: flex; flex-direction: column; } /* Height slightly reduced to prevent extra blank page bug */
         .cover-page { text-align: center; position: relative; background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1) 0%, rgba(10, 207, 131, 0.1) 100%); }
         .cover-page .content-wrapper { position: relative; z-index: 10; height: 100%; width: 100%; }
@@ -75,7 +75,14 @@ const getStyles = () => `
     </style>
 `;
 
-const getPartHtmlContent = (book: Book, part: BookPart): string => {
+/**
+ * Generates the inner HTML for a single book part based on its type.
+ * This is now exported to be used by both the iframe preview and the PDF generation logic.
+ * @param book The book object.
+ * @param part The BookPart object.
+ * @returns A string of HTML representing the part's content.
+ */
+export const getPartHtmlContent = (book: Book, part: BookPart): string => {
     let content;
     try {
       content = JSON.parse(part.content);
@@ -94,14 +101,14 @@ const getPartHtmlContent = (book: Book, part: BookPart): string => {
             const copyrightText = typeof content === 'string' ? content : (content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`);
             return `<div class="${containerClass} copyright-page"><div class="content"><p>${copyrightText}</p><p>Todos os direitos reservados.</p><p>Este livro ou qualquer parte dele não pode ser reproduzido ou usado de forma alguma sem a permissão expressa por escrito do editor, exceto pelo uso de breves citações em uma resenha do livro.</p></div></div>`;
         case 'toc':
-             return `<div class="${containerClass}"><div class="content-body"><h1>${content.title}</h1>${content.content.split('\n').map((line: string) => { line = line.trim(); if (!line) return ''; if (line.match(/^capítulo \\d+:/i)) { return `<p class="toc-item toc-chapter">${line}</p>`; } return `<p class="toc-item toc-subchapter">${line}</p>`; }).join('')}</div></div>`;
+             return `<div class="${containerClass}"><div class="content-body" style="padding: 2.4cm 2cm 2.7cm 2cm;"><h1>${content.title}</h1>${content.content.split('\n').map((line: string) => { line = line.trim(); if (!line) return ''; if (line.match(/^capítulo \\d+:/i)) { return `<p class="toc-item toc-chapter">${line}</p>`; } return `<p class="toc-item toc-subchapter">${line}</p>`; }).join('')}</div></div>`;
         case 'introduction':
         case 'conclusion':
-             return `<div class="${containerClass}"><div class="content-body"><h1>${content.title}</h1>${formatContentForHTML(content.content, true)}</div></div>`;
+             return `<div class="${containerClass}"><div class="content-body" style="padding: 2.4cm 2cm 2.7cm 2cm;"><h1>${content.title}</h1>${formatContentForHTML(content.content, true)}</div></div>`;
         case 'chapter_title':
             return `<div class="${containerClass} chapter-title-page"><h1>${balanceText(content.title, 3)}</h1></div>`;
         case 'chapter_content':
-            return `<div class="${containerClass}"><div class="content-body"><h2 class="font-merriweather">${content.title}</h2>${formatContentForHTML(content.introduction, false)}${content.subchapters.map((sub: any) => `<h3 class="font-merriweather-sans">${sub.title}</h3>${formatContentForHTML(sub.content)}`).join('')}</div></div>`;
+            return `<div class="${containerClass}"><div class="content-body" style="padding: 2.4cm 2cm 2.7cm 2cm;"><h2 class="font-merriweather">${content.title}</h2>${formatContentForHTML(content.introduction, false)}${content.subchapters.map((sub: any) => `<h3 class="font-merriweather-sans">${sub.title}</h3>${formatContentForHTML(sub.content)}`).join('')}</div></div>`;
         default:
             return '';
     }
@@ -109,17 +116,16 @@ const getPartHtmlContent = (book: Book, part: BookPart): string => {
 
 /**
  * Assembles the HTML for a single book part, wrapped in a full HTML document structure.
- * This is used by the sequential PDF generator.
+ * This is used by the sequential PDF generator for single-page content.
  */
 export const assemblePartHtml = (book: Book, part: BookPart): string => {
     const partContent = getPartHtmlContent(book, part);
     return `<html><head><title>${book.title}</title>${getStyles()}</head><body>${partContent}</body></html>`;
 };
 
-
 /**
- * Assembles the full HTML string for a book from its constituent parts.
- * This function is used for the iframe preview.
+ * Assembles the full HTML string for a book from its constituent parts for preview.
+ * This function is used for the iframe preview and adds a visual separator.
  */
 export const assembleFullHtml = (book: Book, parts: BookPart[]): string => {
   let htmlContent = '';

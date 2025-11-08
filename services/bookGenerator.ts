@@ -108,19 +108,24 @@ export const generateBookContent = async (
     user: UserProfile,
     updateLog: (message: string) => void
 ): Promise<string> => {
-    updateLog("Inicializando o cliente da API do Gemini...");
+    updateLog("Inicializando Lidia SNT® Core Inside . . .");
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
     const prompt = buildPrompt(formData);
-    updateLog("Prompt para a IA criado.");
+    updateLog("Prompt para Lidia criado . . .");
 
-    updateLog("Enviando requisição para a IA...");
+    updateLog("Enviando requisição para Lidia . . .");
     let response;
     const modelsToTry: ('gemini-2.5-pro' | 'gemini-2.5-flash')[] = ['gemini-2.5-pro', 'gemini-2.5-flash'];
       
     for (const model of modelsToTry) {
         try {
-            updateLog(`Tentando com o modelo: ${model}...`);
+            if (model === 'gemini-2.5-pro') {
+                updateLog("SNT® started in deep research, content planning, and simultaneous semantic writing intensive work.");
+            } else {
+                updateLog(`Tentando com o modelo: ${model}...`);
+            }
+            
             response = await ai.models.generateContent({
                 model: model,
                 contents: prompt,
