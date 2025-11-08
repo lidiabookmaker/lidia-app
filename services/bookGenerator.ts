@@ -15,6 +15,7 @@ interface Chapter {
 }
 interface DetailedBookContent {
   optimized_title: string;
+  optimized_subtitle: string;
   introduction: { title: string; content: string };
   table_of_contents: { title: string; content: string; };
   chapters: Chapter[];
@@ -25,7 +26,8 @@ interface DetailedBookContent {
 const bookSchema = {
     type: Type.OBJECT,
     properties: {
-        optimized_title: { type: Type.STRING, description: "O título final otimizado para a capa, com no máximo 45 caracteres." },
+        optimized_title: { type: Type.STRING, description: "O título final otimizado para a capa, com no máximo 45 caracteres sem contar os espaços." },
+        optimized_subtitle: { type: Type.STRING, description: "O subtítulo final otimizado para a capa, com no máximo 90 caracteres sem contar os espaços." },
         introduction: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, content: { type: Type.STRING } }, required: ['title', 'content'] },
         table_of_contents: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, content: { type: Type.STRING } }, required: ['title', 'content'] },
         chapters: {
@@ -52,7 +54,7 @@ const bookSchema = {
         },
         conclusion: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, content: { type: Type.STRING } }, required: ['title', 'content'] },
     },
-    required: ['optimized_title', 'introduction', 'table_of_contents', 'chapters', 'conclusion']
+    required: ['optimized_title', 'optimized_subtitle', 'introduction', 'table_of_contents', 'chapters', 'conclusion']
 };
 
 
@@ -65,17 +67,13 @@ const buildPrompt = (formData: BookGenerationFormData): string => {
       **Instruções Gerais de Conteúdo:**
       - Para todos os campos de texto como 'content' e 'introduction', o texto DEVE ser dividido em múltiplos parágrafos para boa legibilidade. Use o caractere de nova linha (\\n) para separar os parágrafos dentro da string do JSON. Cada parágrafo deve ter um tamanho razoável, evitando "paredes de texto".
 
-      **Instruções para o Título:**
+      **Instruções para Título e Subtítulo:**
       - **Sugestão de Título (do usuário):** "${formData.title}"
-      - A partir da sugestão do usuário, crie um **Título Final Otimizado** para a capa do livro.
-      - **REGRAS OBRIGATÓRIAS para o Título Final Otimizado:**
-        - DEVE ter no máximo 45 caracteres no total.
-        - DEVE ser impactante e comercialmente atraente.
-        - DEVE ser idealmente divisível em 2 ou 3 linhas curtas para um bom design de capa.
-      - O campo no JSON de resposta para este título DEVE ser \`optimized_title\`.
+      - **Sugestão de Subtítulo (do usuário):** "${formData.subtitle}"
+      - Crie um **Título Final Otimizado** para a capa. REGRAS: Máximo de 45 caracteres (sem contar espaços), impactante e divisível em 2-3 linhas. O campo no JSON DEVE ser \`optimized_title\`.
+      - Crie um **Subtítulo Final Otimizado** para a capa. REGRAS: Máximo de 90 caracteres (sem contar espaços). O campo no JSON DEVE ser \`optimized_subtitle\`.
 
       **Outras Informações:**
-      **Subtítulo:** ${formData.subtitle}
       **Autor:** ${formData.author}
       **Idioma:** ${formData.language}
       **Tom de voz:** ${formData.tone}
@@ -152,7 +150,9 @@ export const generateBookContent = async (
     let jsonText = response.text.trim();
     const bookContent: DetailedBookContent = JSON.parse(jsonText);
     const finalTitle = bookContent.optimized_title;
+    const finalSubtitle = bookContent.optimized_subtitle;
     updateLog(`Título otimizado pela IA: "${finalTitle}"`);
+    updateLog(`Subtítulo otimizado pela IA: "${finalSubtitle}"`);
     
     updateLog("Iniciando salvamento do livro no banco de dados...");
     const { data: newBook, error: bookError } = await supabase
@@ -160,7 +160,7 @@ export const generateBookContent = async (
       .insert({
           user_id: user.id,
           title: finalTitle,
-          subtitle: formData.subtitle,
+          subtitle: finalSubtitle,
           author: formData.author,
           status: 'processing_parts', // New initial status
       })
@@ -174,7 +174,7 @@ export const generateBookContent = async (
     let partIndex = 1;
 
     // 1. Cover
-    partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'cover', content: JSON.stringify({ title: finalTitle, subtitle: formData.subtitle, author: formData.author }) });
+    partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'cover', content: JSON.stringify({ title: finalTitle, subtitle: finalSubtitle, author: formData.author }) });
     // 2. Copyright
     partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'copyright', content: JSON.stringify(`Copyright © ${new Date().getFullYear()} ${formData.author}`) });
     // 3. Table of Contents
