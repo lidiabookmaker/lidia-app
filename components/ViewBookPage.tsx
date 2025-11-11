@@ -78,31 +78,56 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
   };
   
   const handleTestBackendPdf = async () => {
-    if (!book?.id) {
-      alert("ID do livro não encontrado.");
-      return;
+    if (!fullHtml) {
+        alert("O conteúdo HTML do livro ainda não foi gerado. Aguarde o carregamento da pré-visualização.");
+        updateLog("❌ Tentativa de gerar PDF do backend falhou: HTML não disponível.");
+        return;
     }
-  
+
     setIsTestingBackend(true);
-    updateLog(`Enviando bookId ${book.id} para o backend...`);
-  
+    setLog([]); // Clear previous logs for this specific action
+    updateLog(`Enviando HTML completo (${(fullHtml.length / 1024).toFixed(1)} KB) para a função de backend...`);
+
     try {
-      const { data, error } = await supabase.functions.invoke("generate-pdf", {
-        body: { bookId: book.id },
-      });
-  
-      if (error) throw error;
-  
-      updateLog(`Backend respondeu: ${JSON.stringify(data)}`);
-      alert("✅ PDF final sendo gerado no servidor!");
+        const { data, error } = await supabase.functions.invoke("generate-pdf", {
+            body: { html: fullHtml },
+            responseType: 'blob'
+        });
+
+        if (error) {
+            // Supabase wraps function errors. If it's a blob, it might contain a JSON error message.
+            if (error.context && error.context.blob) {
+                try {
+                    const errorJsonText = await error.context.blob.text();
+                    const errorObj = JSON.parse(errorJsonText);
+                    throw new Error(errorObj.error || errorObj.message || 'Erro desconhecido retornado pelo backend.');
+                } catch (parseError) {
+                    // Fallback if the blob isn't valid JSON
+                    throw new Error(error.message || 'Falha na comunicação com o backend.');
+                }
+            }
+            throw error;
+        }
+
+        updateLog("PDF recebido do backend. Preparando download...");
+
+        const blob = new Blob([data], { type: 'application/pdf' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${book.title.replace(/ /g, '_')}_backend.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        updateLog("✅ Download do PDF gerado pelo backend iniciado com sucesso!");
     } catch (err: any) {
-      console.error(err);
-      updateLog(`❌ ERRO: ${err.message}`);
-      alert(`Erro: ${err.message}`);
+        console.error("Erro ao gerar PDF no backend:", err);
+        updateLog(`❌ ERRO: ${err.message}`);
+        alert(`Erro ao gerar PDF no backend: ${err.message}`);
     } finally {
-      setIsTestingBackend(false);
+        setIsTestingBackend(false);
     }
-  };
+};
 
 const handleGeneratePdf = async () => {
     if (bookParts.length === 0) {
