@@ -1,0 +1,10 @@
+$bookId="0d864873-0812-4bfe-a864-e63b5adb5b7c"
+$serviceRole="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zZmJucHl4eGh4Yml0cWp6d29tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTEyNzA2MywiZXhwIjoyMDc2NzAzMDYzfQ.36SrLRBsfjINzxObHiojEfZZJ90KXvPCEO65Ecel-tA"
+Invoke-RestMethod `
+  -Uri "https://nsfbnpyxxhxbitqjzwom.functions.supabase.co/upload-final-pdf" `
+  -Method POST `
+  -ContentType "multipart/form-data" `
+  -Form @{
+      bookId=$bookId
+      pdf=Get-Item "./test.pdf"
+  }
