@@ -1,9 +1,9 @@
 // supabase/functions/generate-pdf/index.ts
-// FIX: Added a triple-slash directive to include Deno types. This resolves the "Cannot find name 'Deno'"
-// error by making the Deno global namespace and its APIs available to TypeScript for type-checking.
-/// <reference types="https://deno.land/x/deno/types/index.d.ts" />
+// FIX: Use a triple-slash lib reference to make Deno's native types available to TypeScript.
+// This resolves "Cannot find name 'Deno'" errors and is the modern way to handle this.
+/// <reference lib="deno.ns" />
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+// Using the modern, built-in Deno.serve instead of the deprecated `serve` from std/http.
 
 // Shared CORS headers
 const corsHeaders = {
@@ -13,7 +13,7 @@ const corsHeaders = {
 
 console.log('Starting "generate-pdf" backend function with WeasyPrint integration...');
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });

@@ -78,33 +78,27 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
   };
   
   const handleTestBackendPdf = async () => {
-    if (!fullHtml) {
-      alert("O conteúdo HTML do livro não está carregado.");
+    if (!book?.id) {
+      alert("ID do livro não encontrado.");
       return;
     }
+  
     setIsTestingBackend(true);
-    updateLog("Iniciando teste de geração de PDF no backend...");
-
+    updateLog(`Enviando bookId ${book.id} para o backend...`);
+  
     try {
-      // O método `invoke` lida automaticamente com os cabeçalhos de autenticação.
-      const { data, error } = await supabase.functions.invoke('generate-pdf', {
-        body: { html: fullHtml },
+      const { data, error } = await supabase.functions.invoke("generate-pdf", {
+        body: { bookId: book.id },
       });
-
-      if (error) {
-        throw error;
-      }
-
-      const responseMessage = `Resposta do backend: ${JSON.stringify(data)}`;
-      updateLog(responseMessage);
-      alert(`Sucesso! ${responseMessage}`);
-
-    } catch (error) {
-      const err = error as Error;
-      console.error("Erro ao chamar a função de backend:", err);
-      const errorMessage = `ERRO no backend: ${err.message}`;
-      updateLog(errorMessage);
-      alert(`Ocorreu um erro ao testar o backend: ${err.message}`);
+  
+      if (error) throw error;
+  
+      updateLog(`Backend respondeu: ${JSON.stringify(data)}`);
+      alert("✅ PDF final sendo gerado no servidor!");
+    } catch (err: any) {
+      console.error(err);
+      updateLog(`❌ ERRO: ${err.message}`);
+      alert(`Erro: ${err.message}`);
     } finally {
       setIsTestingBackend(false);
     }
