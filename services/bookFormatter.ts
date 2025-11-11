@@ -46,7 +46,7 @@ const balanceText = (text: string, maxLines: number): string => {
 const getStyles = () => `
     <style>
         @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@300;400;700;900&family=Merriweather+Sans:wght@300;400;600;700&display=swap');
-        body { font-family: 'Merriweather', serif; font-size: 11pt; font-weight: 300; color: #262626; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        body { font-family: 'Merriweather', serif; font-size: 12.5pt; font-weight: 300; color: #262626; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .page-container { width: 14.8cm; position: relative; box-sizing: border-box; background: white; }
         .page-container-fixed { height: 20.95cm; display: flex; flex-direction: column; } /* Height slightly reduced to prevent extra blank page bug */
         .cover-page { text-align: center; position: relative; background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1) 0%, rgba(10, 207, 131, 0.1) 100%); }
@@ -60,18 +60,18 @@ const getStyles = () => `
         .onda2 { background: linear-gradient(90deg, #0ACF83 0%, #0052A5 100%); opacity: 0.75; transform: rotate(-5deg); }
         .onda3 { background: linear-gradient(90deg, #0077FF 0%, #00FFB3 100%); opacity: 0.5; transform: rotate(-2deg); }
         .copyright-page { justify-content: flex-end; padding: 2cm; }
-        .copyright-page .content { text-align: center; font-family: 'Merriweather Sans', sans-serif; font-size: 8pt; color: #595959; }
+        .copyright-page .content { text-align: center; font-family: 'Merriweather Sans', sans-serif; font-size: 9pt; color: #595959; }
         /* The main content-page class is now handled by html2pdf margin */
-        .content-body h1 { font-family: 'Merriweather', serif; font-weight: 700; font-size: 24pt; margin-bottom: 1.5em; color: #333; text-align: left; page-break-after: avoid; }
-        .content-body h2 { font-family: 'Merriweather', serif; font-weight: 700; font-size: 18pt; margin-top: 1.5em; margin-bottom: 1em; color: #333; page-break-after: avoid; }
-        .content-body h3 { font-family: 'Merriweather Sans', sans-serif; font-weight: 700; font-size: 14pt; margin-top: 1.5em; margin-bottom: 0.5em; color: #444; page-break-after: avoid; }
-        .content-body p { line-height: 15.02pt; margin: 0 0 15.02pt 0; text-align: justify; }
+        .content-body h1 { font-family: 'Merriweather', serif; font-weight: 700; font-size: 28pt; margin-bottom: 1.5em; color: #333; text-align: left; page-break-after: avoid; }
+        .content-body h2 { font-family: 'Merriweather', serif; font-weight: 700; font-size: 22pt; margin-top: 1.5em; margin-bottom: 1em; color: #333; page-break-after: avoid; }
+        .content-body h3 { font-family: 'Merriweather Sans', sans-serif; font-weight: 700; font-size: 16pt; margin-top: 1.5em; margin-bottom: 0.5em; color: #444; page-break-after: avoid; }
+        .content-body p { line-height: 1.6; margin: 0 0 1em 0; text-align: justify; }
         .content-body p.indent { text-indent: 1.5em; }
-        .toc-item { font-family: 'Merriweather Sans', sans-serif; margin-bottom: 4pt; line-height: 15.02pt; }
+        .toc-item { font-family: 'Merriweather Sans', sans-serif; margin-bottom: 4pt; line-height: 1.6; }
         .toc-chapter { font-weight: 700; margin-top: 8pt; }
         .toc-subchapter { margin-left: 20px; }
         .chapter-title-page { display: flex; justify-content: center; align-items: center; text-align: center; }
-        .chapter-title-page h1 { font-family: 'Merriweather', serif; font-size: 21pt; font-weight: 300; }
+        .chapter-title-page h1 { font-family: 'Merriweather', serif; font-size: 26pt; font-weight: 300; }
     </style>
 `;
 

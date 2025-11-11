@@ -1,21 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
 import html2pdf from 'html2pdf.js';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageBreak } from 'docx';
 import type { Book, BookPart } from '../types';
 import { Button } from './ui/Button';
 import { supabase } from '../services/supabase';
 import { Card } from './ui/Card';
 import { LoadingSpinner } from './ui/LoadingSpinner';
-import { assembleFullHtml, assemblePartHtml, getPartHtmlContent } from '../services/bookFormatter';
+import { assembleFullHtml, assemblePartHtml } from '../services/bookFormatter';
 
 
 const ArrowLeftIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
 );
 const GenerateIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m10 15-2-2 2-2"/><path d="m14 15 2-2-2-2"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m10 15-2-2 2-2"/><path d="m14 15 2-2-2-2"/></svg>
+);
+
+const DocxIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
 );
 
 
@@ -26,6 +29,8 @@ interface ViewBookPageProps {
 
 export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingDocx, setIsGeneratingDocx] = useState(false);
+  const [isTestingBackend, setIsTestingBackend] = useState(false);
   const [isLoadingParts, setIsLoadingParts] = useState(true);
   const [bookParts, setBookParts] = useState<BookPart[]>([]);
   const [fullHtml, setFullHtml] = useState<string | null>(null);
@@ -72,12 +77,40 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
     setLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
   };
   
-const handleGeneratePdf = async () => {
-    const renderTarget = document.getElementById('render-target');
-    if (!renderTarget) {
-        alert("Erro crítico: Elemento de renderização não encontrado.");
-        return;
+  const handleTestBackendPdf = async () => {
+    if (!fullHtml) {
+      alert("O conteúdo HTML do livro não está carregado.");
+      return;
     }
+    setIsTestingBackend(true);
+    updateLog("Iniciando teste de geração de PDF no backend...");
+
+    try {
+      // O método `invoke` lida automaticamente com os cabeçalhos de autenticação.
+      const { data, error } = await supabase.functions.invoke('generate-pdf', {
+        body: { html: fullHtml },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const responseMessage = `Resposta do backend: ${JSON.stringify(data)}`;
+      updateLog(responseMessage);
+      alert(`Sucesso! ${responseMessage}`);
+
+    } catch (error) {
+      const err = error as Error;
+      console.error("Erro ao chamar a função de backend:", err);
+      const errorMessage = `ERRO no backend: ${err.message}`;
+      updateLog(errorMessage);
+      alert(`Ocorreu um erro ao testar o backend: ${err.message}`);
+    } finally {
+      setIsTestingBackend(false);
+    }
+  };
+
+const handleGeneratePdf = async () => {
     if (bookParts.length === 0) {
         alert("As partes do livro não estão carregadas. Tente novamente.");
         return;
@@ -89,77 +122,32 @@ const handleGeneratePdf = async () => {
 
     const generatedPdfBuffers: ArrayBuffer[] = [];
 
-    // Define quais partes do livro podem ter múltiplas páginas (complexas)
-    // e quais sempre terão uma única página (simples).
-    const complexPartTypes = ['toc', 'introduction', 'chapter_content', 'conclusion'];
-
     try {
         // Itera sobre cada parte do livro na ordem correta para gerar os PDFs.
         for (const part of bookParts) {
             updateLog(`Gerando PDF para a parte '${part.part_type}' (índice ${part.part_index})...`);
+            
+            // A biblioteca html2pdf precisa de um documento HTML completo para funcionar.
+            const partFullHtml = assemblePartHtml(book, part);
 
-            const isComplex = complexPartTypes.includes(part.part_type);
+            // As opções definem o formato da página e a qualidade.
+            // A margem é crucial para a diagramação. A capa não tem margens.
+            // FIX: Explicitly type `margin` as a tuple. TypeScript infers `number[]` from the ternary operator,
+            // which doesn't satisfy html2pdf's expected `[number, number, number, number]` type for margins.
+            const margin: [number, number, number, number] = part.part_type === 'cover' ? [0,0,0,0] : [2.4, 2, 2.7, 2];
+            const opt = {
+                margin: margin, // [top, left, bottom, right] em cm
+                filename: `${part.part_type}.pdf`,
+                image: { type: 'jpeg' as const, quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, logging: false },
+                jsPDF: { unit: 'cm', format: 'a5', orientation: 'portrait' as const }
+            };
 
-            if (isComplex) {
-                // --- Abordagem para Conteúdo Longo (html2canvas + jspdf) ---
-                // Esta técnica renderiza o HTML completo da seção, captura-o como uma imagem longa
-                // e, em seguida, fatia essa imagem em páginas de um PDF. Isso nos dá controle
-                // total sobre a paginação e evita o truncamento de conteúdo.
-
-                const partHtml = getPartHtmlContent(book, part);
-                renderTarget.innerHTML = partHtml;
-                const elementToRender = renderTarget.querySelector('.page-container');
-                if (!elementToRender) throw new Error(`Container para renderização não encontrado na parte ${part.part_type}`);
-                
-                // 1. Captura o elemento como um canvas (imagem).
-                const canvas = await html2canvas(elementToRender as HTMLElement, {
-                    scale: 2, // Aumenta a resolução para melhor qualidade de impressão.
-                    useCORS: true,
-                    logging: false
-                });
-
-                const imgData = canvas.toDataURL('image/jpeg', 0.98);
-                const pdf = new jsPDF({ unit: 'cm', format: 'a5', orientation: 'portrait' });
-                
-                const pdfWidth = 14.8;
-                const pdfHeight = 21.0;
-                const imgWidth = canvas.width;
-                const imgHeight = canvas.height;
-                
-                // 2. Calcula a altura da imagem proporcional à largura do PDF.
-                const ratio = pdfWidth / imgWidth;
-                const scaledImgHeight = imgHeight * ratio;
-
-                // 3. Calcula o número de páginas necessárias para a imagem inteira.
-                const totalPages = Math.ceil(scaledImgHeight / pdfHeight);
-
-                // 4. "Fatia" a imagem longa em pedaços e adiciona cada um a uma nova página.
-                for (let i = 0; i < totalPages; i++) {
-                    if (i > 0) pdf.addPage();
-                    // O deslocamento Y negativo (-i * pdfHeight) move a imagem para cima,
-                    // revelando a próxima "fatia" a ser impressa na página.
-                    pdf.addImage(imgData, 'JPEG', 0, -i * pdfHeight, pdfWidth, scaledImgHeight);
-                }
-
-                generatedPdfBuffers.push(pdf.output('arraybuffer'));
-
-            } else {
-                // --- Abordagem para Conteúdo Simples (html2pdf.js) ---
-                // Para páginas com layout fixo e conteúdo que cabe em uma página (capa, copyright, etc.),
-                // o html2pdf.js é mais simples e direto.
-                const partFullHtml = assemblePartHtml(book, part);
-                const opt = {
-                    // FIX: Removed `as const` from margin arrays to fix readonly tuple type error.
-                    margin: part.part_type === 'cover' ? [0,0,0,0] : [2.4, 2, 2.7, 2],
-                    filename: `${part.part_type}.pdf`,
-                    image: { type: 'jpeg' as const, quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true, logging: false },
-                    jsPDF: { unit: 'cm', format: 'a5', orientation: 'portrait' as const }
-                };
-                const pdfBytes = await html2pdf().from(partFullHtml).set(opt).output('arraybuffer');
-                generatedPdfBuffers.push(pdfBytes);
-            }
-            const tempDoc = await PDFDocument.load(generatedPdfBuffers[generatedPdfBuffers.length - 1]);
+            // `html2pdf` lida com a paginação automaticamente para conteúdos longos.
+            const pdfBytes = await html2pdf().from(partFullHtml).set(opt).output('arraybuffer');
+            generatedPdfBuffers.push(pdfBytes);
+            
+            const tempDoc = await PDFDocument.load(pdfBytes);
             updateLog(`... Sucesso (${tempDoc.getPageCount()} páginas)`);
         }
 
@@ -183,23 +171,25 @@ const handleGeneratePdf = async () => {
         // Adiciona cabeçalho e rodapé em todas as páginas, exceto na primeira (capa).
         for (let i = 0; i < pages.length; i++) {
             const pageCounter = i + 1;
-            if (pageCounter > 1) {
+            if (pageCounter > 1) { // Pula a capa
                 const page = pages[i];
                 const { width, height } = page.getSize();
                 
+                // Cabeçalho com o título do livro
                 const headerText = book.title.toUpperCase();
                 const headerTextWidth = helveticaFont.widthOfTextAtSize(headerText, 8);
                 page.drawText(headerText, {
                     x: (width - headerTextWidth) / 2,
-                    y: height - 1.3 * 28.35,
+                    y: height - 1.3 * 28.35, // 1.3cm do topo
                     font: helveticaFont, size: 8, color: royalBlue,
                 });
 
+                // Rodapé com o número da página
                 const footerText = String(pageCounter);
                 const footerTextWidth = helveticaBoldFont.widthOfTextAtSize(footerText, 16);
                 page.drawText(footerText, {
                     x: (width - footerTextWidth) / 2,
-                    y: 1.35 * 28.35,
+                    y: 1.35 * 28.35, // 1.35cm da base
                     font: helveticaBoldFont, size: 16, color: blackTransparent, opacity: 0.4,
                 });
             }
@@ -224,17 +214,174 @@ const handleGeneratePdf = async () => {
         updateLog(`ERRO: ${errMessage}`);
         alert(errMessage);
     } finally {
-        renderTarget.innerHTML = ''; // Limpa o container de renderização.
         setIsGenerating(false);
     }
   };
+  
+  const handleGenerateDocx = async () => {
+    if (bookParts.length === 0) {
+        alert("As partes do livro não estão carregadas. Tente novamente.");
+        return;
+    }
+    setIsGeneratingDocx(true);
+    updateLog("Iniciando geração do arquivo DOCX...");
+
+    try {
+        const docChildren: (Paragraph | any)[] = [];
+
+        const createParagraphs = (text: string, firstParaNoIndent = false) => {
+            if (!text) return [];
+            const lines = text.split('\n').filter(p => p.trim() !== '');
+            return lines.map((line, index) => {
+                // FIX: Explicitly typed `indentation` to allow an empty object, resolving the TypeScript error.
+                let indentation: { firstLine?: number } = { firstLine: 720 }; // 0.5 inch in twips
+                if (firstParaNoIndent && index === 0) {
+                    indentation = {}; 
+                }
+                return new Paragraph({
+                    children: [new TextRun(line.trim())],
+                    style: "default",
+                    indent: indentation,
+                });
+            });
+        };
+
+        bookParts.forEach(part => {
+            let content;
+            try {
+                content = JSON.parse(part.content);
+            } catch (e) {
+                content = { content: part.content };
+            }
+
+            switch (part.part_type) {
+                case 'cover':
+                    docChildren.push(new Paragraph({
+                        children: [new TextRun({ text: content.title, bold: true, size: 72 })],
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 400 }
+                    }));
+                    docChildren.push(new Paragraph({
+                        children: [new TextRun({ text: content.subtitle, size: 36, italics: true })],
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 800 }
+                    }));
+                    docChildren.push(new Paragraph({
+                        children: [new TextRun({ text: content.author, size: 28 })],
+                        alignment: AlignmentType.CENTER
+                    }));
+                    docChildren.push(new Paragraph({ children: [new PageBreak()] }));
+                    break;
+                case 'copyright':
+                    const copyrightText = typeof content === 'string' ? content : (content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`);
+                    docChildren.push(new Paragraph({
+                        children: [new TextRun({ text: copyrightText, size: 18 })],
+                        alignment: AlignmentType.CENTER,
+                    }));
+                    docChildren.push(new Paragraph({
+                        children: [new TextRun({ text: "Todos os direitos reservados.", size: 18 })],
+                        alignment: AlignmentType.CENTER,
+                    }));
+                     docChildren.push(new Paragraph({
+                        children: [new TextRun({ text: "Este livro ou qualquer parte dele não pode ser reproduzido ou usado de forma alguma sem a permissão expressa por escrito do editor, exceto pelo uso de breves citações em uma resenha do livro.", size: 18 })],
+                        alignment: AlignmentType.CENTER,
+                        spacing: { before: 200 }
+                    }));
+                    docChildren.push(new Paragraph({ children: [new PageBreak()] }));
+                    break;
+                case 'toc':
+                    docChildren.push(new Paragraph({ text: content.title, style: "Heading1", alignment: AlignmentType.LEFT }));
+                    content.content.split('\n').forEach((line: string) => {
+                         line = line.trim();
+                         if (!line) return;
+                         const isChapter = line.match(/^capítulo \d+:/i);
+                         docChildren.push(new Paragraph({
+                            children: [new TextRun({ text: line, bold: !!isChapter })],
+                            indent: isChapter ? {} : { left: 720 }
+                         }));
+                    });
+                    docChildren.push(new Paragraph({ children: [new PageBreak()] }));
+                    break;
+                case 'introduction':
+                case 'conclusion':
+                    docChildren.push(new Paragraph({ text: content.title, style: "Heading1" }));
+                    createParagraphs(content.content, false).forEach(p => docChildren.push(p));
+                    docChildren.push(new Paragraph({ children: [new PageBreak()] }));
+                    break;
+                case 'chapter_title':
+                     docChildren.push(new Paragraph({
+                        text: content.title,
+                        style: "Heading1",
+                        alignment: AlignmentType.CENTER,
+                        spacing: { before: 2000, after: 2000 }
+                    }));
+                    break;
+                case 'chapter_content':
+                     docChildren.push(new Paragraph({ text: content.title, style: "Heading2" }));
+                    createParagraphs(content.introduction, true).forEach(p => docChildren.push(p));
+                    content.subchapters.forEach((sub: any) => {
+                        docChildren.push(new Paragraph({ text: sub.title, style: "Heading3" }));
+                        createParagraphs(sub.content, true).forEach(p => docChildren.push(p));
+                    });
+                    docChildren.push(new Paragraph({ children: [new PageBreak()] }));
+                    break;
+                default:
+                    break;
+            }
+        });
+        updateLog("Estrutura do documento criada. Gerando o arquivo...");
+
+        const doc = new Document({
+             styles: {
+                paragraphStyles: [
+                    {
+                        id: "default", name: "Default", basedOn: "Normal", next: "Normal", quickFormat: true,
+                        run: { font: "Merriweather", size: 25 }, // 12.5pt
+                        paragraph: { spacing: { after: 160 }, alignment: AlignmentType.JUSTIFIED }
+                    },
+                    {
+                        id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true,
+                        run: { font: "Merriweather", size: 56, bold: true }, // 28pt
+                        paragraph: { spacing: { before: 240, after: 120 } }
+                    },
+                    {
+                        id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true,
+                        run: { font: "Merriweather", size: 44, bold: true }, // 22pt
+                         paragraph: { spacing: { before: 240, after: 120 } }
+                    },
+                    {
+                        id: "Heading3", name: "Heading 3", basedOn: "Normal", next: "Normal", quickFormat: true,
+                        run: { font: "Merriweather Sans", size: 32, bold: true }, // 16pt
+                         paragraph: { spacing: { before: 240, after: 120 } }
+                    }
+                ]
+            },
+            sections: [{ children: docChildren }]
+        });
+
+        const blob = await Packer.toBlob(doc);
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${book.title.replace(/ /g, '_')}.docx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        updateLog("Download do DOCX iniciado. Processo concluído!");
+    } catch (error) {
+        console.error("DOCX Generation Error:", error);
+        const errMessage = `Ocorreu um erro ao gerar o DOCX: ${(error as Error).message}`;
+        updateLog(`ERRO: ${errMessage}`);
+        alert(errMessage);
+    } finally {
+        setIsGeneratingDocx(false);
+    }
+  }
 
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
-      {/* Este container é usado pelo html2canvas para renderizar o HTML fora da tela antes de capturá-lo como imagem. */}
-      <div id="render-target" style={{ position: 'absolute', left: '-9999px', top: 0, background: 'white' }}></div>
-
+      {/* O container de renderização foi removido pois não é mais necessário com a nova abordagem. */}
+      
       <div className="max-w-7xl mx-auto">
         <header className="mb-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
             <Button onClick={() => onNavigate('dashboard')} variant="secondary" className="inline-flex items-center w-full sm:w-auto">
@@ -260,19 +407,42 @@ const handleGeneratePdf = async () => {
                 <p className="text-sm text-gray-500 mt-1">por {book.author}</p>
             </div>
             
-             <Card className="lg:col-span-2 text-center">
-                <h3 className="text-xl font-bold text-gray-800">Gerar PDF do Livro</h3>
-                <p className="text-gray-600 mt-2">Clique no botão abaixo para iniciar o processo de geração sequencial do PDF.</p>
-                <Button 
-                  onClick={handleGeneratePdf} 
-                  className="mt-6 text-lg" 
-                  isLoading={isGenerating || isLoadingParts}
-                  loadingText={isLoadingParts ? "Carregando conteúdo..." : "Gerando PDF..."}
-                  disabled={isLoadingParts || !!error || isGenerating}
-                >
-                    <GenerateIcon/>
-                    Gerar PDF Final
-                </Button>
+            <Card className="lg:col-span-2 text-center">
+                <h3 className="text-xl font-bold text-gray-800">Gerar Arquivos Finais</h3>
+                <p className="text-gray-600 mt-2">Clique nos botões abaixo para gerar os arquivos do seu livro.</p>
+                <div className="mt-6 flex flex-col sm:flex-row justify-center items-center gap-4">
+                    <Button 
+                      onClick={handleGeneratePdf} 
+                      className="text-lg w-full sm:w-auto" 
+                      isLoading={isGenerating || isLoadingParts}
+                      loadingText={isLoadingParts ? "Carregando..." : "Gerando PDF..."}
+                      disabled={isLoadingParts || !!error || isGenerating || isGeneratingDocx || isTestingBackend}
+                    >
+                        <GenerateIcon/>
+                        Gerar PDF Final
+                    </Button>
+                    <Button 
+                      onClick={handleGenerateDocx} 
+                      className="text-lg w-full sm:w-auto" 
+                      variant="secondary"
+                      isLoading={isGeneratingDocx}
+                      loadingText="Gerando DOCX..."
+                      disabled={isLoadingParts || !!error || isGenerating || isGeneratingDocx || isTestingBackend}
+                    >
+                        <DocxIcon/>
+                        Baixar .DOCX
+                    </Button>
+                    <Button 
+                      onClick={handleTestBackendPdf} 
+                      className="text-lg w-full sm:w-auto" 
+                      variant="secondary"
+                      isLoading={isTestingBackend}
+                      loadingText="Testando..."
+                      disabled={isLoadingParts || !!error || isGenerating || isGeneratingDocx || isTestingBackend}
+                    >
+                        Testar PDF Backend
+                    </Button>
+                </div>
             </Card>
 
             <div className="lg:col-span-2">
