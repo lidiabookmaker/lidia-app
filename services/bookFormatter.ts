@@ -1,8 +1,9 @@
 import type { Book, BookPart } from '../types';
 
 /* ============================================================
-   bookFormatter.ts – Revisão A5 v2
-   Ajustes: capa, créditos, quebras e fontes locais
+   bookFormatter.ts – Revisão A5 v3
+   Correções: Capa (PV 30mm), Créditos (PV 140mm),
+   Conteúdo fluido visível (altura dinâmica)
    ============================================================ */
 
 const formatContentForHTML = (text: string, addIndent = true): string => {
@@ -20,18 +21,21 @@ const balanceText = (text: string, maxLines: number): string => {
   if (!text || typeof text !== 'string') return '';
   const words = text.split(' ').filter(w => w.length > 0);
   if (words.length === 0) return text;
-  const effectiveLines = Math.min(maxLines, Math.ceil(words.length / 2.5));
-  if (effectiveLines <= 1) return text;
-  const wordsPerLine = Math.ceil(words.length / effectiveLines);
-  const lines = [];
-  for (let i = 0; i < words.length; i += wordsPerLine) {
-    lines.push(words.slice(i, i + wordsPerLine).join(' '));
+  const lines: string[] = [];
+  let line = '';
+  for (const word of words) {
+    if ((line + word).length > 15 && lines.length < 2) {
+      lines.push(line.trim());
+      line = '';
+    }
+    line += word + ' ';
   }
+  if (line) lines.push(line.trim());
   return lines.join('<br>');
 };
 
 /* ============================================================
-   ESTILOS GERAIS – Revisão com margens fixas e fontes locais
+   ESTILOS GERAIS
    ============================================================ */
 
 const getStyles = () => `
@@ -52,7 +56,7 @@ const getStyles = () => `
 
   .page-container {
     width: 14.8cm;
-    height: 21cm;
+    min-height: 21cm;
     position: relative;
     background: white;
     page-break-inside: avoid;
@@ -63,14 +67,15 @@ const getStyles = () => `
     top: 2.4cm;
     left: 2cm;
     width: 10.8cm;
-    height: 15.9cm;
     box-sizing: border-box;
   }
 
+  .page-fixed { height: 15.9cm; }
+
   .page-fluid {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+    min-height: 15.9cm;
+    height: auto;
+    display: block;
   }
 
   /* Cabeçalho */
@@ -86,8 +91,8 @@ const getStyles = () => `
 
   /* Texto principal */
   .page-text {
-    flex-grow: 1;
     text-align: justify;
+    padding-bottom: 2cm;
   }
 
   .page-text p {
@@ -106,7 +111,6 @@ const getStyles = () => `
     bottom: 1.2cm;
     left: 0;
     width: 100%;
-    line-height: 1;
   }
 
   /* Capa */
@@ -115,7 +119,6 @@ const getStyles = () => `
     position: relative;
     background: linear-gradient(to bottom right, rgba(255,245,225,0.1), rgba(10,207,131,0.1));
     height: 21cm;
-    overflow: hidden;
   }
 
   .cover-page .title {
@@ -124,11 +127,12 @@ const getStyles = () => `
     text-transform: uppercase;
     color: #0d47a1;
     position: absolute;
-    top: 30mm;
+    top: 30mm !important;
     left: 50%;
     transform: translateX(-50%);
-    width: 90%;
+    width: 10.8cm;
     line-height: 1.1;
+    margin: 0;
   }
 
   .cover-page .subtitle {
@@ -139,7 +143,7 @@ const getStyles = () => `
     top: 100mm;
     left: 50%;
     transform: translateX(-50%);
-    width: 90%;
+    width: 10.8cm;
   }
 
   .cover-page .author {
@@ -150,39 +154,37 @@ const getStyles = () => `
     top: 190mm;
     left: 50%;
     transform: translateX(-50%);
-    width: 90%;
+    width: 10.8cm;
   }
 
-  /* Ondas da capa (desativadas) */
-  /*
-  .onda { position: absolute; top: 135mm; width: 200%; height: 90mm; left: -50%; border-radius: 45%; z-index: 1; }
-  .onda1 { background: linear-gradient(90deg, #0052A5 0%, #0ACF83 100%); transform: rotate(-8deg); }
-  .onda2 { background: linear-gradient(90deg, #0ACF83 0%, #0052A5 100%); opacity: 0.75; transform: rotate(-5deg); }
-  .onda3 { background: linear-gradient(90deg, #0077FF 0%, #00FFB3 100%); opacity: 0.5; transform: rotate(-2deg); }
-  */
+  /* Ondas (desativadas) */
+  /* .onda { ... } */
 
-  /* Página de créditos */
+  /* Créditos */
   .copyright-page {
-    display: grid;
-    place-items: center;
-    height: 21cm;
-    text-align: center;
+    position: absolute;
+    top: 2.4cm;
+    left: 2cm;
+    width: 10.8cm;
+    height: 15.9cm;
   }
 
   .copyright-page .content {
+    position: absolute;
+    top: 116mm;
+    left: 0;
+    width: 10.8cm;
+    text-align: center;
     font-family: 'Merriweather Sans', sans-serif;
     font-size: 9pt;
     color: #595959;
     line-height: 1.5;
-    max-width: 10cm;
-    margin: 0 auto;
   }
 
   h1, h2, h3 {
     font-family: 'Merriweather Sans', sans-serif;
     color: #0d47a1;
   }
-
 </style>
 `;
 
@@ -211,11 +213,13 @@ export const getPartHtmlContent = (book: Book, part: BookPart): string => {
         typeof content === 'string'
           ? content
           : content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
-      return `<div class="page-container copyright-page">
-        <div class="content">
-          <p>${copyrightText}</p>
-          <p>Todos os direitos reservados.</p>
-          <p>Este livro ou qualquer parte dele não pode ser reproduzido ou usado sem autorização expressa, exceto por breves citações em resenhas.</p>
+      return `<div class="page-container">
+        <div class="copyright-page">
+          <div class="content">
+            <p>${copyrightText}</p>
+            <p>Todos os direitos reservados.</p>
+            <p>Este livro ou qualquer parte dele não pode ser reproduzido ou usado sem autorização expressa, exceto por breves citações em resenhas.</p>
+          </div>
         </div>
       </div>`;
 
@@ -253,8 +257,8 @@ export const getPartHtmlContent = (book: Book, part: BookPart): string => {
 
     case 'chapter_title':
       return `<div class="page-container page-fixed" style="display: flex; justify-content: center; align-items: center;">
-          <h1>${balanceText(content.title, 3)}</h1>
-        </div>`;
+        <h1>${balanceText(content.title, 3)}</h1>
+      </div>`;
 
     default:
       return '';
@@ -273,7 +277,6 @@ export const assemblePartHtml = (book: Book, part: BookPart): string => {
 export const assembleFullHtml = (book: Book, parts: BookPart[]): string => {
   let htmlContent = '';
   parts.sort((a, b) => a.part_index - b.part_index).forEach(part => {
-    // Quebra de página apenas entre partes com conteúdo
     const partHtml = getPartHtmlContent(book, part);
     if (partHtml.trim()) {
       htmlContent += partHtml + '<div style="page-break-after: always;"></div>';
