@@ -1,7 +1,8 @@
 import type { Book, BookPart } from '../types';
 
 /* ============================================================
-   NOVO bookFormatter.ts – Versão A5 com Cabeçalho e Rodapé
+   bookFormatter.ts – Revisão A5 v2
+   Ajustes: capa, créditos, quebras e fontes locais
    ============================================================ */
 
 const formatContentForHTML = (text: string, addIndent = true): string => {
@@ -30,12 +31,14 @@ const balanceText = (text: string, maxLines: number): string => {
 };
 
 /* ============================================================
-   ESTILOS GERAIS DO LIVRO
+   ESTILOS GERAIS – Revisão com margens fixas e fontes locais
    ============================================================ */
 
 const getStyles = () => `
 <style>
   @page { size: A5; margin: 0; }
+
+  @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@300;400;700;900&family=Merriweather+Sans:wght@300;400;600;700;800&display=swap');
 
   body {
     font-family: 'Merriweather', serif;
@@ -47,7 +50,6 @@ const getStyles = () => `
     print-color-adjust: exact;
   }
 
-  /* Página base */
   .page-container {
     width: 14.8cm;
     height: 21cm;
@@ -56,22 +58,16 @@ const getStyles = () => `
     page-break-inside: avoid;
   }
 
-  /* Página fixa */
-  .page-fixed {
+  .page-fixed, .page-fluid {
     position: absolute;
     top: 2.4cm;
     left: 2cm;
     width: 10.8cm;
     height: 15.9cm;
+    box-sizing: border-box;
   }
 
-  /* Página fluida */
   .page-fluid {
-    position: absolute;
-    top: 2.4cm;
-    left: 2cm;
-    width: 10.8cm;
-    height: 15.9cm;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -85,13 +81,18 @@ const getStyles = () => `
     text-transform: uppercase;
     text-align: center;
     letter-spacing: 0.05em;
-    margin-bottom: 0.3cm;
+    margin-bottom: 0.2cm;
   }
 
-  /* Corpo do texto */
+  /* Texto principal */
   .page-text {
     flex-grow: 1;
     text-align: justify;
+  }
+
+  .page-text p {
+    margin-bottom: 0.4em;
+    text-indent: 1.5em;
   }
 
   /* Rodapé */
@@ -112,7 +113,7 @@ const getStyles = () => `
   .cover-page {
     text-align: center;
     position: relative;
-    background: linear-gradient(to bottom right, rgba(255, 245, 225, 0.1), rgba(10, 207, 131, 0.1));
+    background: linear-gradient(to bottom right, rgba(255,245,225,0.1), rgba(10,207,131,0.1));
     height: 21cm;
     overflow: hidden;
   }
@@ -121,14 +122,13 @@ const getStyles = () => `
     font-family: 'League Gothic', sans-serif;
     font-size: 4.5rem;
     text-transform: uppercase;
-    margin: 0;
-    line-height: 1.1;
     color: #0d47a1;
     position: absolute;
     top: 30mm;
     left: 50%;
     transform: translateX(-50%);
     width: 90%;
+    line-height: 1.1;
   }
 
   .cover-page .subtitle {
@@ -147,13 +147,13 @@ const getStyles = () => `
     font-size: 1rem;
     color: #212121;
     position: absolute;
-    top: 140mm;
+    top: 190mm;
     left: 50%;
     transform: translateX(-50%);
     width: 90%;
   }
 
-  /* Ondas da capa (comentadas) */
+  /* Ondas da capa (desativadas) */
   /*
   .onda { position: absolute; top: 135mm; width: 200%; height: 90mm; left: -50%; border-radius: 45%; z-index: 1; }
   .onda1 { background: linear-gradient(90deg, #0052A5 0%, #0ACF83 100%); transform: rotate(-8deg); }
@@ -163,9 +163,8 @@ const getStyles = () => `
 
   /* Página de créditos */
   .copyright-page {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    display: grid;
+    place-items: center;
     height: 21cm;
     text-align: center;
   }
@@ -178,11 +177,17 @@ const getStyles = () => `
     max-width: 10cm;
     margin: 0 auto;
   }
+
+  h1, h2, h3 {
+    font-family: 'Merriweather Sans', sans-serif;
+    color: #0d47a1;
+  }
+
 </style>
 `;
 
 /* ============================================================
-   CONSTRUÇÃO DAS PARTES DO LIVRO
+   CONSTRUÇÃO DAS PARTES
    ============================================================ */
 
 export const getPartHtmlContent = (book: Book, part: BookPart): string => {
@@ -199,12 +204,6 @@ export const getPartHtmlContent = (book: Book, part: BookPart): string => {
         <h1 class="title">${balanceText(content.title, 3)}</h1>
         <p class="subtitle">${balanceText(content.subtitle, 3)}</p>
         <p class="author">${content.author}</p>
-        <!-- Ondas comentadas para teste -->
-        <!--
-        <div class="onda onda1"></div>
-        <div class="onda onda2"></div>
-        <div class="onda onda3"></div>
-        -->
       </div>`;
 
     case 'copyright':
@@ -216,7 +215,7 @@ export const getPartHtmlContent = (book: Book, part: BookPart): string => {
         <div class="content">
           <p>${copyrightText}</p>
           <p>Todos os direitos reservados.</p>
-          <p>Este livro ou qualquer parte dele não pode ser reproduzido ou usado de forma alguma sem permissão expressa por escrito do editor, exceto pelo uso de breves citações em resenhas.</p>
+          <p>Este livro ou qualquer parte dele não pode ser reproduzido ou usado sem autorização expressa, exceto por breves citações em resenhas.</p>
         </div>
       </div>`;
 
@@ -241,11 +240,11 @@ export const getPartHtmlContent = (book: Book, part: BookPart): string => {
       return `<div class="page-container page-fluid">
         <div class="page-header">${book.title.toUpperCase()}</div>
         <div class="page-text">
-          <h2 class="font-merriweather">${content.title}</h2>
+          <h2>${content.title}</h2>
           ${formatContentForHTML(content.content || content.introduction || '', false)}
           ${content.subchapters
             ? content.subchapters.map((sub: any) =>
-                `<h3 class="font-merriweather-sans">${sub.title}</h3>${formatContentForHTML(sub.content)}`
+                `<h3>${sub.title}</h3>${formatContentForHTML(sub.content)}`
               ).join('')
             : ''}
         </div>
@@ -253,11 +252,9 @@ export const getPartHtmlContent = (book: Book, part: BookPart): string => {
       </div>`;
 
     case 'chapter_title':
-      return `<div class="page-container page-fixed">
-        <div class="page-fixed" style="display: flex; justify-content: center; align-items: center;">
+      return `<div class="page-container page-fixed" style="display: flex; justify-content: center; align-items: center;">
           <h1>${balanceText(content.title, 3)}</h1>
-        </div>
-      </div>`;
+        </div>`;
 
     default:
       return '';
@@ -265,7 +262,7 @@ export const getPartHtmlContent = (book: Book, part: BookPart): string => {
 };
 
 /* ============================================================
-   MONTAGEM FINAL DO LIVRO
+   MONTAGEM FINAL
    ============================================================ */
 
 export const assemblePartHtml = (book: Book, part: BookPart): string => {
@@ -276,8 +273,11 @@ export const assemblePartHtml = (book: Book, part: BookPart): string => {
 export const assembleFullHtml = (book: Book, parts: BookPart[]): string => {
   let htmlContent = '';
   parts.sort((a, b) => a.part_index - b.part_index).forEach(part => {
-    htmlContent += getPartHtmlContent(book, part)
-      .replace('class="page-container', 'style="page-break-after: always;" class="page-container');
+    // Quebra de página apenas entre partes com conteúdo
+    const partHtml = getPartHtmlContent(book, part);
+    if (partHtml.trim()) {
+      htmlContent += partHtml + '<div style="page-break-after: always;"></div>';
+    }
   });
   return `<html><head><title>${book.title}</title>${getStyles()}</head><body>${htmlContent}</body></html>`;
 };
