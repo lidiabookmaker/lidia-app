@@ -192,7 +192,7 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
         content = JSON.parse(part.content);
     } catch (e) {
         // Fallback se o conteúdo não for um JSON válido
-        content = { title: part.title, content: part.content };
+        content = { title: (book as any).title, content: part.content };
     }
 
     switch (part.part_type) {
@@ -245,6 +245,25 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
 };
 
 /**
+ * Monta o HTML para uma única parte, usado na geração de PDF incremental.
+ * Esta função foi removida na nova versão, mas mantida aqui para referência se necessário.
+ */
+export const assemblePartHtml = (book: Book, part: BookPart): string => {
+  const innerHtml = getInnerHtmlForPart(book, part);
+  const head = getHeadContent(book);
+  
+  // A capa e as páginas de título já têm seu próprio container.
+  if (part.part_type === 'cover' || part.part_type === 'chapter_title') {
+    return `<!DOCTYPE html><html lang="pt-BR">${head}<body>${innerHtml}</body></html>`;
+  }
+  
+  // Outras partes são envolvidas no container de conteúdo.
+  const body = `<div class="page-container content-page">${innerHtml}</div>`;
+  return `<!DOCTYPE html><html lang="pt-BR">${head}<body>${body}</body></html>`;
+};
+
+
+/**
  * Monta o HTML completo do livro, juntando todas as partes.
  */
 export const assembleFullHtml = (book: Book, parts: BookPart[]): string => {
@@ -264,7 +283,7 @@ export const assembleFullHtml = (book: Book, parts: BookPart[]): string => {
     
     // As outras partes são envolvidas em um container para controle de página e aplicação de estilos.
     return `<div class="page-container content-page">${innerHtml}</div>`;
-  }).join('\\n');
+  }).join('\n');
 
   // Monta o documento final, incluindo o lang="pt-BR" essencial para a hifenização.
   return `<!DOCTYPE html>
