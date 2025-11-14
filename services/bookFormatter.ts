@@ -17,6 +17,7 @@ const formatParagraphs = (text: string): string => {
  * Gera o conteúdo completo da tag <head>, incluindo todos os estilos CSS.
  */
 const getHeadContent = (book: Book): string => {
+  // Prepara o título para ser usado no CSS, removendo caracteres que podem quebrar a string.
   const safeTitle = book.title.toUpperCase().replace(/"/g, "'");
 
   return `
@@ -25,15 +26,17 @@ const getHeadContent = (book: Book): string => {
     <title>${book.title}</title>
     <style>
       /* --- FONTES --- */
-      @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@300;400;700;800&family=Merriweather+Sans:wght@300;400;700;800&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Anton&family=Montserrat:wght@400;700&family=Merriweather:wght@200;300;400;700;800&family=Merriweather+Sans:wght@300;400;600;700;800&display=swap');
 
       /* ======================================= */
       /*   SISTEMA DE PÁGINAS MESTRAS            */
       /* ======================================= */
 
+      /* 1. Página mestre para o CONTEÚDO PADRÃO (com cabeçalho/rodapé) */
       @page content {
         size: A5;
         margin: 25mm 20mm 17mm 20mm;
+
         @top-center {
           content: "${safeTitle}";
           font-family: 'Merriweather Sans', sans-serif;
@@ -47,50 +50,130 @@ const getHeadContent = (book: Book): string => {
           vertical-align: middle;
         }
       }
-      @page content:first { @top-center { content: ""; } }
+
+      /* 2. EXCEÇÃO para a PRIMEIRA PÁGINA DE UM FLUXO de conteúdo (remove o cabeçalho) */
+      @page content:first {
+        @top-center { content: ""; }
+      }
+      
+      /* 3. Regra para a PRIMEIRA PÁGINA DO ARQUIVO (A CAPA), totalmente limpa */
       @page :first {
          size: A5;
-         margin: 0;
+         margin: 0; /* A capa não tem margens */
          @top-center { content: ""; }
          @bottom-center { content: ""; }
       }
 
       /* --- ESTILOS GERAIS E CONTAINERS --- */
-      body { font-family: 'Merriweather', serif; font-size: 12pt; color: #262626; margin: 0; background-color: #ffffff; }
-      .page-container { width: 100%; margin: 0; padding: 0; background: transparent; box-shadow: none; page-break-after: always; }
-      .content-page { page: content; }
+      body {
+        font-family: 'Merriweather', serif;
+        font-size: 12pt;
+        color: #262626;
+        margin: 0;
+        background-color: #ffffff;
+      }
+      .page-container {
+        width: 100%;
+        margin: 0; padding: 0;
+        background: transparent;
+        box-shadow: none;
+        page-break-after: always;
+      }
+      .content-page {
+        page: content;
+      }
 
       /* --- ESTILOS DA CAPA --- */
       .cover-page {
-        width: 14.8cm; height: 21cm; position: relative; overflow: hidden;
-        background-size: cover; background-position: center;
+        width: 14.8cm;
+        height: 21cm;
+        position: relative; 
+        overflow: hidden;
+        background-size: cover;
+        background-position: center;
       }
-      .cover-element { position: absolute; width: 90%; left: 50%; transform: translateX(-50%); text-align: center; padding: 0 1cm; box-sizing: border-box; }
-      .cover-title { top: 40mm; font-family: 'League Gothic', sans-serif; font-size: 3.5rem; line-height: 1.1; text-transform: uppercase; color: #001f5c; }
-      .cover-subtitle { top: 90mm; font-family: 'Merriweather Sans', sans-serif; font-weight: 300; font-size: 1.1rem; line-height: 1.6; color: #2b4b8a; }
-      .cover-author { bottom: 45mm; font-family: 'Merriweather Sans', sans-serif; font-weight: 700; font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; color: #4a68a5; }
-      .cover-logo { bottom: 20mm; width: auto; height: 25px; }
+      .cover-element {
+        position: absolute;
+        width: 90%;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        padding: 0 1cm;
+        box-sizing: border-box;
+      }
+      .cover-title {
+        top: 40mm;
+        font-family: 'Anton', sans-serif;
+        font-size: 2.8rem;
+        line-height: 1.1;
+        text-transform: uppercase;
+        color: #001f5c;
+      }
+      .cover-subtitle {
+        top: 90mm;
+        font-family: 'Montserrat', sans-serif;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #2b4b8a;
+      }
+      .cover-author {
+        bottom: 45mm; 
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 700;
+        font-size: 0.8rem;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #4a68a5;
+      }
+      .cover-logo {
+        bottom: 20mm;
+        width: auto;
+        height: 25px;
+      }
 
-      /* --- HIERARQUIA TIPOGRÁFICA (ALINHADA À GRADE) --- */
-      .chapter-title-page { display: flex; justify-content: center; align-items: flex-start; text-align: center; }
+      /* --- HIERARQUIA TIPOGRÁFICA (ALINHADA À GRADE DE 18pt) --- */
+      .chapter-title-page { 
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        text-align: center;
+      }
       .chapter-title-standalone {
-        font-family: 'Merriweather', serif; font-size: 24pt; line-height: 36pt;
-        margin-top: 180pt;
+        font-family: 'Merriweather', serif;
+        font-size: 24pt;
+        line-height: 36pt; /* 2 linhas da grade */
+        margin-top: 180pt; /* 10 linhas da grade */
       }
       .content-page h2.font-merriweather { 
-        font-family: 'Merriweather', serif; font-weight: 700; font-size: 24pt; line-height: 1.5;
-        text-align: center; color: rgba(51, 51, 51, 0.5);
-        margin-top: 36pt; margin-bottom: 54pt;
+        font-family: 'Merriweather', serif;
+        font-weight: 700;
+        font-size: 24pt;
+        line-height: 1.5; /* 36pt = 2 linhas da grade */
+        text-align: center;
+        color: rgba(51, 51, 51, 0.5);
+        margin-top: 36pt; /* 2 linhas de espaço acima */
+        margin-bottom: 54pt; /* 3 linhas de espaço abaixo */
       }
       .content-page h3.font-merriweather-sans { 
-        font-family: 'Merriweather Sans', sans-serif; font-weight: 800; font-size: 14.4pt; line-height: 1.25;
+        font-family: 'Merriweather Sans', sans-serif;
+        font-weight: 800;
+        font-size: 14.4pt;
+        line-height: 1.25; /* 18pt = 1 linha da grade */
         color: rgba(36, 36, 36, 0.75);
-        margin-top: 36pt; margin-bottom: 18pt;
+        margin-top: 36pt; /* 2 linhas de espaço acima */
+        margin-bottom: 18pt; /* 1 linha de espaço abaixo */
       }
       .content-page p.font-merriweather { 
-        font-size: 12pt; line-height: 1.5; font-weight: 300; text-align: justify;
-        hyphens: auto; orphans: 2; widows: 2; text-indent: 1cm;
-        margin-top: 0; margin-bottom: 18pt;
+        font-size: 12pt;
+        line-height: 1.5; /* Ritmo da grade = 18pt */
+        font-weight: 300;
+        text-align: justify;
+        hyphens: auto;
+        orphans: 2;
+        widows: 2;
+        text-indent: 1cm;
+        margin-top: 0;
+        margin-bottom: 18pt;
       }
       .content-page h2 + p.font-merriweather,
       .content-page h3 + p.font-merriweather {
@@ -100,12 +183,16 @@ const getHeadContent = (book: Book): string => {
   </head>`;
 };
 
+/**
+ * Gera o HTML interno para uma única parte do livro (capa, capítulo, etc.).
+ */
 const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
     let content: any;
     try {
         content = JSON.parse(part.content);
     } catch (e) {
-        content = { title: part.title, subtitle: part.subtitle, content: part.content };
+        // Fallback se o conteúdo não for um JSON válido
+        content = { title: part.title, content: part.content };
     }
 
     switch (part.part_type) {
@@ -136,6 +223,7 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
              return `<h2 class="font-merriweather">${introTitle}</h2>` + formatParagraphs(content.content);
         
         case 'chapter_title':
+            // Cria uma página de rosto dedicada para o título do capítulo
             return `<div class="page-container chapter-title-page"><h1 class="chapter-title-standalone">${content.title}</h1></div>`;
 
         case 'chapter_content':
@@ -156,21 +244,29 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
     }
 };
 
+/**
+ * Monta o HTML completo do livro, juntando todas as partes.
+ */
 export const assembleFullHtml = (book: Book, parts: BookPart[]): string => {
+  // Garante que as partes estão na ordem correta
   parts.sort((a, b) => a.part_index - b.part_index);
   
   const head = getHeadContent(book);
   
+  // Mapeia cada parte para seu próprio container, garantindo quebras de página corretas
   const bodyContent = parts.map(part => {
     const innerHtml = getInnerHtmlForPart(book, part);
     
+    // A capa e as páginas de título de capítulo já retornam seu próprio container principal.
     if (part.part_type === 'cover' || part.part_type === 'chapter_title') {
       return innerHtml;
     }
     
+    // As outras partes são envolvidas em um container para controle de página e aplicação de estilos.
     return `<div class="page-container content-page">${innerHtml}</div>`;
   }).join('\\n');
 
+  // Monta o documento final, incluindo o lang="pt-BR" essencial para a hifenização.
   return `<!DOCTYPE html>
     <html lang="pt-BR">
     ${head}
