@@ -2,7 +2,6 @@ import type { Book, BookPart } from '../types';
 
 /**
  * Converte um texto simples com quebras de linha em parágrafos HTML.
- * (Esta função já estava correta, nenhuma alteração necessária aqui)
  */
 const formatParagraphs = (text: string): string => {
   if (!text || typeof text !== 'string') {
@@ -16,9 +15,9 @@ const formatParagraphs = (text: string): string => {
 
 /**
  * Gera o conteúdo completo da tag <head>, incluindo todos os estilos CSS.
- * (Aqui estão as principais correções no CSS)
  */
 const getHeadContent = (book: Book): string => {
+  // Prepara o título para ser usado no CSS, removendo caracteres que podem quebrar a string.
   const safeTitle = book.title.toUpperCase().replace(/"/g, "'");
 
   return `
@@ -33,6 +32,7 @@ const getHeadContent = (book: Book): string => {
       /*   SISTEMA DE PÁGINAS MESTRAS            */
       /* ======================================= */
 
+      /* 1. Página mestre para o CONTEÚDO PADRÃO (com cabeçalho/rodapé) */
       @page content {
         size: A5;
         margin: 25mm 20mm 17mm 20mm;
@@ -51,13 +51,15 @@ const getHeadContent = (book: Book): string => {
         }
       }
 
+      /* 2. EXCEÇÃO para a PRIMEIRA PÁGINA DE UM FLUXO de conteúdo (remove o cabeçalho) */
       @page content:first {
         @top-center { content: ""; }
       }
       
+      /* 3. Regra para a PRIMEIRA PÁGINA DO ARQUIVO (A CAPA), totalmente limpa */
       @page :first {
          size: A5;
-         margin: 0;
+         margin: 0; /* A capa não tem margens */
          @top-center { content: ""; }
          @bottom-center { content: ""; }
       }
@@ -139,69 +141,36 @@ const getHeadContent = (book: Book): string => {
       .chapter-title-standalone {
         font-family: 'Merriweather', serif;
         font-size: 24pt;
-        line-height: 36pt;
-        margin-top: 180pt;
+        line-height: 36pt; /* 2 linhas da grade */
+        margin-top: 180pt; /* 10 linhas da grade */
       }
       .content-page h2.font-merriweather { 
         font-family: 'Merriweather', serif;
         font-weight: 700;
         font-size: 24pt;
-        line-height: 1.5;
+        line-height: 1.5; /* 36pt = 2 linhas da grade */
         text-align: center;
         color: rgba(51, 51, 51, 0.5);
-        margin-top: 36pt;
-        margin-bottom: 54pt;
+        margin-top: 36pt; /* 2 linhas de espaço acima */
+        margin-bottom: 54pt; /* 3 linhas de espaço abaixo */
       }
       .content-page h3.font-merriweather-sans { 
         font-family: 'Merriweather Sans', sans-serif;
         font-weight: 800;
         font-size: 14.4pt;
-        line-height: 1.25;
+        line-height: 1.25; /* 18pt = 1 linha da grade */
         color: rgba(36, 36, 36, 0.75);
-        margin-top: 36pt;
-        margin-bottom: 18pt;
+        margin-top: 36pt; /* 2 linhas de espaço acima */
+        margin-bottom: 18pt; /* 1 linha de espaço abaixo */
       }
-      
-      /* ================================================================= */
-      /*   PRINCIPAIS CORREÇÕES APLICADAS NO SELETOR DE PARÁGRAFO ABAIXO   */
-      /* ================================================================= */
       .content-page p.font-merriweather { 
         font-size: 12pt;
-        line-height: 1.5;
+        line-height: 1.5; /* Ritmo da grade = 18pt */
         font-weight: 300;
-        
-        /* CORREÇÃO 1: JUSTIFICAÇÃO */
-        /* Seu código já tinha text-align: justify. Isso está correto e é mantido. */
-        /* A causa do problema provavelmente não era a falta desta linha, mas sim a interação com outras regras que foram corrigidas. */
         text-align: justify;
-
-        /* CORREÇÃO 2: HIFENIZAÇÃO */
-        /* ANTIGO:
         hyphens: auto;
-        */
-        /* NOVO: Adicionado os prefixos de navegador (-webkit-, -moz-) como boa prática, embora WeasyPrint geralmente precise apenas de 'hyphens'. Isso garante a regra. */
-        -webkit-hyphens: auto;
-        -moz-hyphens: auto;
-        hyphens: auto;
-        
-        /* CORREÇÃO 3: ÓRFÃS E VIÚVAS */
-        /* ANTIGO:
         orphans: 2;
         widows: 2;
-        */
-        /* NOVO: Alterado para 3, que é um valor mais seguro para evitar linhas sozinhas no início/fim de uma página. */
-        orphans: 3;
-        widows: 3;
-
-        /* ================================================================= */
-        /*   NOVA CORREÇÃO APLICADA ABAIXO                                   */
-        /* ================================================================= */
-
-        /* CORREÇÃO 4: EVITAR CORTE DE PARÁGRAFO/LINHA ENTRE PÁGINAS */
-        /* NOVO: Esta regra instrui o renderizador a não quebrar um parágrafo no meio. Se um parágrafo não couber inteiro no espaço restante, ele será movido para a próxima página. Isso resolve o bug visual da linha de texto sendo "fatiada" na quebra de página. */
-        
-        page-break-inside: avoid;
-
         text-indent: 1cm;
         margin-top: 0;
         margin-bottom: 18pt;
@@ -216,13 +185,13 @@ const getHeadContent = (book: Book): string => {
 
 /**
  * Gera o HTML interno para uma única parte do livro (capa, capítulo, etc.).
- * (Nenhuma alteração necessária aqui)
  */
 const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
     let content: any;
     try {
         content = JSON.parse(part.content);
     } catch (e) {
+        // Fallback se o conteúdo não for um JSON válido
         content = { title: (book as any).title, content: part.content };
     }
 
@@ -254,6 +223,7 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
              return `<h2 class="font-merriweather">${introTitle}</h2>` + formatParagraphs(content.content);
         
         case 'chapter_title':
+            // Cria uma página de rosto dedicada para o título do capítulo
             return `<div class="page-container chapter-title-page"><h1 class="chapter-title-standalone">${content.title}</h1></div>`;
 
         case 'chapter_content':
@@ -276,16 +246,18 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
 
 /**
  * Monta o HTML para uma única parte, usado na geração de PDF incremental.
- * (Nenhuma alteração necessária aqui)
+ * Esta função foi removida na nova versão, mas mantida aqui para referência se necessário.
  */
 export const assemblePartHtml = (book: Book, part: BookPart): string => {
   const innerHtml = getInnerHtmlForPart(book, part);
   const head = getHeadContent(book);
   
+  // A capa e as páginas de título já têm seu próprio container.
   if (part.part_type === 'cover' || part.part_type === 'chapter_title') {
     return `<!DOCTYPE html><html lang="pt-BR">${head}<body>${innerHtml}</body></html>`;
   }
   
+  // Outras partes são envolvidas no container de conteúdo.
   const body = `<div class="page-container content-page">${innerHtml}</div>`;
   return `<!DOCTYPE html><html lang="pt-BR">${head}<body>${body}</body></html>`;
 };
@@ -293,24 +265,27 @@ export const assemblePartHtml = (book: Book, part: BookPart): string => {
 
 /**
  * Monta o HTML completo do livro, juntando todas as partes.
- * (Nenhuma alteração necessária aqui, já estava correto)
  */
 export const assembleFullHtml = (book: Book, parts: BookPart[]): string => {
+  // Garante que as partes estão na ordem correta
   parts.sort((a, b) => a.part_index - b.part_index);
   
   const head = getHeadContent(book);
   
+  // Mapeia cada parte para seu próprio container, garantindo quebras de página corretas
   const bodyContent = parts.map(part => {
     const innerHtml = getInnerHtmlForPart(book, part);
     
+    // A capa e as páginas de título de capítulo já retornam seu próprio container principal.
     if (part.part_type === 'cover' || part.part_type === 'chapter_title') {
       return innerHtml;
     }
     
+    // As outras partes são envolvidas em um container para controle de página e aplicação de estilos.
     return `<div class="page-container content-page">${innerHtml}</div>`;
   }).join('\n');
 
-  // CORREÇÃO 2.A: A tag lang="pt-BR" já estava aqui, o que é ótimo e essencial para a hifenização.
+  // Monta o documento final, incluindo o lang="pt-BR" essencial para a hifenização.
   return `<!DOCTYPE html>
     <html lang="pt-BR">
     ${head}
