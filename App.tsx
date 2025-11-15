@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { UserProfile, Book, Page, PlanSetting, UserStatus } from './types';
 import { isSupabaseConfigured, supabase } from './services/supabase';

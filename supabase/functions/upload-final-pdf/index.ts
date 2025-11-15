@@ -1,5 +1,9 @@
 // supabase/functions/upload-final-pdf/index.ts
 
+// FIX: Added Deno namespace reference. This directive is essential for the Supabase Edge 
+// Function environment to provide correct typings for the Deno global object and its APIs.
+/// <reference lib="deno.ns" />
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.44.4';
 
 // Standard CORS headers

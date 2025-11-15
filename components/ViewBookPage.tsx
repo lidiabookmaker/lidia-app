@@ -11,14 +11,14 @@ import { assembleFullHtml, assemblePartHtml } from '../services/bookFormatter';
 
 
 const ArrowLeftIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
 );
 const GenerateIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m10 15-2-2 2-2"/><path d="m14 15 2-2-2-2"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m10 15-2-2 2-2"/><path d="m14 15 2-2-2-2"/></svg>
 );
 
 const DocxIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
 );
 
 
@@ -89,9 +89,10 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
     updateLog(`Enviando HTML completo (${(fullHtml.length / 1024).toFixed(1)} KB) para a função de backend...`);
 
     try {
-        const { data, error } = await supabase.functions.invoke("generate-pdf", {
+        // FIX: Removed the invalid 'responseType' property. The backend function has been updated to return
+        // a JSON object with a base64-encoded PDF, which is compatible with the `invoke` helper.
+        const { data, error } = await supabase.functions.invoke<{pdfBase64: string}>("generate-pdf", {
             body: { html: fullHtml },
-            responseType: 'blob'
         });
 
         if (error) {
@@ -111,7 +112,19 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
 
         updateLog("PDF recebido do backend. Preparando download...");
 
-        const blob = new Blob([data], { type: 'application/pdf' });
+        // FIX: Decode the base64 string from the JSON response to create the PDF blob.
+        if (!data?.pdfBase64) {
+            throw new Error("A resposta do backend não continha os dados do PDF esperados.");
+        }
+
+        const byteCharacters = atob(data.pdfBase64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = `${book.title.replace(/ /g, '_')}_backend.pdf`;

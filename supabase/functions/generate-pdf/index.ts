@@ -1,10 +1,10 @@
 // supabase/functions/generate-pdf/index.ts
 
-// FIX: The original triple-slash directive `/// <reference lib="deno.ns" />` was causing type resolution errors
-// in the local TypeScript environment. Using `declare const Deno: any;` satisfies the compiler by asserting
-// the existence of the Deno global, which is guaranteed to be present in the Supabase Edge Function runtime.
-// This resolves all "Cannot find name 'Deno'" errors without changing the runtime logic.
-declare const Deno: any;
+// FIX: Added Deno namespace reference. This directive is essential for the Supabase Edge 
+// Function environment to provide correct typings for the Deno global object and its APIs.
+/// <reference lib="deno.ns" />
+
+import { encode } from "https://deno.land/std/encoding/base64.ts";
 
 // Shared CORS headers
 const corsHeaders = {
@@ -55,11 +55,14 @@ Deno.serve(async (req: Request) => {
 
       const pdfBytes = await Deno.readFile(outputPdfPath);
       
-      return new Response(pdfBytes, {
+      // FIX: Changed the response to be a JSON object containing the base64-encoded PDF.
+      // This makes it compatible with the supabase.functions.invoke helper, which expects JSON.
+      const pdfBase64 = encode(pdfBytes);
+      
+      return new Response(JSON.stringify({ pdfBase64 }), {
         headers: {
           ...corsHeaders,
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': 'attachment; filename="book.pdf"',
+          'Content-Type': 'application/json',
         },
         status: 200,
       });
