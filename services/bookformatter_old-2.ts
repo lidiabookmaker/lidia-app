@@ -1,3 +1,4 @@
+import { textAlign } from 'html2canvas/dist/types/css/property-descriptors/text-align';
 import type { Book, BookPart } from '../types';
 
 /* ================================
@@ -195,3 +196,41 @@ export const assembleFullHtml = (book: Book, parts: BookPart[]): string => {
   });
   return `<html><head><title>${book.title}</title>${getStyles()}</head><body>${htmlContent}</body></html>`;
 };
+
+
+
+
+
+/* --------- */
+// Monta o documento final, incluindo o lang="pt-BR" essencial para a hifenização.
+  return `<!DOCTYPE html>
+    <html lang="pt-BR">
+    ${head}
+    <body>
+        ${bodyContent}
+    </body>
+    </html>`;
+
+  return `<!DOCTYPE html>
+    <html lang="pt-BR">
+    ${head}
+    <body>
+        ${coverHtml}
+        <div class="page-container content-page">
+            ${mainContentHtml}
+        </div>
+    </body>
+    </html>`;
+
+      .content-page p.font-merriweather { 
+        font-size: 12pt;
+        line-height: 1.5; /* Ritmo da grade = 18pt */
+        font-weight: 300;
+        text-align: justify;
+        hyphens: auto;
+        orphans: 2;
+        widows: 2;
+        text-indent: 1cm;
+        margin-top: 0;
+        margin-bottom: 18pt;
+      }
