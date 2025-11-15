@@ -408,7 +408,4 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
 /* ======================================================================= */
 /* ============================ FINAL DO ARQUIVO ========================= */
 /* ======================================================================= */
-
-}; // ← Fecha o componente ViewBookPage
-
 export default ViewBookPage;
