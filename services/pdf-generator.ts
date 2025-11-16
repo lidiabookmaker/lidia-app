@@ -65,7 +65,11 @@ export async function generateFullPdf(bookId: string): Promise<string> {
   console.log("🔵 [PDF] PDF recebido:", pdfUint8Array.length, "bytes");
 
   // 5 — Upload para o Supabase Storage
-  const filePath = `books/${bookId}.pdf`;
+  const filePath = `${bookId}.pdf`;
+
+  // Para esta:
+// const filePath = `${bookId}/${book.title.replace(/ /g, '_')}.pdf`; 
+// E garantir que o bucket seja 'books'
 
   console.log("🔵 [PDF] Salvando PDF no Supabase Storage:", filePath);
 
