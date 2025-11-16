@@ -60,9 +60,10 @@ export async function generateFullPdf(bookId: string): Promise<string> {
   }
 
 // ...
-const pdfBlob = await response.blob(); // <--- MUDANÇA 1: Usamos .blob()
+const pdfBuffer = await response.arrayBuffer(); // <--- MUDANÇA 1: Voltamos para ArrayBuffer
+const pdfUint8Array = new Uint8Array(pdfBuffer); // <--- MUDANÇA 2: Convertemos para o formato de bytes
 
-console.log("🔵 [PDF] PDF recebido:", pdfBlob.size, "bytes");
+console.log("🔵 [PDF] PDF recebido:", pdfUint8Array.length, "bytes");
 
 // 5 — Upload para o Supabase Storage
 const filePath = `${bookId}.pdf`;
@@ -71,10 +72,12 @@ console.log("🔵 [PDF] Salvando PDF no Supabase Storage:", filePath);
 
 const { error: uploadError } = await supabase.storage
     .from("books")
-    .upload(filePath, pdfBlob, { // <--- MUDANÇA 2: Enviamos o Blob
+    .upload(filePath, pdfUint8Array, { // <--- MUDANÇA 3: Enviamos os bytes
         contentType: "application/pdf",
         upsert: true,
     });
+// ...
+
 
 
   if (uploadError) {
