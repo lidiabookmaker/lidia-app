@@ -75,32 +75,7 @@ const { error: uploadError } = await supabase.storage
         contentType: "application/pdf",
         upsert: true,
     });
-// ...
 
-
-
-
-/*
-  const pdfBuffer = await response.arrayBuffer();
-  const pdfUint8Array = new Uint8Array(pdfBuffer);
-
-  console.log("🔵 [PDF] PDF recebido:", pdfUint8Array.length, "bytes");
-
-  // 5 — Upload para o Supabase Storage
-  const filePath = `${bookId}.pdf`;
-
-  // Para esta:
-// const filePath = `${bookId}/${book.title.replace(/ /g, '_')}.pdf`; 
-// E garantir que o bucket seja 'books'
-
-  console.log("🔵 [PDF] Salvando PDF no Supabase Storage:", filePath);
-
-  const { error: uploadError } = await supabase.storage
-    .from("books")
-    .upload(filePath, pdfUint8Array, {
-      contentType: "application/pdf",
-      upsert: true,
-    }); */
 
   if (uploadError) {
     console.error("❌ Erro ao fazer upload do PDF:", uploadError);
