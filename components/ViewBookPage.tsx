@@ -7,6 +7,8 @@ import { Card } from './ui/Card';
 import { LoadingSpinner } from './ui/LoadingSpinner';
 import { supabase } from '../services/supabase';
 
+import { SuccessPage } from './SuccessPage';
+
 // Funções essenciais que montam o HTML e chamam o backend de PDF
 import { assembleFullHtml } from '../services/bookFormatter';
 import { generateFullPdf } from '../services/pdf-generator'; 
@@ -52,6 +54,25 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingDocx, setIsGeneratingDocx] = useState(false);
   const [isTestingBackend, setIsTestingBackend] = useState(false);
+
+  // ... após os useStates
+
+// Se a geração foi bem-sucedida, renderiza a página de sucesso e para por aqui.
+if (successData) {
+  return (
+    <SuccessPage 
+      publicUrl={successData.url} 
+      bookTitle={successData.title} 
+    />
+  );
+}
+
+// ... continua com a lógica normal do componente
+
+  // src/components/ViewBookPage.tsx
+
+// ... logo após as outras linhas de useState
+const [successData, setSuccessData] = useState<{ url: string; title: string } | null>(null);
 
   // Referências para o DOM
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -123,12 +144,20 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
         throw new Error("O backend não retornou uma URL para o PDF.");
       }
       
+    // ...
+      updateLog("✅ PDF gerado com sucesso! Preparando a tela de download...");
+      setSuccessData({ url: url, title: book.title });
+    // ...
+/*
       updateLog("✅ PDF gerado com sucesso! Abrindo em nova aba...");
       const win = window.open(url, "_blank");
       if (!win) {
         alert("Seu navegador bloqueou o pop-up. Por favor, libere para visualizar o PDF.");
         updateLog("⚠️ O navegador bloqueou a abertura da nova aba.");
       }
+*/
+
+
     } catch (err) {
       console.error(err);
       const errorMessage = `Erro ao gerar PDF final: ${(err as Error).message}`;
