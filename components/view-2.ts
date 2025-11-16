@@ -547,3 +547,45 @@ async function handleGeneratePdf() {
     </div>
   );
 };
+
+
+
+
+
+------------------
+
+------------------             
+              <div className="mt-6 flex flex-col sm:flex-row justify-center items-center gap-4">
+                <Button
+                  onClick={handleGeneratePdf}
+                  className="text-lg w-full sm:w-auto"
+                  isLoading={isGenerating}
+                  loadingText="Gerando PDF..."
+                  disabled={isLoadingParts || !!error || isGenerating || isGeneratingDocx || isTestingBackend}
+                >
+                  <GenerateIcon />
+                  Gerar PDF Final
+                </Button>
+                <Button
+                  onClick={handleGenerateDocx}
+                  className="text-lg w-full sm:w-auto"
+                  variant="secondary"
+                  isLoading={isGeneratingDocx}
+                  loadingText="Gerando DOCX..."
+                  disabled={isLoadingParts || !!error || isGenerating || isGeneratingDocx || isTestingBackend}
+                >
+                  <DocxIcon />
+                  Baixar .DOCX
+                </Button>
+                <Button
+                  onClick={handleTestBackendPdf}
+                  className="text-lg w-full sm:w-auto"
+                  variant="secondary"
+                  isLoading={isTestingBackend}
+                  loadingText="Testando..."
+                  disabled={isLoadingParts || !!error || isGenerating || isGeneratingDocx || isTestingBackend}
+                >
+                  Testar PDF Backend
+                </Button>
+              </div>
+-------------------------- */
