@@ -58,6 +58,7 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
   // ... após os useStates
 
 // Se a geração foi bem-sucedida, renderiza a página de sucesso e para por aqui.
+/*
 if (successData) {
   return (
     <SuccessPage 
@@ -66,7 +67,7 @@ if (successData) {
     />
   );
 }
-
+*/
 // ... continua com a lógica normal do componente
 
   // src/components/ViewBookPage.tsx
@@ -290,6 +291,117 @@ const [successData, setSuccessData] = useState<{ url: string; title: string } | 
 
   // --- Renderização do Componente (JSX) ---
 
+// SUBSTITUA SEU RETURN ATUAL POR ESTE BLOCO COMPLETO
+
+  return (
+    successData ? (
+      <SuccessPage publicUrl={successData.url} bookTitle={successData.title} />
+    ) : (
+      <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto">
+          <header className="mb-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+            <Button onClick={() => onNavigate('dashboard')} variant="secondary" className="inline-flex items-center w-full sm:w-auto">
+              <ArrowLeftIcon />
+              Voltar
+            </Button>
+            <div className="text-sm text-gray-600">
+              A edição de conteúdo foi desativada para garantir a estabilidade da geração de PDF.
+            </div>
+          </header>
+
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+              <strong className="font-bold">Erro!</strong>
+              <span className="block sm:inline ml-2">{error}</span>
+            </div>
+          )}
+
+          <main className="grid grid-cols-1 gap-8">
+            <div className="text-center">
+              <h1 className="text-3xl font-bold text-gray-800 mb-1">{book.title}</h1>
+              <h2 className="text-xl text-gray-600">{book.subtitle}</h2>
+              <p className="text-sm text-gray-500 mt-1">por {book.author}</p>
+            </div>
+
+            <Card className="text-center">
+              <h3 className="text-xl font-bold text-gray-800">Gerar Arquivos Finais</h3>
+              <p className="text-gray-600 mt-2">Clique nos botões abaixo para gerar os arquivos do seu livro.</p>
+              <div className="mt-6 flex flex-col sm:flex-row justify-center items-center gap-4">
+                <Button
+                  onClick={handleGeneratePdf}
+                  className="text-lg w-full sm:w-auto"
+                  isLoading={isGenerating}
+                  loadingText="Gerando PDF..."
+                  disabled={isLoadingParts || !!error || isGenerating || isGeneratingDocx || isTestingBackend}
+                >
+                  <GenerateIcon />
+                  Gerar PDF Final
+                </Button>
+                <Button
+                  onClick={handleGenerateDocx}
+                  className="text-lg w-full sm:w-auto"
+                  variant="secondary"
+                  isLoading={isGeneratingDocx}
+                  loadingText="Gerando DOCX..."
+                  disabled={isLoadingParts || !!error || isGenerating || isGeneratingDocx || isTestingBackend}
+                >
+                  <DocxIcon />
+                  Baixar .DOCX
+                </Button>
+                <Button
+                  onClick={handleTestBackendPdf}
+                  className="text-lg w-full sm:w-auto"
+                  variant="secondary"
+                  isLoading={isTestingBackend}
+                  loadingText="Testando..."
+                  disabled={isLoadingParts || !!error || isGenerating || isGeneratingDocx || isTestingBackend}
+                >
+                  Testar PDF Backend
+                </Button>
+              </div>
+            </Card>
+
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">Log de Geração</h2>
+              <div ref={logContainerRef} className="bg-gray-900 text-white font-mono text-sm p-4 rounded-lg h-64 overflow-y-auto mb-4 flex-grow">
+                {log.length === 0 ? (
+                  <p className="text-gray-400">Aguardando início da geração...</p>
+                ) : (
+                  log.map((line, index) => <p key={index} className="whitespace-pre-wrap">{line}</p>)
+                )}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">Pré-visualização do Conteúdo</h2>
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                {isLoadingParts ? (
+                  <div className="h-[80vh] flex justify-center items-center"><LoadingSpinner/></div>
+                ) : error ? (
+                  <div className="h-[80vh] flex justify-center items-center text-red-600 p-4">{error}</div>
+                ) : (
+                  <iframe
+                    ref={iframeRef}
+                    srcDoc={fullHtml || ''}
+                    title={book.title}
+                    className="w-full border-0 h-[80vh]"
+                    sandbox="allow-scripts allow-same-origin"
+                  />
+                )}
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    )
+  );
+};
+
+// Faça essas correções com calma quando voltar, salve e faça o deploy. Com esta mudança, o erro da tela branca será resolvido e o fluxo funcionará como planejado. Boa viagem
+
+
+  /*
+
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
@@ -389,3 +501,4 @@ const [successData, setSuccessData] = useState<{ url: string; title: string } | 
     </div>
   );
 };
+*/
