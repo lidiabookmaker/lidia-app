@@ -59,6 +59,28 @@ export async function generateFullPdf(bookId: string): Promise<string> {
     throw new Error("Falha ao gerar PDF no servidor WeasyPrint.");
   }
 
+// ...
+const pdfBlob = await response.blob(); // <--- MUDANÇA 1: Usamos .blob()
+
+console.log("🔵 [PDF] PDF recebido:", pdfBlob.size, "bytes");
+
+// 5 — Upload para o Supabase Storage
+const filePath = `${bookId}.pdf`;
+
+console.log("🔵 [PDF] Salvando PDF no Supabase Storage:", filePath);
+
+const { error: uploadError } = await supabase.storage
+    .from("books")
+    .upload(filePath, pdfBlob, { // <--- MUDANÇA 2: Enviamos o Blob
+        contentType: "application/pdf",
+        upsert: true,
+    });
+// ...
+
+
+
+
+/*
   const pdfBuffer = await response.arrayBuffer();
   const pdfUint8Array = new Uint8Array(pdfBuffer);
 
@@ -78,7 +100,7 @@ export async function generateFullPdf(bookId: string): Promise<string> {
     .upload(filePath, pdfUint8Array, {
       contentType: "application/pdf",
       upsert: true,
-    });
+    }); */
 
   if (uploadError) {
     console.error("❌ Erro ao fazer upload do PDF:", uploadError);
