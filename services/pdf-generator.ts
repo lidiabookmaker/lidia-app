@@ -3,7 +3,7 @@
 import { supabase } from "./supabase";
 import { assembleFullHtml } from "./bookFormatter";
 
-const WEASYPRINT_URL = "http://print.agenciabrasix.com/pdf";
+const WEASYPRINT_URL = "https://print.agenciabrasix.com/pdf";
 
 /**
  * Gera o PDF completo de um livro e salva no Supabase Storage.
