@@ -193,8 +193,8 @@ const getHeadContent = (book: Book): string => {
         widows: 2;
         */
         /* NOVO: Alterado para 3, que é um valor mais seguro para evitar linhas sozinhas no início/fim de uma página. */
-        orphans: 3;
-        widows: 3;
+        orphans: 2;
+        widows: 2;
 
         /* ================================================================= */
         /*   NOVA CORREÇÃO APLICADA ABAIXO                                   */

@@ -65,7 +65,13 @@ const buildPrompt = (formData: BookGenerationFormData): string => {
       NÃO inclua markdown (como \`\`\`json) na sua resposta. A resposta deve ser APENAS o JSON.
 
       **Instruções Gerais de Conteúdo:**
-      - Para todos os campos de texto como 'content' e 'introduction', o texto DEVE ser dividido em múltiplos parágrafos para boa legibilidade. Use o caractere de nova linha (\\n) para separar os parágrafos dentro da string do JSON. Cada parágrafo deve ter um tamanho razoável, evitando "paredes de texto".
+      /* - Para todos os campos de texto como 'content' e 'introduction', o texto DEVE ser dividido em múltiplos parágrafos para boa legibilidade. Use o caractere de nova linha (\\n) para separar os parágrafos dentro da string do JSON. Cada parágrafo deve ter um tamanho razoável, evitando "paredes de texto". */
+      - Para todos os campos de texto como 'content' e 'introduction', siga estas regras de formatação de parágrafos:
+        - O texto DEVE ser dividido em múltiplos parágrafos curtos e dinâmicos para garantir excelente legibilidade em um formato de livro A5.
+        - Use o caractere de nova linha (\\n) para separar cada parágrafo.
+        - **REGRA OBRIGATÓRIA:** A grande maioria dos parágrafos deve ter um comprimento entre 30 e 80 palavras. Evite parágrafos com mais de 100 palavras a todo custo.
+        - Varie o tamanho dos parágrafos para criar um ritmo de leitura agradável. É permitido ter parágrafos de uma única frase, se isso criar um efeito dramático ou de ênfase.
+        - Não crie "paredes de texto". Pense visualmente.
 
       **Instruções para Título e Subtítulo:**
       - **Sugestão de Título (do usuário):** "${formData.title}"
