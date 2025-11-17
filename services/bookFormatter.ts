@@ -102,7 +102,7 @@ const getHeadContent = (book: Book): string => {
         box-sizing: border-box;
       }
       .cover-title {
-        top: 10mm;
+        top: 6mm;
         font-family: 'League Gothic', sans-serif;
         font-size: 60pt;
         line-height: 1.1;
@@ -243,9 +243,19 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
                   <img class="cover-element cover-logo" src="${logoUrl}" alt="Logo Lidia">
               </div>`;
 
+              /* --- AJUSTANDO A POSIÇÃO DO COPYRIGHT ---
+
         case 'copyright':
             const copyrightText = content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
             return `<div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 180mm; text-align: center; font-size: 10pt;"><p>${copyrightText}</p><p>Todos os direitos reservados.</p></div>`;
+
+            */
+
+        case 'copyright':
+            const copyrightText = content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
+            return `<div style="display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; text-align: center; font-size: 10pt; padding-bottom: 30mm;"><p>${copyrightText}</p><p>Todos os direitos reservados.</p></div>`;
+
+
 
         case 'toc':
             const tocTitle = content.title || 'Sumário';
