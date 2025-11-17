@@ -288,6 +288,24 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
 
         case 'copyright':
             const copyrightText = content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
+            
+            // Usamos position: absolute para "flutuar" o bloco de copyright sobre a página.
+            return `<div class="page-container content-page front-matter-page">
+            <div style="position: absolute; bottom: 30mm; left: 0; right: 0; text-align: center;">
+              <div class="copyright-content">
+                <p>${copyrightText}</p>
+                <p>Todos os direitos reservados.</p>
+                <p style="margin-top: 10px;">É proibida a reprodução total ou parcial desta obra, de qualquer forma ou meio, sem a autorização prévia e por escrito do autor.</p>
+                <p style="margin-top: 20px; font-size: 8pt; color: #555;">Este produto digital foi criado pelo autor com o uso da exclusiva tecnologia SNT® Core Inside licenciada na plataforma Lidia WACE.</p>
+              </div>
+            </div>
+          </div>`;
+            
+            
+            
+            
+            
+            /*
             // Note que o estilo principal foi movido para uma classe CSS para maior clareza.
             return `<div class="page-container copyright-page">
               <div class="copyright-content">
@@ -297,6 +315,7 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
                 <p style="margin-top: 20px; font-size: 8pt; color: #555;">Este produto digital foi criado pelo autor com o uso da exclusiva tecnologia SNT® Core Inside licenciada na plataforma Lidia WACE.</p>
               </div>
             </div>`;
+            */
 
 
 
