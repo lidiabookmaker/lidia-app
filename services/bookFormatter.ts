@@ -60,6 +60,9 @@ const getHeadContent = (book: Book): string => {
       /* --- Página mestre para PÁGINAS INICIAIS (copyright, sumário, etc.) --- */
 
       @page front_matter {
+        size: A5;
+        margin: 25mm 20mm 17mm 20mm;
+        
         @top-center {
           content: ""; /* Define o conteúdo do cabeçalho como VAZIO */
         }
