@@ -104,7 +104,7 @@ const getHeadContent = (book: Book): string => {
       .cover-title {
         top: 40mm;
         font-family: 'League Gothic', sans-serif;
-        font-size: 2.8rem;
+        font-size: 60pt;
         line-height: 1.1;
         text-transform: uppercase;
         color: #001f5c;
@@ -121,15 +121,15 @@ const getHeadContent = (book: Book): string => {
         bottom: 45mm; 
         font-family: 'Merriweather Sans', sans-serif;
         font-weight: 400;
-        font-size: 12pt;
+        font-size: 10pt;
         letter-spacing: 1px;
         text-transform: uppercase;
         color: #4a68a5;
       }
       .cover-logo {
-        bottom: 20mm;
+        bottom: 10mm;
         width: auto;
-        height: 25px;
+        height: 50px;
       }
 
       /* --- HIERARQUIA TIPOGRÁFICA (ALINHADA À GRADE DE 18pt) --- */
