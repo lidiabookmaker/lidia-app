@@ -275,6 +275,12 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
 
         case 'chapter_content':
             let chapterHtml = '';
+
+            // ADICIONA O TÍTULO DO CAPÍTULO NO TOPO DA PÁGINA DE TEXTO
+            if (content.title) {
+              chapterHtml += `<h2 class="font-merriweather">${content.title}</h2>`;
+            }
+
             if (content.introduction) {
               chapterHtml += formatParagraphs(content.introduction);
             }
