@@ -253,7 +253,12 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
 
         case 'copyright':
             const copyrightText = content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
-            return `<div style="position: absolute; bottom: 30mm; width: 100%; text-align: center; font-size: 10pt;"><p>${copyrightText}</p><p>Todos os direitos reservados.</p></div>`;
+            return `<div style="position: absolute; bottom: 30mm; width: 100%; text-align: center; font-size: 8pt; padding: 0 20mm; box-sizing: border-box; font-family: 'Merriweather Sans', sans-serif;">
+            <p>${copyrightText}</p>
+            <p>Todos os direitos reservados.</p>
+            <p style="margin-top: 10px;">É proibida a reprodução total ou parcial desta obra, de qualquer forma ou meio, sem a autorização prévia e por escrito do autor.</p>
+            <p style="margin-top: 20px; font-size: 8pt; color: #555;">Este produto digital foi criado pelo autor com o uso da exclusiva tecnologia SNT® Core Inside licenciada na plataforma Lidia WACE.</p>
+        </div>`;
 
 
         case 'toc':
