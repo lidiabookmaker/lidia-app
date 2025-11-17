@@ -27,7 +27,9 @@ const getHeadContent = (book: Book): string => {
     <title>${book.title}</title>
     <style>
       /* --- FONTES --- */
-      @import url('https://fonts.googleapis.com/css2?family=Anton&family=Montserrat:wght@400;700&family=Merriweather:wght@200;300;400;700;800&family=Merriweather+Sans:wght@300;400;600;700;800&display=swap');
+      /* @import url('https://fonts.googleapis.com/css2?family=Anton&family=Montserrat:wght@400;700&family=Merriweather:wght@200;300;400;700;800&family=Merriweather+Sans:wght@300;400;600;700;800&display=swap'); */
+
+      @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@200;300;400;700;800&family=Merriweather+Sans:wght@300;400;700;800&display=swap');
 
       /* ======================================= */
       /*   SISTEMA DE PÁGINAS MESTRAS            */
@@ -101,7 +103,7 @@ const getHeadContent = (book: Book): string => {
       }
       .cover-title {
         top: 40mm;
-        font-family: 'Anton', sans-serif;
+        font-family: 'League Gothic', sans-serif;
         font-size: 2.8rem;
         line-height: 1.1;
         text-transform: uppercase;
@@ -109,17 +111,18 @@ const getHeadContent = (book: Book): string => {
       }
       .cover-subtitle {
         top: 90mm;
-        font-family: 'Montserrat', sans-serif;
-        font-size: 1.1rem;
-        line-height: 1.6;
+        font-family: 'Merriweather Sans', sans-serif;
+        font-weight: 300;
+        font-size: 14.4pt;
+        line-height: 1.25;
         color: #2b4b8a;
       }
       .cover-author {
         bottom: 45mm; 
-        font-family: 'Montserrat', sans-serif;
-        font-weight: 700;
-        font-size: 0.8rem;
-        letter-spacing: 2px;
+        font-family: 'Merriweather Sans', sans-serif;
+        font-weight: 400;
+        font-size: 12pt;
+        letter-spacing: 1px;
         text-transform: uppercase;
         color: #4a68a5;
       }
