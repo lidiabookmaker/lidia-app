@@ -140,6 +140,30 @@ const getHeadContent = (book: Book): string => {
         height: 50px;
       }
 
+      /* --- ESTILOS DA PÁGINA DE COPYRIGHT --- */
+      .copyright-page {
+        page: front_matter; /* Aplica a página mestre sem cabeçalho */
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end; /* Empurra o conteúdo para baixo */
+        align-items: center;
+        height: 100%;
+      }
+
+      .copyright-content {
+        width: 100%;
+        text-align: center;
+        font-family: 'Merriweather Sans', sans-serif;
+        font-size: 10pt;
+        padding: 0 20mm 30mm 20mm; /* Adiciona respiro inferior e laterais */
+        box-sizing: border-box;
+      }
+
+      /* --- REGRA PARA APLICAR PÁGINAS MESTRAS --- */
+      .front-matter-page {
+        page: front_matter;
+      }
+
       /* --- HIERARQUIA TIPOGRÁFICA (ALINHADA À GRADE DE 18pt) --- */
       .chapter-title-page { 
         display: flex;
