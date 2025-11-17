@@ -102,7 +102,7 @@ const getHeadContent = (book: Book): string => {
         box-sizing: border-box;
       }
       .cover-title {
-        top: 40mm;
+        top: 10mm;
         font-family: 'League Gothic', sans-serif;
         font-size: 60pt;
         line-height: 1.1;
@@ -118,7 +118,7 @@ const getHeadContent = (book: Book): string => {
         color: #2b4b8a;
       }
       .cover-author {
-        bottom: 45mm; 
+        bottom: 35mm; 
         font-family: 'Merriweather Sans', sans-serif;
         font-weight: 400;
         font-size: 10pt;
