@@ -62,7 +62,7 @@ const getHeadContent = (book: Book): string => {
       @page front_matter {
         size: A5;
         margin: 25mm 20mm 17mm 20mm;
-        
+
         @top-center {
           content: ""; /* Define o conteúdo do cabeçalho como VAZIO */
         }
@@ -289,7 +289,7 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
         case 'copyright':
             const copyrightText = content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
             // Note que o estilo principal foi movido para uma classe CSS para maior clareza.
-            return `<div class="page-container content-page copyright-page">
+            return `<div class="page-container copyright-page">
               <div class="copyright-content">
                 <p>${copyrightText}</p>
                 <p>Todos os direitos reservados.</p>
