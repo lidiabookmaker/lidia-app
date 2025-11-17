@@ -253,8 +253,7 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
 
         case 'copyright':
             const copyrightText = content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
-            return `<div style="display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; text-align: center; font-size: 10pt; padding-bottom: 30mm;"><p>${copyrightText}</p><p>Todos os direitos reservados.</p></div>`;
-
+            return `<div style="position: absolute; bottom: 30mm; width: 100%; text-align: center; font-size: 10pt;"><p>${copyrightText}</p><p>Todos os direitos reservados.</p></div>`;
 
 
         case 'toc':
