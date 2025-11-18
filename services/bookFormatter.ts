@@ -170,6 +170,32 @@ const getHeadContent = (book: Book): string => {
         page: front_matter;
       }
 
+
+      /* --- ESTILOS DO SUMÁRIO --- */
+      .toc-chapter {
+        font-family: 'Merriweather', serif;
+        font-weight: 700; /* Negrito para destacar o capítulo */
+        font-size: 12pt;
+        margin-top: 12pt; /* Espaço extra antes de cada capítulo */
+        margin-bottom: 6pt;
+        text-indent: 0;
+        text-align: left;
+      }
+
+      .toc-subchapter {
+        font-family: 'Merriweather Sans', sans-serif;
+        font-size: 11pt;
+        margin-left: 1cm; /* O recuo para os subcapítulos */
+        text-indent: 0;
+        text-align: left;
+        line-height: 1.4;
+      }
+
+
+
+
+
+
       /* --- HIERARQUIA TIPOGRÁFICA (ALINHADA À GRADE DE 18pt) --- */
       .chapter-title-page { 
         display: flex;
@@ -293,7 +319,7 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
             const copyrightText = content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
             
             // Usamos position: absolute para "flutuar" o bloco de copyright sobre a página.
-            return `<div class="page-container front-matter-page">
+            return `<div class="page-container content-page front-matter-page">
             <div style="position: absolute; bottom: 30mm; left: 0; right: 0; text-align: center;">
               <div class="copyright-content">
                 <p>${copyrightText}</p>
@@ -325,8 +351,29 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
         case 'toc':
             const tocTitle = content.title || 'Sumário';
             const tocContent = content.content || '';
+            
+            // Mapeia cada linha do sumário e aplica a classe correta
+            const tocLinesHtml = tocContent.split('\n').map((line: string) => {
+            const trimmedLine = line.trim();
+              if (!trimmedLine) return ''; // Ignora linhas vazias
+
+            // Subcapítulos geralmente começam com um hífen ou marcador. Capítulos não.
+            if (trimmedLine.startsWith('-')) {
+              return `<p class="toc-subchapter">${trimmedLine.substring(1).trim()}</p>`;
+            } else {
+            return `<p class="toc-chapter">${trimmedLine}</p>`;
+            }
+            }).join('');
+
+            return `<h2 class="font-merriweather">${tocTitle}</h2>` + tocLinesHtml;
+            
+            
+            
+            /*
             return `<h2 class="font-merriweather">${tocTitle}</h2>` + tocContent.split('\n').map((line: string) => `<p class="font-merriweather" style="text-indent: 0; text-align: left;">${line}</p>`).join('');
-        
+        */
+
+
         case 'introduction':
              const introTitle = content.title || 'Introdução';
              return `<h2 class="font-merriweather">${introTitle}</h2>` + formatParagraphs(content.content);
