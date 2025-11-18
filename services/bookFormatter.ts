@@ -150,7 +150,7 @@ const getHeadContent = (book: Book): string => {
         flex-direction: column;
         justify-content: flex-end; /* Empurra o conteúdo para baixo */
         align-items: center;
-        height: 100%;
+        height: 100vh;
       }
 
       .copyright-content {
