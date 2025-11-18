@@ -293,7 +293,7 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
             const copyrightText = content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
             
             // Usamos position: absolute para "flutuar" o bloco de copyright sobre a página.
-            return `<div class="page-container content-page front-matter-page">
+            return `<div class="page-container front-matter-page">
             <div style="position: absolute; bottom: 30mm; left: 0; right: 0; text-align: center;">
               <div class="copyright-content">
                 <p>${copyrightText}</p>
