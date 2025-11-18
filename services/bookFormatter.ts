@@ -67,12 +67,49 @@ const getHeadContent = (book: Book): string => {
           content: ""; /* Define o conteúdo do cabeçalho como VAZIO */
         }
       }
+
+      /* --- Página mestre TOTALMENTE LIMPA (para Copyright, Sumário, etc.) --- */
+      @page blank_page {
+        size: A5;
+        margin: 0; /* Geralmente páginas limpas não têm margens principais */
+
+        @top-center {
+          content: ""; /* Cabeçalho vazio */
+      }
+
+        @bottom-center {
+          content: ""; /* Rodapé (numeração) vazio */
+        }
+      }
+
+
+
       
       @page :first {
          size: A5;
          margin: 0;
          @top-center { content: ""; }
          @bottom-center { content: ""; }
+      }
+
+      /* --- Página mestre TOTALMENTE LIMPA (para Copyright, Sumário, Folhas de Rosto) --- */
+      @page blank_page {
+        size: A5;
+        margin: 0; /* Removemos as margens da página mestre */
+
+        @top-center {
+          content: ""; /* Cabeçalho vazio */
+      }
+
+        @bottom-center {
+          content: ""; /* Rodapé (numeração) vazio */
+        }
+      }
+
+      .blank-page {
+      page: blank-page; /* Conecta o elemento a esta página mestre */
+      padding: 25mm 20mm 17mm 20mm; /* Adicionamos margens internas (padding) */
+      box-sizing: border-box; /* Garante que o padding não aumente o tamanho total */
       }
 
       /* --- ESTILOS GERAIS E CONTAINERS --- */
@@ -319,7 +356,8 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
             const copyrightText = content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
             
             // Usamos position: absolute para "flutuar" o bloco de copyright sobre a página.
-            return `<div class="page-container content-page front-matter-page">
+            // return `<div class="page-container content-page front-matter-page">
+            return \<div class="page-container blank-page">``
             <div style="position: absolute; bottom: 30mm; left: 0; right: 0; text-align: center;">
               <div class="copyright-content">
                 <p>${copyrightText}</p>
@@ -365,8 +403,11 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
             }
             }).join('');
 
-            return `<h2 class="font-merriweather">${tocTitle}</h2>` + tocLinesHtml;
-            
+            // return `<h2 class="font-merriweather">${tocTitle}</h2>` + tocLinesHtml;
+            return `<div class="page-container blank-page">
+                <h2 class="font-merriweather">${tocTitle}</h2>
+                ${tocLinesHtml}
+              </div>`;
             
             
             /*
@@ -379,8 +420,9 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
              return `<h2 class="font-merriweather">${introTitle}</h2>` + formatParagraphs(content.content);
         
         case 'chapter_title':
-            return `<div class="page-container chapter-title-page content-page"><h1 class="chapter-title-standalone">${content.title}</h1></div>`;
-
+          //  return `<div class="page-container chapter-title-page content-page"><h1 class="chapter-title-standalone">${content.title}</h1></div>`;
+              return `<div class="page-container chapter-title-page blank-page"><h1 class="chapter-title-standalone">${content.title}</h1></div>`;
+        
         case 'chapter_content':
             let chapterHtml = '';
 
