@@ -357,7 +357,7 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
             
             // Usamos position: absolute para "flutuar" o bloco de copyright sobre a página.
             // return `<div class="page-container content-page front-matter-page">
-            return \<div class="page-container blank-page">``
+            return '<div class="page-container blank-page">'
             <div style="position: absolute; bottom: 30mm; left: 0; right: 0; text-align: center;">
               <div class="copyright-content">
                 <p>${copyrightText}</p>
