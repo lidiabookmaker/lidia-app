@@ -115,8 +115,8 @@ const getHeadContent = (book: Book): string => {
       .cover-title {
         top: 6mm;
         font-family: 'League Gothic', sans-serif;
-        font-size: 60pt;
-        line-height: 1.1;
+        font-size: 48pt;
+        line-height: 1;
         text-transform: uppercase;
         color: #001f5c;
       }
