@@ -151,6 +151,9 @@ const getHeadContent = (book: Book): string => {
         justify-content: flex-end; /* Empurra o conteúdo para baixo */
         align-items: center;
         height: 100vh;
+        margin: 0;                  /* garantir que não haja margens influenciando */
+        padding: 0;                 /* garantir que não haja padding */
+        box-sizing: border-box;     /* para incluir bordas e padding na altura */
       }
 
       .copyright-content {
