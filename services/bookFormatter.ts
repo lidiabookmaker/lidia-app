@@ -161,15 +161,21 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
 
   switch (part.part_type) {
     case 'cover': {
-      const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp';
-      const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';
-      return `<div class="page-container cover-page" style="background-image: url('${coverBgUrl}');">
-                <h1 class="cover-element cover-title">${content.title || book.title}</h1>
-                <p class="cover-element cover-subtitle">${content.subtitle || ''}</p>
-                <p class="cover-element cover-author">${book.author}</p>
-                <img class="cover-element cover-logo" src="${logoUrl}" alt="Logo Lidia">
-              </div>`;
-    }
+  const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp';
+  const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';
+  
+  // Criamos o HTML em uma variável para clareza
+  const coverHtml = `
+    <div class="page-container cover-page" style="background-image: url('${coverBgUrl}');">
+      <h1 class="cover-element cover-title">${content.title || book.title}</h1>
+      <p class="cover-element cover-subtitle">${content.subtitle || ''}</p>
+      <p class="cover-element cover-author">${book.author}</p>
+      <img class="cover-element cover-logo" src="${logoUrl}" alt="Logo Lidia">
+    </div>
+  `;
+  
+  return coverHtml;
+}
             
     case 'copyright': {
       const copyrightText = content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
