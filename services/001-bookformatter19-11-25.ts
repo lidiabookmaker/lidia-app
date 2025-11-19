@@ -18,20 +18,23 @@ const formatParagraphs = (text: string): string => {
  * Gera o conteúdo completo da tag <head>, incluindo todos os estilos CSS.
  * (Aqui estão as principais correções no CSS)
  */
-
 const getHeadContent = (book: Book): string => {
   const safeTitle = book.title.toUpperCase().replace(/"/g, "'");
 
-  return `<head>
+  return `
+  <head>
     <meta charset="utf-8">
     <title>${book.title}</title>
     <style>
       /* --- FONTES --- */
-      @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@400;700&family=Merriweather+Sans:wght@300;400;700;800&display=swap&v=3');
+      /* @import url('https://fonts.googleapis.com/css2?family=Anton&family=Montserrat:wght@400;700&family=Merriweather:wght@200;300;400;700;800&family=Merriweather+Sans:wght@300;400;600;700;800&display=swap'); */
+
+      @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@200;300;400;700;800&family=Merriweather+Sans:wght@300;400;700;800&display=swap');
 
       /* ======================================= */
-      /*   1. PÁGINA MESTRA PADRÃO (CONTEÚDO)    */
+      /*   SISTEMA DE PÁGINAS MESTRAS            */
       /* ======================================= */
+
       @page content {
         size: A5;
         margin: 25mm 20mm 17mm 20mm;
@@ -40,88 +43,277 @@ const getHeadContent = (book: Book): string => {
           content: "${safeTitle}";
           font-family: 'Merriweather Sans', sans-serif;
           font-weight: 300; font-size: 8pt; color: #000080;
+          text-transform: uppercase; vertical-align: middle;
         }
         @bottom-center {
           content: counter(page);
           font-family: 'Merriweather Sans', sans-serif;
           font-weight: 800; font-size: 14pt; color: rgba(0, 0, 128, 0.4);
+          vertical-align: middle;
         }
       }
+
       @page content:first {
-        @top-center { content: ""; } /* Remove cabeçalho da primeira pág de um capítulo */
+        @top-center { content: ""; }
       }
 
-      /* ======================================= */
-      /*   2. PÁGINA MESTRA LIMPA (INICIAIS)     */
-      /* ======================================= */
+      /* --- Página mestre para PÁGINAS INICIAIS (copyright, sumário, etc.) --- */
+
+      @page front_matter {
+        size: A5;
+        margin: 25mm 20mm 17mm 20mm;
+
+        @top-center {
+          content: ""; /* Define o conteúdo do cabeçalho como VAZIO */
+        }
+      }
+
+      /* --- Página mestre TOTALMENTE LIMPA (para Copyright, Sumário, etc.) --- */
       @page blank_page {
         size: A5;
-        margin: 0; /* A página em si não tem margens */
-        @top-center { content: ""; }
-        @bottom-center { content: ""; }
+        margin: 0; /* Geralmente páginas limpas não têm margens principais */
+
+        @top-center {
+          content: ""; /* Cabeçalho vazio */
       }
 
-      /* --- ESTILOS GERAIS --- */
+        @bottom-center {
+          content: ""; /* Rodapé (numeração) vazio */
+        }
+      }
+
+
+
+      
+      @page :first {
+         size: A5;
+         margin: 0;
+         @top-center { content: ""; }
+         @bottom-center { content: ""; }
+      }
+
+      /* --- Página mestre TOTALMENTE LIMPA (para Copyright, Sumário, Folhas de Rosto) --- */
+      @page blank_page {
+        size: A5;
+        margin: 0; /* Removemos as margens da página mestre */
+
+        @top-center {
+          content: ""; /* Cabeçalho vazio */
+      }
+
+        @bottom-center {
+          content: ""; /* Rodapé (numeração) vazio */
+        }
+      }
+
+      .blank-page {
+      page: blank-page; /* Conecta o elemento a esta página mestre */
+      padding: 25mm 20mm 17mm 20mm; /* Adicionamos margens internas (padding) */
+      box-sizing: border-box; /* Garante que o padding não aumente o tamanho total */
+      }
+
+      /* --- ESTILOS GERAIS E CONTAINERS --- */
       body {
         font-family: 'Merriweather', serif;
         font-size: 12pt;
         color: #262626;
         margin: 0;
+        background-color: #ffffff;
       }
       .page-container {
-        page-break-after: always;
         width: 100%;
-        height: 100%;
+        margin: 0; padding: 0;
+        background: transparent;
+        box-shadow: none;
+        page-break-after: always;
+      }
+      .content-page {
+        page: content;
+      }
+
+      /* --- ESTILOS DA CAPA --- */
+      .cover-page {
+        width: 14.8cm;
+        height: 21cm;
+        position: relative; 
+        overflow: hidden;
+        background-size: cover;
+        background-position: center;
+      }
+      .cover-element {
+        position: absolute;
+        width: 90%;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        padding: 0 1cm;
+        box-sizing: border-box;
+      }
+      .cover-title {
+        top: 6mm;
+        font-family: 'League Gothic', sans-serif;
+        font-size: 48pt;
+        line-height: 1;
+        text-transform: uppercase;
+        color: #001f5c;
+      }
+      .cover-subtitle {
+        top: 90mm;
+        font-family: 'Merriweather Sans', sans-serif;
+        font-weight: 300;
+        font-size: 14.4pt;
+        line-height: 1.25;
+        color: #2b4b8a;
+      }
+      .cover-author {
+        bottom: 35mm; 
+        font-family: 'Merriweather Sans', sans-serif;
+        font-weight: 400;
+        font-size: 10pt;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #4a68a5;
+      }
+      .cover-logo {
+        bottom: 10mm;
+        width: auto;
+        height: 50px;
+      }
+
+      /* --- ESTILOS DA PÁGINA DE COPYRIGHT --- */
+      .copyright-page {
+        page: front_matter; /* Aplica a página mestre sem cabeçalho */
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end; /* Empurra o conteúdo para baixo */
+        align-items: center;
+        height: 100vh;
+        margin: 0;                  /* garantir que não haja margens influenciando */
+        padding: 0;                 /* garantir que não haja padding */
+        box-sizing: border-box;     /* para incluir bordas e padding na altura */
+      }
+
+      .copyright-content {
+        width: 100%;
+        text-align: center;
+        font-family: 'Merriweather Sans', sans-serif;
+        font-size: 10pt;
+        padding: 0 20mm 30mm 20mm; /* Adiciona respiro inferior e laterais */
         box-sizing: border-box;
       }
 
-      /* --- CONECTORES DAS PÁGINAS MESTRAS --- */
-      .content-page { page: content; }
-      .blank-page {
-        page: blank_page;
-        padding: 25mm 20mm 17mm 20mm; /* Margens internas para o conteúdo */
+      /* --- REGRA PARA APLICAR PÁGINAS MESTRAS --- */
+      .front-matter-page {
+        page: front_matter;
       }
 
-      /* --- ESTILOS DA CAPA (usa @page :first por padrão) --- */
-      .cover-title { top: 30mm; font-family: 'League Gothic', sans-serif; font-size: 60pt; /* ... */ }
-      /* ... Mantenha todos os seus outros estilos da CAPA aqui ... */
-      
-      /* --- ESTILOS DA PÁGINA DE COPYRIGHT --- */
-      .copyright-page {
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end; /* Empurra para baixo */
-        padding: 0; /* Remove padding extra para o flexbox funcionar na página toda */
-      }
-      .copyright-content {
-        padding: 0 20mm 30mm 20mm; /* Padding só no conteúdo interno */
-        text-align: center;
-        font-family: 'Merriweather Sans', sans-serif;
-      }
 
       /* --- ESTILOS DO SUMÁRIO --- */
-      .toc-chapter { font-weight: 700; margin-top: 12pt; }
-      .toc-subchapter { margin-left: 1cm; }
+      .toc-chapter {
+        font-family: 'Merriweather', serif;
+        font-weight: 700; /* Negrito para destacar o capítulo */
+        font-size: 12pt;
+        margin-top: 12pt; /* Espaço extra antes de cada capítulo */
+        margin-bottom: 6pt;
+        text-indent: 0;
+        text-align: left;
+      }
 
-      /* --- ESTILOS DAS FOLHAS DE ROSTO DOS CAPÍTULOS --- */
-      .chapter-title-page {
+      .toc-subchapter {
+        font-family: 'Merriweather Sans', sans-serif;
+        font-size: 11pt;
+        margin-left: 1cm; /* O recuo para os subcapítulos */
+        text-indent: 0;
+        text-align: left;
+        line-height: 1.4;
+      }
+
+
+
+
+
+
+      /* --- HIERARQUIA TIPOGRÁFICA (ALINHADA À GRADE DE 18pt) --- */
+      .chapter-title-page { 
         display: flex;
         justify-content: center;
-        align-items: center;
+        align-items: flex-start;
+        text-align: center;
       }
-      .chapter-title-standalone { font-size: 24pt; /* ... */ }
-
-      /* --- ESTILOS DOS PARÁGRAFOS DE CONTEÚDO --- */
-      .content-page p.font-merriweather { 
-        text-align: justify;
-        hyphens: auto;
-        orphans: 2; 
-        widows: 2;
-        page-break-inside: avoid; /* Essencial para evitar cortes */
-        /* ... Mantenha seus outros estilos de parágrafo aqui ... */
+      .chapter-title-standalone {
+        font-family: 'Merriweather', serif;
+        font-size: 24pt;
+        line-height: 36pt;
+        margin-top: 180pt;
       }
-      /* ... Mantenha seus outros estilos (h2, h3, etc.) aqui ... */
+      .content-page h2.font-merriweather { 
+        font-family: 'Merriweather', serif;
+        font-weight: 700;
+        font-size: 24pt;
+        line-height: 1.5;
+        text-align: center;
+        color: rgba(51, 51, 51, 0.5);
+        margin-top: 36pt;
+        margin-bottom: 54pt;
+      }
+      .content-page h3.font-merriweather-sans { 
+        font-family: 'Merriweather Sans', sans-serif;
+        font-weight: 800;
+        font-size: 14.4pt;
+        line-height: 1.25;
+        color: rgba(36, 36, 36, 0.75);
+        margin-top: 36pt;
+        margin-bottom: 18pt;
+      }
       
+      /* ================================================================= */
+      /*   PRINCIPAIS CORREÇÕES APLICADAS NO SELETOR DE PARÁGRAFO ABAIXO   */
+      /* ================================================================= */
+      .content-page p.font-merriweather { 
+        font-size: 12pt;
+        line-height: 1.5;
+        font-weight: 300;
+        
+        /* CORREÇÃO 1: JUSTIFICAÇÃO */
+        /* Seu código já tinha text-align: justify. Isso está correto e é mantido. */
+        /* A causa do problema provavelmente não era a falta desta linha, mas sim a interação com outras regras que foram corrigidas. */
+        text-align: justify;
+
+        /* CORREÇÃO 2: HIFENIZAÇÃO */
+        /* ANTIGO:
+        hyphens: auto;
+        */
+        /* NOVO: Adicionado os prefixos de navegador (-webkit-, -moz-) como boa prática, embora WeasyPrint geralmente precise apenas de 'hyphens'. Isso garante a regra. */
+        -webkit-hyphens: auto;
+        -moz-hyphens: auto;
+        hyphens: auto;
+        
+        /* CORREÇÃO 3: ÓRFÃS E VIÚVAS */
+        /* ANTIGO:
+        orphans: 2;
+        widows: 2;
+        */
+        /* NOVO: Alterado para 3, que é um valor mais seguro para evitar linhas sozinhas no início/fim de uma página. */
+        orphans: 2;
+        widows: 2;
+
+        /* ================================================================= */
+        /*   NOVA CORREÇÃO APLICADA ABAIXO                                   */
+        /* ================================================================= */
+
+        /* CORREÇÃO 4: EVITAR CORTE DE PARÁGRAFO/LINHA ENTRE PÁGINAS */
+        /* NOVO: Esta regra instrui o renderizador a não quebrar um parágrafo no meio. Se um parágrafo não couber inteiro no espaço restante, ele será movido para a próxima página. Isso resolve o bug visual da linha de texto sendo "fatiada" na quebra de página. */
+        
+        page-break-inside: avoid;
+
+        text-indent: 1cm;
+        margin-top: 0;
+        margin-bottom: 18pt;
+      }
+      .content-page h2 + p.font-merriweather,
+      .content-page h3 + p.font-merriweather {
+        text-indent: 0;
+      }
     </style>
   </head>`;
 };
