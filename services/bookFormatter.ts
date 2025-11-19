@@ -60,6 +60,7 @@ const getHeadContent = (book: Book): string => {
 
       /* --- Página mestre para PÁGINAS INICIAIS (copyright, sumário, etc.) --- */
 
+      /* 
       @page front_matter {
         size: A5;
         margin: 25mm 20mm 17mm 20mm;
@@ -67,7 +68,8 @@ const getHeadContent = (book: Book): string => {
         @top-center {
           content: ""; /* Define o conteúdo do cabeçalho como VAZIO */
         }
-      }
+      } 
+        */
 
       /* --- Página mestre TOTALMENTE LIMPA (para Copyright, Sumário, etc.) --- */
       @page blank_page {
@@ -94,6 +96,7 @@ const getHeadContent = (book: Book): string => {
       }
 
       /* --- Página mestre TOTALMENTE LIMPA (para Copyright, Sumário, Folhas de Rosto) --- */
+      /*
       @page blank_page {
         size: A5;
         margin: 0; /* Removemos as margens da página mestre */
@@ -106,6 +109,7 @@ const getHeadContent = (book: Book): string => {
           content: ""; /* Rodapé (numeração) vazio */
         }
       }
+      */
 
       .blank-page {
       page: blank-page; /* Conecta o elemento a esta página mestre */
@@ -121,6 +125,7 @@ const getHeadContent = (book: Book): string => {
         margin: 0;
         background-color: #ffffff;
       }
+
       .page-container {
         width: 100%;
         margin: 0; padding: 0;
@@ -128,6 +133,7 @@ const getHeadContent = (book: Book): string => {
         box-shadow: none;
         page-break-after: always;
       }
+
       .content-page {
         page: content;
       }
@@ -143,7 +149,7 @@ const getHeadContent = (book: Book): string => {
       }
       .cover-element {
         position: absolute;
-        width: 90%;
+        width: 72%;
         left: 50%;
         transform: translateX(-50%);
         text-align: center;
@@ -178,20 +184,16 @@ const getHeadContent = (book: Book): string => {
       .cover-logo {
         bottom: 10mm;
         width: auto;
-        height: 50px;
+        height: 40px;
       }
 
       /* --- ESTILOS DA PÁGINA DE COPYRIGHT --- */
       .copyright-page {
-        page: front_matter; /* Aplica a página mestre sem cabeçalho */
         display: flex;
         flex-direction: column;
-        justify-content: flex-end; /* Empurra o conteúdo para baixo */
-        align-items: center;
-        height: 100vh;
-        margin: 0;                  /* garantir que não haja margens influenciando */
-        padding: 0;                 /* garantir que não haja padding */
-        box-sizing: border-box;     /* para incluir bordas e padding na altura */
+        justify-content: flex-end; /* Empurra o conteúdo para o final (baixo) */
+        height: 100%;               /* Essencial para o justify-content funcionar */
+        padding: 0;                 /* O padding principal vem da classe .blank-page */
       }
 
       .copyright-content {
@@ -199,14 +201,10 @@ const getHeadContent = (book: Book): string => {
         text-align: center;
         font-family: 'Merriweather Sans', sans-serif;
         font-size: 10pt;
-        padding: 0 20mm 30mm 20mm; /* Adiciona respiro inferior e laterais */
-        box-sizing: border-box;
+        padding-bottom: 5mm; /* Adiciona um respiro extra na parte de baixo */
       }
 
-      /* --- REGRA PARA APLICAR PÁGINAS MESTRAS --- */
-      .front-matter-page {
-        page: front_matter;
-      }
+
 
 
       /* --- ESTILOS DO SUMÁRIO --- */
