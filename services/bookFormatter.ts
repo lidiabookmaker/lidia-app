@@ -234,7 +234,7 @@ const getHeadContent = (book: Book): string => {
 
       /* --- HIERARQUIA TIPOGRÁFICA (ALINHADA À GRADE DE 18pt) --- */
       .chapter-title-page { 
-        page: blank_page; /* <<< SÓ PRECISA ADICIONAR ESTA LINHA */
+        page: blank_page !important; /* <<< SÓ PRECISA ADICIONAR ESTA LINHA */
         display: flex;
         justify-content: center;
         align-items: flex-start;
