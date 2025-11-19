@@ -149,7 +149,7 @@ const getHeadContent = (book: Book): string => {
       }
       .cover-element {
         position: absolute;
-        width: 72%;
+        width: 90%;
         left: 50%;
         transform: translateX(-50%);
         text-align: center;
@@ -234,6 +234,7 @@ const getHeadContent = (book: Book): string => {
 
       /* --- HIERARQUIA TIPOGRÁFICA (ALINHADA À GRADE DE 18pt) --- */
       .chapter-title-page { 
+        page: blank_page; /* <<< SÓ PRECISA ADICIONAR ESTA LINHA */
         display: flex;
         justify-content: center;
         align-items: flex-start;
