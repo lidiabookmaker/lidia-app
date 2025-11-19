@@ -451,9 +451,7 @@ case 'copyright': {
         
         case 'chapter_title':
           //  return `<div class="page-container chapter-title-page content-page"><h1 class="chapter-title-standalone">${content.title}</h1></div>`;
-              return `<div class="page-container blank-page">
-              <h1>${content.title}</h1>
-              </div>`;
+              return `<div class="page-container chapter-title-page blank-page"><h1 class="chapter-title-standalone">${content.title}</h1></div>`;
         
         case 'chapter_content':
             let chapterHtml = '';
