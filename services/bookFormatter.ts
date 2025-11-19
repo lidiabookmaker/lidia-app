@@ -55,7 +55,7 @@ const getHeadContent = (book: Book): string => {
       }
 
       @page content:first {
-        size: A5; /* BOTEI AGORA A5
+        size: A5; /* BOTEI AGORA A5 */
         
         @top-center { content: ""; }
       }
