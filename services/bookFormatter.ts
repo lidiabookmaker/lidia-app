@@ -243,8 +243,7 @@ const getHeadContent = (book: Book): string => {
         align-items: center;
         text-align: center;
         height: 100%;
-        border: 5px solid red !important;
-      }
+        }
       .chapter-title-standalone {
         font-family: 'Merriweather', serif;
         font-size: 24pt;
