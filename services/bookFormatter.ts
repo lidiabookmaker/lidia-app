@@ -160,22 +160,33 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
   }
 
   switch (part.part_type) {
+  
     case 'cover': {
+  // DEBUG: Vamos ver o que está chegando
+  console.log('--- DEBUG CAPA ---');
+  console.log('Book Object:', JSON.stringify(book, null, 2));
+  console.log('Content Object:', JSON.stringify(content, null, 2));
+
+  // Garante que temos valores seguros, mesmo que os dados falhem
+  const title = content?.title || book?.title || 'Título Indisponível';
+  const subtitle = content?.subtitle || book?.subtitle || '';
+  const author = book?.author || 'Autor Desconhecido';
+
   const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp';
   const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';
   
-  // Criamos o HTML em uma variável para clareza
   const coverHtml = `
     <div class="page-container cover-page" style="background-image: url('${coverBgUrl}');">
-      <h1 class="cover-element cover-title">${content.title || book.title}</h1>
-      <p class="cover-element cover-subtitle">${content.subtitle || ''}</p>
-      <p class="cover-element cover-author">${book.author}</p>
+      <h1 class="cover-element cover-title">${title}</h1>
+      <p class="cover-element cover-subtitle">${subtitle}</p>
+      <p class="cover-element cover-author">${author}</p>
       <img class="cover-element cover-logo" src="${logoUrl}" alt="Logo Lidia">
     </div>
   `;
   
   return coverHtml;
 }
+  
             
     case 'copyright': {
       const copyrightText = content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
