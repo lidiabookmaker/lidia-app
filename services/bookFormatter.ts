@@ -245,7 +245,7 @@ const getHeadContent = (book: Book): string => {
         font-family: 'Merriweather', serif;
         font-size: 24pt;
         line-height: 36pt;
-        /* margin-top: 180pt; */
+        margin-top: 180pt;
       }
       .content-page h2.font-merriweather { 
         font-family: 'Merriweather', serif;
@@ -446,8 +446,8 @@ case 'copyright': {
              return `<h2 class="font-merriweather">${introTitle}</h2>` + formatParagraphs(content.content);
         
         case 'chapter_title':
-          //  return `<div class="page-container chapter-title-page content-page"><h1 class="chapter-title-standalone">${content.title}</h1></div>`;
-              return `<div class="page-container chapter-title-page blank-page"><h1 class="chapter-title-standalone">${content.title}</h1></div>`;
+            return `<div class="page-container chapter-title-page content-page"><h1 class="chapter-title-standalone">${content.title}</h1></div>`;
+          //  return `<div class="page-container chapter-title-page blank-page"><h1 class="chapter-title-standalone">${content.title}</h1></div>`;
         
         case 'chapter_content':
             let chapterHtml = '';
