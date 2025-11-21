@@ -142,7 +142,7 @@ const getHeadContent = (book: Book): string => {
       .chapter-title-standalone { font-size: 24pt; }
 
       /* --- ESTILOS DO CONTEÚDO (Títulos e Parágrafos) --- */
-      .content-page h2.font-merriweather { font-family: 'Merriweather', serif; font-weight: 700; font-size: 24pt; line-height: 1.5; text-align: center; color: rgba(51, 51, 51, 0.5); margin-top: 36pt; margin-bottom: 54pt; }
+      .page.container h2.font-merriweather { font-family: 'Merriweather', serif; font-weight: 700; font-size: 24pt; line-height: 1.5; text-align: center; color: rgba(51, 51, 51, 0.5); margin-top: 36pt; margin-bottom: 54pt; }
       .content-page h3.font-merriweather-sans { font-family: 'Merriweather Sans', sans-serif; font-weight: 800; font-size: 14.4pt; line-height: 1.25; color: rgba(36, 36, 36, 0.75); margin-top: 36pt; margin-bottom: 18pt; }
       .content-page p.font-merriweather { 
         text-align: justify;
