@@ -118,12 +118,15 @@ const getHeadContent = (book: Book): string => {
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
+        align-items: center;
+        height: 160mm
       }
       .copyright-content {
         text-align: center;
         font-family: 'Merriweather Sans', sans-serif;
         font-size: 10pt;
-        padding-bottom: 5mm;
+        width: 100%;
+        // padding-bottom: 5mm;
       }
 
       /* --- ESTILOS DO SUMÁRIO --- */
