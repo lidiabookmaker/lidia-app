@@ -90,17 +90,27 @@ const getHeadContent = (book: Book): string => {
         background-position: center;
         background-color: lightblue;
       }
-      .cover-element {
+      .cover-layout {
+        display: flex;
+        flex-direction: column;    /* Empilha os itens verticalmente */
+        justify-content: space-between; /* Empurra um grupo para o topo e outro para o fundo */
+        align-items: center;      /* Centraliza horizontalmente */
+        height: 100%;             /* Ocupa a página inteira */
+        text-align: center;       /* Garante que o texto dentro dos filhos esteja centrado */
+      }
+
+
+      /* .cover-element {
         position: absolute;
         width: 82%;
         left: 50%;
         transform: translateX(-50%);
         text-align: center;
-      }
-      .cover-title { top: 30mm; font-family: 'League Gothic', sans-serif; font-size: 60pt; line-height: 1; text-transform: uppercase; color: #001f5c; }
-      .cover-subtitle { top: 90mm; font-family: 'Merriweather Sans', sans-serif; font-weight: 300; font-size: 14.4pt; line-height: 1.25; color: #2b4b8a; }
-      .cover-author { bottom: 35mm; font-family: 'Merriweather Sans', sans-serif; font-weight: 400; font-size: 10pt; text-transform: uppercase; color: #4a68a5; }
-      .cover-logo { bottom: 15mm; height: 50px; }
+      } */
+      .cover-title { font-family: 'League Gothic', sans-serif; font-size: 60pt; line-height: 1; text-transform: uppercase; color: #001f5c; }
+      .cover-subtitle { font-family: 'Merriweather Sans', sans-serif; font-weight: 300; font-size: 14.4pt; line-height: 1.25; color: #2b4b8a; }
+      .cover-author { font-family: 'Merriweather Sans', sans-serif; font-weight: 400; font-size: 10pt; text-transform: uppercase; color: #4a68a5; }
+      .cover-logo { height: 50px; }
 
       /* --- ESTILOS DA PÁGINA DE COPYRIGHT --- */
       .copyright-page {
@@ -162,29 +172,28 @@ const getHeadContent = (book: Book): string => {
   switch (part.part_type) {
   
     case 'cover': {
-      /*
-      const coverData = content;
-      const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp';
-      const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';
+      const coverBgUrl = '...'; // sua url
+  const logoUrl = '...';    // sua url
+  const title = content?.title || book?.title || 'Título';
+  const subtitle = content?.subtitle || book?.subtitle || 'Subtítulo';
+  const author = book?.author || 'Autor';
 
-      return `
-      <div class="page-container cover-page blank-page" style="background-image: url('${coverBgUrl}');">
-          <h1 class="cover-element cover-title">${coverData.title || book.title}</h1>
-          <p class="cover-element cover-subtitle">${coverData.subtitle || ''}</p>
-          <p class="cover-element cover-author">${book.author}</p>
-          <img class="cover-element cover-logo" src="${logoUrl}" alt="Logo Lidia">
-      </div>`;
-      */
+  return `
+    <div class="page-container blank-page" style="background-image: url('${coverBgUrl}'); background-size: cover; background-position: center;">
+      <div class="cover-layout">
+        
+        <div> <!-- Grupo do Topo -->
+          <h1 class="cover-title" style="margin-top: 30mm;">${title}</h1>
+          <p class="cover-subtitle" style="margin-top: 20mm;">${subtitle}</p>
+        </div>
 
-       // --- NOVO CÓDIGO DE TESTE SIMULANDO O COPYRIGHT ---
-      const testTitle = content?.title || book?.title || "TÍTULO DE TESTE";
+        <div> <!-- Grupo de Baixo -->
+          <p class="cover-author">${author}</p>
+          <img class="cover-logo" src="${logoUrl}" alt="Logo Lidia" style="margin-top: 20mm;">
+        </div>
 
-        return `<div class="page-container blank-page copyright-page">
-          <h1 class="cover-element cover-title">${content?.title || book?.title || 'TÍTULO'}</h1>
-          <p class="cover-element cover-subtitle">${content?.subtitle || book?.subtitle || 'Subtítulo'}</p>
-          <p class="cover-element cover-author">${book?.author || 'Autor'}</p>
-          {/* Logo virá no próximo passo */}
-        </div>`;
+      </div>
+    </div>`;
     }
   
             
