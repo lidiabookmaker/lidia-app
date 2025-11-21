@@ -180,11 +180,11 @@ const getHeadContent = (book: Book): string => {
       const testTitle = content?.title || book?.title || "TÍTULO DE TESTE";
 
       return `<div class="page-container blank-page copyright-page">
-            <div class="copyright-content" style="justify-content: center;">
-              <h1 style="font-size: 40pt; font-family: sans-serif;">${testTitle}</h1>
-              <p>Se isto aparecer, a estrutura base funciona.</p>
-            </div>
-          </div>`;
+          <div class="copyright-content" style="justify-content: center;">
+            <h1 class="cover-element cover-title">${testTitle}</h1>
+            {/* O resto dos elementos virá nos próximos passos */}
+          </div>
+        </div>`;
     }
   
             
