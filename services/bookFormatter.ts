@@ -162,20 +162,20 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
   switch (part.part_type) {
   
 case 'cover': {
-  // Ignoramos as URLs externas por enquanto
-  // const coverBgUrl = '...';
-  // const logoUrl = '...';
+  // GARANTE QUE AS VARIÁVEIS EXISTEM
+  const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp';
+  const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';
   
   const title = content?.title || book?.title || 'Título Indisponível';
   const subtitle = content?.subtitle || book?.subtitle || '';
   const author = book?.author || 'Autor Desconhecido';
   
   const coverHtml = `
-    <div class="page-container cover-page" style="background-color: lightblue;"> {/* Usamos uma cor sólida para o teste */}
+    <div class="page-container cover-page" style="background-image: url('${coverBgUrl}');">
       <h1 class="cover-element cover-title">${title}</h1>
       <p class="cover-element cover-subtitle">${subtitle}</p>
       <p class="cover-element cover-author">${author}</p>
-      {/* <img class="cover-element cover-logo" src="${logoUrl}" alt="Logo Lidia">  Comentamos a logo */}
+      <img class="cover-element cover-logo" src="${logoUrl}" alt="Logo Lidia">
     </div>
   `;
   
