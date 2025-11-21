@@ -1,5 +1,3 @@
-// services/bookFormatter.ts
-
 import type { Book, BookPart } from '../types';
 
 /**
@@ -17,7 +15,7 @@ const formatParagraphs = (text: string): string => {
 
 /**
  * Gera o conteúdo completo da tag <head>, incluindo todos os estilos CSS.
- * VERSÃO FINAL: CORREÇÕES GERAIS DE ESTILO E ALINHAMENTO
+ * VERSÃO FINAL E CONSOLIDADA - CORREÇÃO DE CAPA APLICADA
  */
 const getHeadContent = (book: Book): string => {
   const safeTitle = book.title.toUpperCase().replace(/"/g, "'");
@@ -33,21 +31,21 @@ const getHeadContent = (book: Book): string => {
       /*   SISTEMA DE PÁGINAS MESTRAS            */
       /* ======================================= */
 
-      /* 1. Mestra para a CAPA (Margem ZERO) */
+      /* 1. Mestra para a CAPA (Margem ZERO para sangria total) */
       @page cover_style {
         size: A5;
         margin: 0;
       }
 
-      /* 2. Mestra para PÁGINAS LIMPAS */
+      /* 2. Mestra para PÁGINAS LIMPAS (Copyright, Sumário, Folhas de Rosto) */
       @page blank_page {
         size: A5;
-        margin: 25mm 20mm 17mm 20mm;
+        margin: 25mm 20mm 17mm 20mm; /* Margens para o conteúdo interno */
         @top-center { content: ""; }
         @bottom-center { content: ""; }
       }
 
-      /* 3. Mestra para o CONTEÚDO PADRÃO */
+      /* 3. Mestra para o CONTEÚDO PADRÃO (com cabeçalho/rodapé) */
       @page content {
         size: A5;
         margin: 25mm 20mm 17mm 20mm;
@@ -66,7 +64,7 @@ const getHeadContent = (book: Book): string => {
         @top-center { content: ""; }
       }
 
-      /* --- ESTILOS GERAIS --- */
+      /* --- ESTILOS GERAIS E CONECTORES --- */
       body {
         font-family: 'Merriweather', serif;
         font-size: 12pt;
@@ -76,23 +74,28 @@ const getHeadContent = (book: Book): string => {
       .page-container {
         page-break-after: always;
         width: 100%;
+        height: 100%;
         box-sizing: border-box;
       }
       .content-page { page: content; }
       .blank-page { page: blank_page; }
       
       /* --- ESTILOS DA CAPA --- */
+      /* Conecta o div principal da capa à página mestra SEM margens */
       .cover-page {
         page: cover_style; 
         position: relative; 
         overflow: hidden;
         background-size: cover;
         background-position: center;
-        width: 148mm; 
-        height: 210mm; 
+        width: 148mm;
+        height: 210mm;
         padding: 0;
         margin: 0;
+        background-color: lightblue; /* fallback */
       }
+
+      /* Container interno que segura o texto longe das bordas */
       .cover-layout {
         display: flex;
         flex-direction: column;    
@@ -102,79 +105,62 @@ const getHeadContent = (book: Book): string => {
         height: 100%;             
         text-align: center;
         box-sizing: border-box;
-        padding: 20mm; 
+        padding: 20mm; /* MARGEM VISUAL DE SEGURANÇA DO TEXTO */
       }
+
       .cover-title { font-family: 'League Gothic', sans-serif; font-size: 48pt; line-height: 1; text-transform: uppercase; color: #001f5c; margin: 0; }
       .cover-subtitle { font-family: 'Merriweather Sans', sans-serif; font-weight: 300; font-size: 14.4pt; line-height: 1.25; color: #2b4b8a; margin-top: 15mm; }
       .cover-author { font-family: 'Merriweather Sans', sans-serif; font-weight: 400; font-size: 10pt; text-transform: uppercase; color: #4a68a5; margin: 0; }
       .cover-logo { height: 40px; margin-top: 15mm; }
 
-      /* --- COPYRIGHT --- */
+      /* --- ESTILOS DA PÁGINA DE COPYRIGHT --- */
       .copyright-page {
         display: flex;
         flex-direction: column;
-        justify-content: flex-end; 
+        justify-content: flex-end;
         align-items: center;
-        height: 160mm; 
+        height: 160mm
       }
       .copyright-content {
         text-align: center;
         font-family: 'Merriweather Sans', sans-serif;
         font-size: 10pt;
         width: 100%;
+        // padding-bottom: 5mm;
       }
 
-      /* --- SUMÁRIO --- */
+      /* --- ESTILOS DO SUMÁRIO --- */
       .toc-chapter { font-weight: 700; margin-top: 12pt; }
       .toc-subchapter { margin-left: 1cm; }
 
-      /* --- FOLHAS DE ROSTO DE CAPÍTULO (Ajuste Centralização) --- */
+      /* --- ESTILOS DAS FOLHAS DE ROSTO DOS CAPÍTULOS --- */
       .chapter-title-page {
         display: flex;
         justify-content: center;
         align-items: center;
         text-align: center;
-        height: 160mm; /* Força a altura útil para permitir centralizar verticalmente */
+        height: 160mm;
+        // padding-top: 40mm;
       }
       .chapter-title-standalone { font-size: 24pt; }
 
       /* --- ESTILOS DO CONTEÚDO (Títulos e Parágrafos) --- */
-      
-      /* TÍTULOS H2: Aplica explicitamente em .content-page (Introdução) E .blank-page (Sumário) */
-      .content-page h2.font-merriweather,
-      .blank-page h2.font-merriweather { 
-        font-family: 'Merriweather', serif; 
-        font-weight: 700; 
-        font-size: 24pt; 
-        line-height: 1.5; 
-        text-align: center; 
-        color: rgba(51, 51, 51, 0.5); 
-        margin-top: 36pt; 
-        margin-bottom: 54pt; 
-      }
-
-      .content-page h3.font-merriweather-sans,
-      .blank-page h3.font-merriweather-sans { 
-        font-family: 'Merriweather Sans', sans-serif; 
-        font-weight: 800; 
-        font-size: 14.4pt; 
-        line-height: 1.25; 
-        color: rgba(36, 36, 36, 0.75); 
-        margin-top: 36pt; 
-        margin-bottom: 18pt; 
-      }
-
+      .content-page h2.font-merriweather { font-family: 'Merriweather', serif; font-weight: 700; font-size: 24pt; line-height: 1.5; text-align: center; color: rgba(51, 51, 51, 0.5); margin-top: 36pt; margin-bottom: 54pt; }
+      .content-page h3.font-merriweather-sans { font-family: 'Merriweather Sans', sans-serif; font-weight: 800; font-size: 14.4pt; line-height: 1.25; color: rgba(36, 36, 36, 0.75); margin-top: 36pt; margin-bottom: 18pt; }
       .content-page p.font-merriweather { 
-        text-align: justify; hyphens: auto; orphans: 2; widows: 2; page-break-inside: avoid; text-indent: 1cm; margin-top: 0; margin-bottom: 18pt;
+        text-align: justify;
+        hyphens: auto;
+        orphans: 2; 
+        widows: 2;
+        page-break-inside: avoid;
+        text-indent: 1cm;
+        margin-top: 0;
+        margin-bottom: 18pt;
       }
-      
-      /* Remove indentação após títulos */
       .content-page h2 + p.font-merriweather,
-      .content-page h3 + p.font-merriweather,
-      .blank-page h2 + p.font-merriweather { 
-        text-indent: 0; 
+      .content-page h3 + p.font-merriweather {
+        text-indent: 0;
       }
-
     </style>
   </head>`;
 };
@@ -201,15 +187,20 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
 
       return `
         <div class="page-container cover-page" style="background-image: url('${coverBgUrl}');">
+          
+          <!-- Container INTERNO: Segura o conteúdo com padding, sem afetar o fundo -->
           <div class="cover-layout">
-            <div> 
+            
+            <div> <!-- Grupo do Topo -->
               <h1 class="cover-title">${title}</h1>
               <p class="cover-subtitle">${subtitle}</p>
             </div>
-            <div> 
+
+            <div> <!-- Grupo de Baixo -->
               <p class="cover-author">${author}</p>
               <img class="cover-logo" src="${logoUrl}" alt="Logo Lidia">
             </div>
+
           </div>
         </div>
       `;
@@ -279,9 +270,21 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
   }
 };
 
+
+/**
+ * Monta o HTML completo do livro, juntando todas as partes.
+ */
 export const assembleFullHtml = (book: Book, parts: BookPart[]): string => {
   parts.sort((a, b) => a.part_index - b.part_index);
+  
   const head = getHeadContent(book);
   const bodyContent = parts.map(part => getInnerHtmlForPart(book, part)).join('\n');
-  return `<!DOCTYPE html><html lang="pt-BR">${head}<body>${bodyContent}</body></html>`;
+
+  return `<!DOCTYPE html>
+    <html lang="pt-BR">
+      ${head}
+      <body>
+        ${bodyContent}
+      </body>
+    </html>`;
 };
