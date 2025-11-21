@@ -1041,3 +1041,40 @@ export const assembleFullHtml = (book: Book, parts: BookPart[]): string => {
     </body>
     </html>`;
 };
+
+
+
+
+
+--------------------
+
+
+  return `
+    <div 
+      class="page-container blank-page" 
+      style="
+        background-image: url('${coverBgUrl}'); 
+        background-size: cover; 
+        background-position: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between; /* Empurra os grupos para o topo e para o fundo */
+        align-items: center;
+        text-align: center;
+        padding: 6mm 0mm 3mm 0mm; /* CIMA | LATERAIS | BAIXO | LATERAIS */
+      "
+    >
+      
+      <div> <!-- Grupo do Topo: Centralizado no espaço superior -->
+        <h1 class="cover-title">${title}</h1>
+        <p class="cover-subtitle" style="margin-top: 15mm;">${subtitle}</p>
+      </div>
+
+      <div> <!-- Grupo de Baixo: Centralizado no espaço inferior -->
+        <p class="cover-author">${author}</p>
+        <img class="cover-logo" src="${logoUrl}" alt="Logo Lidia" style="margin-top: 15mm;">
+      </div>
+
+    </div>
+  `;
+}

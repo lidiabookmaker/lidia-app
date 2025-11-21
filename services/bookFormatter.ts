@@ -197,6 +197,8 @@ const getHeadContent = (book: Book): string => {
 
   switch (part.part_type) {
   
+
+    
 case 'cover': {
   const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp'; // sua url
   const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';    // sua url
@@ -204,35 +206,28 @@ case 'cover': {
   const subtitle = content?.subtitle || book?.subtitle || 'Subtítulo';
   const author = book?.author || 'Autor';
 
-  return `
-    <div 
-      class="page-container blank-page" 
-      style="
-        background-image: url('${coverBgUrl}'); 
-        background-size: cover; 
-        background-position: center;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between; /* Empurra os grupos para o topo e para o fundo */
-        align-items: center;
-        text-align: center;
-        padding: 6mm 0mm 3mm 0mm; /* CIMA | LATERAIS | BAIXO | LATERAIS */
-      "
-    >
-      
-      <div> <!-- Grupo do Topo: Centralizado no espaço superior -->
-        <h1 class="cover-title">${title}</h1>
-        <p class="cover-subtitle" style="margin-top: 15mm;">${subtitle}</p>
-      </div>
+      return `
+        <div class="page-container cover-page" style="background-image: url('${coverBgUrl}');">
+          
+          <!-- Container INTERNO: Segura o conteúdo com padding, sem afetar o fundo -->
+          <div class="cover-layout">
+            
+            <div> <!-- Grupo do Topo -->
+              <h1 class="cover-title">${title}</h1>
+              <p class="cover-subtitle" style="margin-top: 15mm;">${subtitle}</p>
+            </div>
 
-      <div> <!-- Grupo de Baixo: Centralizado no espaço inferior -->
-        <p class="cover-author">${author}</p>
-        <img class="cover-logo" src="${logoUrl}" alt="Logo Lidia" style="margin-top: 15mm;">
-      </div>
+            <div> <!-- Grupo de Baixo -->
+              <p class="cover-author">${author}</p>
+              <img class="cover-logo" src="${logoUrl}" alt="Logo Lidia" style="margin-top: 15mm;">
+            </div>
 
-    </div>
-  `;
-}
+          </div>
+        </div>
+      `;
+    }
+
+
   
             
     case 'copyright': {
