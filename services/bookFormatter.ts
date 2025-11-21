@@ -161,11 +161,14 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
 
   switch (part.part_type) {
   
-    case 'cover': {
-  // DEBUG: Vamos ver o que está chegando
-  console.log('--- DEBUG CAPA ---');
-  console.log('Book Object:', JSON.stringify(book, null, 2));
-  console.log('Content Object:', JSON.stringify(content, null, 2));
+case 'cover': {
+  // =================================================================
+  // DEBUG NO NAVEGADOR: Vamos ver o que está chegando aqui
+  // =================================================================
+  console.log('--- DEBUG CAPA (NAVEGADOR) ---');
+  console.log('Objeto Book:', book);
+  console.log('Objeto Content da Capa:', content);
+  // =================================================================
 
   // Garante que temos valores seguros, mesmo que os dados falhem
   const title = content?.title || book?.title || 'Título Indisponível';
