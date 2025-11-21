@@ -14,41 +14,46 @@ const formatMarkdownContent = (text: string): string => {
   if (!text || typeof text !== 'string') return '';
 
   // 1. Tratar Negrito: Troca **texto** por <strong>texto</strong>
+  // O regex pega pares de asteriscos duplos
   let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
   // 2. Separar em linhas para processar listas vs parágrafos
   const lines = html.split('\n').map(line => line.trim()).filter(line => line !== '');
   
   let output = '';
-  let inUl = false; 
-  let inOl = false; 
+  let inUl = false; // Flag para saber se estamos dentro de uma lista não ordenada
+  let inOl = false; // Flag para saber se estamos dentro de uma lista ordenada
 
   lines.forEach(line => {
+    // Verifica se é item de lista não ordenada (começa com - ou *)
     const isUlItem = line.startsWith('- ') || line.startsWith('* ');
+    // Verifica se é item de lista ordenada (começa com número e ponto, ex: 1. )
     const isOlItem = /^\d+\.\s/.test(line);
 
     if (isUlItem) {
-      if (!inUl) { output += '<ul class="book-list">'; inUl = true; } 
-      if (inOl) { output += '</ol>'; inOl = false; } 
+      if (!inUl) { output += '<ul class="book-list">'; inUl = true; } // Abre lista
+      if (inOl) { output += '</ol>'; inOl = false; } // Fecha ordenada se estivesse aberta
       
-      const content = line.replace(/^[-*]\s+/, ''); 
+      const content = line.replace(/^[-*]\s+/, ''); // Remove o marcador
       output += `<li>${content}</li>`;
     
     } else if (isOlItem) {
-      if (!inOl) { output += '<ol class="book-list">'; inOl = true; } 
-      if (inUl) { output += '</ul>'; inUl = false; } 
+      if (!inOl) { output += '<ol class="book-list">'; inOl = true; } // Abre lista
+      if (inUl) { output += '</ul>'; inUl = false; } // Fecha não ordenada se estivesse aberta
       
-      const content = line.replace(/^\d+\.\s+/, ''); 
+      const content = line.replace(/^\d+\.\s+/, ''); // Remove o número
       output += `<li>${content}</li>`;
 
     } else {
-      if (inUl) { output += '</ul>'; inUl = false; } 
+      // É um parágrafo comum
+      if (inUl) { output += '</ul>'; inUl = false; } // Fecha listas anteriores
       if (inOl) { output += '</ol>'; inOl = false; }
       
       output += `<p class="font-merriweather">${line}</p>`;
     }
   });
 
+  // Fechar quaisquer listas pendentes no final
   if (inUl) output += '</ul>';
   if (inOl) output += '</ol>';
 
@@ -57,7 +62,7 @@ const formatMarkdownContent = (text: string): string => {
 
 /**
  * Gera o conteúdo completo da tag <head>, incluindo todos os estilos CSS.
- * VERSÃO FINAL: NEGRITO NA COR DO TEXTO (PRETO/CINZA ESCURO)
+ * VERSÃO FINAL: SUPORTE A LISTAS E NEGRITO
  */
 const getHeadContent = (book: Book): string => {
   const safeTitle = book.title.toUpperCase().replace(/"/g, "'");
@@ -136,6 +141,7 @@ const getHeadContent = (book: Book): string => {
         font-weight: 300; line-height: 1.5; 
       }
       
+      /* Remove indentação após títulos e listas */
       .content-page h2 + p.font-merriweather, 
       .content-page h3 + p.font-merriweather, 
       .blank-page h2 + p.font-merriweather,
@@ -144,10 +150,10 @@ const getHeadContent = (book: Book): string => {
         text-indent: 0; 
       }
 
-      /* ESTILOS DE LISTAS E NEGRITO */
+      /* ESTILOS DE LISTAS (NOVOS) */
       ul.book-list, ol.book-list {
         margin-bottom: 18pt;
-        padding-left: 1cm; 
+        padding-left: 1cm; /* Recuo da lista */
       }
       ul.book-list li, ol.book-list li {
         font-family: 'Merriweather', serif;
@@ -155,13 +161,11 @@ const getHeadContent = (book: Book): string => {
         font-weight: 300;
         line-height: 1.5;
         margin-bottom: 6pt;
-        text-align: left;
+        text-align: left; /* Listas ficam melhor alinhadas à esquerda */
       }
-      
-      /* CORREÇÃO AQUI: Negrito com a mesma cor do texto padrão */
       strong {
-        font-weight: 700; 
-        color: #262626;   
+        font-weight: 700; /* Negrito da Merriweather */
+        color: #000080;   /* Um leve toque de cor (azul marinho) para destaque, ou use #000 */
       }
 
     </style>
@@ -219,4 +223,58 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
     case 'toc': {
       const tocTitle = content.title || 'Sumário';
       const tocContent = content.content || '';
-      const tocLinesHtml
+      const tocLinesHtml = tocContent.split('\n').map((line: string) => {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return '';
+        return trimmedLine.startsWith('-')
+          ? `<p class="toc-subchapter">${trimmedLine.substring(1).trim()}</p>`
+          : `<p class="toc-chapter">${trimmedLine}</p>`;
+      }).join('');
+      return `<div class="page-container blank-page">
+                <h2 class="font-merriweather">${tocTitle}</h2>
+                ${tocLinesHtml}
+              </div>`;
+    }
+
+    case 'introduction': {
+      const introTitle = content.title || 'Introdução';
+      return `<div class="page-container content-page">
+                <h2 class="font-merriweather">${introTitle}</h2>
+                ${formatMarkdownContent(content.content)} <!-- ALTERADO AQUI -->
+              </div>`;
+    }
+
+    case 'chapter_title': {
+      return `<div class="page-container blank-page chapter-title-page">
+                <h1 class="chapter-title-standalone">${content.title}</h1>
+              </div>`;
+    }
+
+    case 'chapter_content': {
+      let chapterHtml = '';
+      if (content.title) {
+        chapterHtml += `<h2 class="font-merriweather">${content.title}</h2>`;
+      }
+      if (content.introduction) {
+        chapterHtml += formatMarkdownContent(content.introduction); // ALTERADO AQUI
+      }
+      if (content.subchapters && Array.isArray(content.subchapters)) {
+        content.subchapters.forEach((sub: any) => {
+          chapterHtml += `<h3 class="font-merriweather-sans">${sub.title}</h3>`;
+          chapterHtml += formatMarkdownContent(sub.content); // ALTERADO AQUI
+        });
+      }
+      return `<div class="page-container content-page">${chapterHtml}</div>`;
+    }
+            
+    default:
+      return '';
+  }
+};
+
+export const assembleFullHtml = (book: Book, parts: BookPart[]): string => {
+  parts.sort((a, b) => a.part_index - b.part_index);
+  const head = getHeadContent(book);
+  const bodyContent = parts.map(part => getInnerHtmlForPart(book, part)).join('\n');
+  return `<!DOCTYPE html><html lang="pt-BR">${head}<body>${bodyContent}</body></html>`;
+};
