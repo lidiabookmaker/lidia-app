@@ -3,21 +3,66 @@
 import type { Book, BookPart } from '../types';
 
 /**
- * Converte um texto simples com quebras de linha em parágrafos HTML.
+ * Converte texto Markdown simples em HTML estilizado para o livro.
+ * Suporta:
+ * - Parágrafos (padrão)
+ * - Negrito (**texto**)
+ * - Listas não ordenadas (- item)
+ * - Listas ordenadas (1. item)
  */
-const formatParagraphs = (text: string): string => {
-  if (!text || typeof text !== 'string') {
-    return '';
-  }
-  return text.split('\n')
-    .filter(p => p.trim() !== '')
-    .map(p => `<p class="font-merriweather">${p.trim()}</p>`)
-    .join('\n');
+const formatMarkdownContent = (text: string): string => {
+  if (!text || typeof text !== 'string') return '';
+
+  // 1. Tratar Negrito: Troca **texto** por <strong>texto</strong>
+  // O regex pega pares de asteriscos duplos
+  let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+  // 2. Separar em linhas para processar listas vs parágrafos
+  const lines = html.split('\n').map(line => line.trim()).filter(line => line !== '');
+  
+  let output = '';
+  let inUl = false; // Flag para saber se estamos dentro de uma lista não ordenada
+  let inOl = false; // Flag para saber se estamos dentro de uma lista ordenada
+
+  lines.forEach(line => {
+    // Verifica se é item de lista não ordenada (começa com - ou *)
+    const isUlItem = line.startsWith('- ') || line.startsWith('* ');
+    // Verifica se é item de lista ordenada (começa com número e ponto, ex: 1. )
+    const isOlItem = /^\d+\.\s/.test(line);
+
+    if (isUlItem) {
+      if (!inUl) { output += '<ul class="book-list">'; inUl = true; } // Abre lista
+      if (inOl) { output += '</ol>'; inOl = false; } // Fecha ordenada se estivesse aberta
+      
+      const content = line.replace(/^[-*]\s+/, ''); // Remove o marcador
+      output += `<li>${content}</li>`;
+    
+    } else if (isOlItem) {
+      if (!inOl) { output += '<ol class="book-list">'; inOl = true; } // Abre lista
+      if (inUl) { output += '</ul>'; inUl = false; } // Fecha não ordenada se estivesse aberta
+      
+      const content = line.replace(/^\d+\.\s+/, ''); // Remove o número
+      output += `<li>${content}</li>`;
+
+    } else {
+      // É um parágrafo comum
+      if (inUl) { output += '</ul>'; inUl = false; } // Fecha listas anteriores
+      if (inOl) { output += '</ol>'; inOl = false; }
+      
+      output += `<p class="font-merriweather">${line}</p>`;
+    }
+  });
+
+  // Fechar quaisquer listas pendentes no final
+  if (inUl) output += '</ul>';
+  if (inOl) output += '</ol>';
+
+  return output;
 };
 
 /**
  * Gera o conteúdo completo da tag <head>, incluindo todos os estilos CSS.
- * VERSÃO FINAL: TEXTO CORRIDO LIGHT (300) E ENTRELINHA 1.5
+ * VERSÃO FINAL: SUPORTE A LISTAS E NEGRITO
  */
 const getHeadContent = (book: Book): string => {
   const safeTitle = book.title.toUpperCase().replace(/"/g, "'");
@@ -26,20 +71,15 @@ const getHeadContent = (book: Book): string => {
     <meta charset="utf-8">
     <title>${book.title}</title>
     <style>
-      /* --- FONTES (ATUALIZADO PARA INCLUIR PESO 300 NA MERRIWEATHER) --- */
+      /* --- FONTES --- */
       @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@300;400;700&family=Merriweather+Sans:wght@300;400;700;800&display=swap&v=4');
 
       /* ======================================= */
       /*   SISTEMA DE PÁGINAS MESTRAS            */
       /* ======================================= */
 
-      /* 1. Mestra para a CAPA (Margem ZERO) */
-      @page cover_style {
-        size: A5;
-        margin: 0;
-      }
-
-      /* 2. Mestra para PÁGINAS LIMPAS */
+      @page cover_style { size: A5; margin: 0; }
+      
       @page blank_page {
         size: A5;
         margin: 25mm 20mm 17mm 20mm;
@@ -47,7 +87,6 @@ const getHeadContent = (book: Book): string => {
         @bottom-center { content: ""; }
       }
 
-      /* 3. Mestra para o CONTEÚDO PADRÃO */
       @page content {
         size: A5;
         margin: 25mm 20mm 17mm 20mm;
@@ -62,138 +101,71 @@ const getHeadContent = (book: Book): string => {
           font-weight: 800; font-size: 14pt; color: rgba(0, 0, 128, 0.4);
         }
       }
-      @page content:first {
-        @top-center { content: ""; }
-      }
+      @page content:first { @top-center { content: ""; } }
 
       /* --- ESTILOS GERAIS --- */
-      body {
-        font-family: 'Merriweather', serif;
-        font-size: 12pt;
-        color: #262626;
-        margin: 0;
-      }
-      .page-container {
-        page-break-after: always;
-        width: 100%;
-        box-sizing: border-box;
-      }
+      body { font-family: 'Merriweather', serif; font-size: 12pt; color: #262626; margin: 0; }
+      .page-container { page-break-after: always; width: 100%; box-sizing: border-box; }
       .content-page { page: content; }
       .blank-page { page: blank_page; }
       
-      /* --- ESTILOS DA CAPA --- */
-      .cover-page {
-        page: cover_style; 
-        position: relative; 
-        overflow: hidden;
-        background-size: cover;
-        background-position: center;
-        width: 148mm; 
-        height: 210mm; 
-        padding: 0;
-        margin: 0;
-      }
-      .cover-layout {
-        display: flex;
-        flex-direction: column;    
-        justify-content: space-between; 
-        align-items: center;      
-        width: 100%;
-        height: 100%;             
-        text-align: center;
-        box-sizing: border-box;
-        padding: 20mm; 
-      }
+      /* --- CAPA --- */
+      .cover-page { page: cover_style; position: relative; overflow: hidden; background-size: cover; background-position: center; width: 148mm; height: 210mm; padding: 0; margin: 0; }
+      .cover-layout { display: flex; flex-direction: column; justify-content: space-between; align-items: center; width: 100%; height: 100%; text-align: center; box-sizing: border-box; padding: 20mm; }
       .cover-title { font-family: 'League Gothic', sans-serif; font-size: 48pt; line-height: 1; text-transform: uppercase; color: #001f5c; margin: 0; }
       .cover-subtitle { font-family: 'Merriweather Sans', sans-serif; font-weight: 300; font-size: 14.4pt; line-height: 1.25; color: #2b4b8a; margin-top: 15mm; }
       .cover-author { font-family: 'Merriweather Sans', sans-serif; font-weight: 400; font-size: 10pt; text-transform: uppercase; color: #4a68a5; margin: 0; }
       .cover-logo { height: 40px; margin-top: 15mm; }
 
-      /* --- COPYRIGHT --- */
-      .copyright-page {
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end; 
-        align-items: center;
-        height: 160mm; 
-      }
-      .copyright-content {
-        text-align: center;
-        font-family: 'Merriweather Sans', sans-serif;
-        font-size: 10pt;
-        width: 100%;
-      }
-
-      /* --- SUMÁRIO --- */
-      .toc-chapter { 
-        font-weight: 700; 
-        margin-top: 12pt; 
-      }
+      /* --- COPYRIGHT & SUMÁRIO --- */
+      .copyright-page { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 160mm; }
+      .copyright-content { text-align: center; font-family: 'Merriweather Sans', sans-serif; font-size: 10pt; width: 100%; }
+      .toc-chapter { font-weight: 700; margin-top: 12pt; }
+      .toc-subchapter { margin-left: 1cm; font-family: 'Merriweather Sans', sans-serif; font-size: 10pt; font-weight: 300; line-height: 1.4; }
       
-      .toc-subchapter { 
-        margin-left: 1cm; 
-        font-family: 'Merriweather Sans', sans-serif;
-        font-size: 10pt;
-        font-weight: 300;
-        line-height: 1.4;
-      }
-
-      /* --- FOLHAS DE ROSTO DE CAPÍTULO --- */
-      .chapter-title-page {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        text-align: center;
-        height: 160mm; 
-      }
+      /* --- FOLHAS DE ROSTO --- */
+      .chapter-title-page { display: flex; justify-content: center; align-items: center; text-align: center; height: 160mm; }
       .chapter-title-standalone { font-size: 24pt; }
 
-      /* --- ESTILOS DO CONTEÚDO --- */
-      
-      /* TÍTULOS H2 */
-      .content-page h2.font-merriweather,
-      .blank-page h2.font-merriweather { 
-        font-family: 'Merriweather', serif; 
-        font-weight: 700; 
-        font-size: 24pt; 
-        line-height: 1.5; 
-        text-align: center; 
-        color: rgba(51, 51, 51, 0.5); 
-        margin-top: 36pt; 
-        margin-bottom: 54pt; 
+      /* --- CONTEÚDO --- */
+      .content-page h2.font-merriweather, .blank-page h2.font-merriweather { 
+        font-family: 'Merriweather', serif; font-weight: 700; font-size: 24pt; line-height: 1.5; text-align: center; color: rgba(51, 51, 51, 0.5); margin-top: 36pt; margin-bottom: 54pt; 
+      }
+      .content-page h3.font-merriweather-sans, .blank-page h3.font-merriweather-sans { 
+        font-family: 'Merriweather Sans', sans-serif; font-weight: 800; font-size: 14.4pt; line-height: 1.25; color: rgba(36, 36, 36, 0.75); margin-top: 36pt; margin-bottom: 18pt; 
       }
 
-      .content-page h3.font-merriweather-sans,
-      .blank-page h3.font-merriweather-sans { 
-        font-family: 'Merriweather Sans', sans-serif; 
-        font-weight: 800; 
-        font-size: 14.4pt; 
-        line-height: 1.25; 
-        color: rgba(36, 36, 36, 0.75); 
-        margin-top: 36pt; 
-        margin-bottom: 18pt; 
-      }
-
-      /* PARÁGRAFOS DE TEXTO (MUDANÇA AQUI) */
       .content-page p.font-merriweather { 
-        text-align: justify; 
-        hyphens: auto; 
-        orphans: 2; 
-        widows: 2; 
-        page-break-inside: avoid; 
-        text-indent: 1cm; 
-        
-        margin-top: 0; 
-        margin-bottom: 18pt;
-        
-        font-weight: 300; /* Peso leve */
-        line-height: 1.5; /* Entrelinha 150% */
+        text-align: justify; hyphens: auto; orphans: 2; widows: 2; page-break-inside: avoid; text-indent: 1cm; 
+        margin-top: 0; margin-bottom: 18pt; 
+        font-weight: 300; line-height: 1.5; 
       }
       
-      .content-page h2 + p.font-merriweather,
-      .content-page h3 + p.font-merriweather,
-      .blank-page h2 + p.font-merriweather { 
+      /* Remove indentação após títulos e listas */
+      .content-page h2 + p.font-merriweather, 
+      .content-page h3 + p.font-merriweather, 
+      .blank-page h2 + p.font-merriweather,
+      ul + p.font-merriweather,
+      ol + p.font-merriweather { 
         text-indent: 0; 
+      }
+
+      /* ESTILOS DE LISTAS (NOVOS) */
+      ul.book-list, ol.book-list {
+        margin-bottom: 18pt;
+        padding-left: 1cm; /* Recuo da lista */
+      }
+      ul.book-list li, ol.book-list li {
+        font-family: 'Merriweather', serif;
+        font-size: 12pt;
+        font-weight: 300;
+        line-height: 1.5;
+        margin-bottom: 6pt;
+        text-align: left; /* Listas ficam melhor alinhadas à esquerda */
+      }
+      strong {
+        font-weight: 700; /* Negrito da Merriweather */
+        color: #000080;   /* Um leve toque de cor (azul marinho) para destaque, ou use #000 */
       }
 
     </style>
@@ -268,7 +240,7 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
       const introTitle = content.title || 'Introdução';
       return `<div class="page-container content-page">
                 <h2 class="font-merriweather">${introTitle}</h2>
-                ${formatParagraphs(content.content)}
+                ${formatMarkdownContent(content.content)} <!-- ALTERADO AQUI -->
               </div>`;
     }
 
@@ -284,12 +256,12 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
         chapterHtml += `<h2 class="font-merriweather">${content.title}</h2>`;
       }
       if (content.introduction) {
-        chapterHtml += formatParagraphs(content.introduction);
+        chapterHtml += formatMarkdownContent(content.introduction); // ALTERADO AQUI
       }
       if (content.subchapters && Array.isArray(content.subchapters)) {
         content.subchapters.forEach((sub: any) => {
           chapterHtml += `<h3 class="font-merriweather-sans">${sub.title}</h3>`;
-          chapterHtml += formatParagraphs(sub.content);
+          chapterHtml += formatMarkdownContent(sub.content); // ALTERADO AQUI
         });
       }
       return `<div class="page-container content-page">${chapterHtml}</div>`;
