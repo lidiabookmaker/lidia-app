@@ -190,7 +190,7 @@ case 'cover': {
         justify-content: space-between; /* Empurra os grupos para o topo e para o fundo */
         align-items: center;
         text-align: center;
-        padding: 30mm 20mm 15mm 20mm; /* CIMA | LATERAIS | BAIXO | LATERAIS */
+        padding: 6mm 0mm 3mm 0mm; /* CIMA | LATERAIS | BAIXO | LATERAIS */
       "
     >
       
