@@ -88,8 +88,8 @@ const getHeadContent = (book: Book): string => {
         overflow: hidden;
         background-size: cover;
         background-position: center;
-        width: 100%;
-        height: 100%;
+        width: 148mm;
+        height: 210mm;
         padding: 0;
         margin: 0;
         background-color: lightblue; /* fallback */
