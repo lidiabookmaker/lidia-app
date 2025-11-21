@@ -4,56 +4,46 @@ import type { Book, BookPart } from '../types';
 
 /**
  * Converte texto Markdown simples em HTML estilizado para o livro.
- * Suporta:
- * - Parágrafos (padrão)
- * - Negrito (**texto**)
- * - Listas não ordenadas (- item)
- * - Listas ordenadas (1. item)
  */
 const formatMarkdownContent = (text: string): string => {
   if (!text || typeof text !== 'string') return '';
 
   // 1. Tratar Negrito: Troca **texto** por <strong>texto</strong>
-  // O regex pega pares de asteriscos duplos
   let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
   // 2. Separar em linhas para processar listas vs parágrafos
   const lines = html.split('\n').map(line => line.trim()).filter(line => line !== '');
   
   let output = '';
-  let inUl = false; // Flag para saber se estamos dentro de uma lista não ordenada
-  let inOl = false; // Flag para saber se estamos dentro de uma lista ordenada
+  let inUl = false; 
+  let inOl = false; 
 
   lines.forEach(line => {
-    // Verifica se é item de lista não ordenada (começa com - ou *)
     const isUlItem = line.startsWith('- ') || line.startsWith('* ');
-    // Verifica se é item de lista ordenada (começa com número e ponto, ex: 1. )
     const isOlItem = /^\d+\.\s/.test(line);
 
     if (isUlItem) {
-      if (!inUl) { output += '<ul class="book-list">'; inUl = true; } // Abre lista
-      if (inOl) { output += '</ol>'; inOl = false; } // Fecha ordenada se estivesse aberta
+      if (!inUl) { output += '<ul class="book-list">'; inUl = true; } 
+      if (inOl) { output += '</ol>'; inOl = false; } 
       
-      const content = line.replace(/^[-*]\s+/, ''); // Remove o marcador
+      const content = line.replace(/^[-*]\s+/, ''); 
       output += `<li>${content}</li>`;
     
     } else if (isOlItem) {
-      if (!inOl) { output += '<ol class="book-list">'; inOl = true; } // Abre lista
-      if (inUl) { output += '</ul>'; inUl = false; } // Fecha não ordenada se estivesse aberta
+      if (!inOl) { output += '<ol class="book-list">'; inOl = true; } 
+      if (inUl) { output += '</ul>'; inUl = false; } 
       
-      const content = line.replace(/^\d+\.\s+/, ''); // Remove o número
+      const content = line.replace(/^\d+\.\s+/, ''); 
       output += `<li>${content}</li>`;
 
     } else {
-      // É um parágrafo comum
-      if (inUl) { output += '</ul>'; inUl = false; } // Fecha listas anteriores
+      if (inUl) { output += '</ul>'; inUl = false; } 
       if (inOl) { output += '</ol>'; inOl = false; }
       
       output += `<p class="font-merriweather">${line}</p>`;
     }
   });
 
-  // Fechar quaisquer listas pendentes no final
   if (inUl) output += '</ul>';
   if (inOl) output += '</ol>';
 
@@ -61,8 +51,7 @@ const formatMarkdownContent = (text: string): string => {
 };
 
 /**
- * Gera o conteúdo completo da tag <head>, incluindo todos os estilos CSS.
- * VERSÃO FINAL: SUPORTE A LISTAS E NEGRITO
+ * Gera o conteúdo completo da tag <head>.
  */
 const getHeadContent = (book: Book): string => {
   const safeTitle = book.title.toUpperCase().replace(/"/g, "'");
@@ -117,6 +106,23 @@ const getHeadContent = (book: Book): string => {
       .cover-author { font-family: 'Merriweather Sans', sans-serif; font-weight: 400; font-size: 10pt; text-transform: uppercase; color: #4a68a5; margin: 0; }
       .cover-logo { height: 40px; margin-top: 15mm; }
 
+      /* --- MARCA D'ÁGUA (GRÁTIS) --- */
+      .watermark-overlay {
+        position: fixed; /* Repete em todas as páginas no PDF */
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-45deg); /* Centralizado e inclinado */
+        font-family: 'League Gothic', sans-serif;
+        font-size: 80pt;
+        color: rgba(0, 0, 0, 0.08); /* Cinza bem clarinho, transparente */
+        text-transform: uppercase;
+        z-index: 9999;
+        pointer-events: none;
+        white-space: nowrap;
+        width: 100%;
+        text-align: center;
+      }
+
       /* --- COPYRIGHT & SUMÁRIO --- */
       .copyright-page { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 160mm; }
       .copyright-content { text-align: center; font-family: 'Merriweather Sans', sans-serif; font-size: 10pt; width: 100%; }
@@ -141,7 +147,6 @@ const getHeadContent = (book: Book): string => {
         font-weight: 300; line-height: 1.5; 
       }
       
-      /* Remove indentação após títulos e listas */
       .content-page h2 + p.font-merriweather, 
       .content-page h3 + p.font-merriweather, 
       .blank-page h2 + p.font-merriweather,
@@ -150,23 +155,13 @@ const getHeadContent = (book: Book): string => {
         text-indent: 0; 
       }
 
-      /* ESTILOS DE LISTAS (NOVOS) */
-      ul.book-list, ol.book-list {
-        margin-bottom: 18pt;
-        padding-left: 1cm; /* Recuo da lista */
-      }
+      /* ESTILOS DE LISTAS E NEGRITO */
+      ul.book-list, ol.book-list { margin-bottom: 18pt; padding-left: 1cm; }
       ul.book-list li, ol.book-list li {
-        font-family: 'Merriweather', serif;
-        font-size: 12pt;
-        font-weight: 300;
-        line-height: 1.5;
-        margin-bottom: 6pt;
-        text-align: left; /* Listas ficam melhor alinhadas à esquerda */
+        font-family: 'Merriweather', serif; font-size: 12pt; font-weight: 300; line-height: 1.5; margin-bottom: 6pt; text-align: left;
       }
-      strong {
-        font-weight: 700; /* Negrito da Merriweather */
-        color: #000080;   /* Um leve toque de cor (azul marinho) para destaque, ou use #000 */
-      }
+      
+      strong { font-weight: 700; color: #262626; }
 
     </style>
   </head>`;
@@ -184,7 +179,6 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
   }
 
   switch (part.part_type) {
-  
     case 'cover': {
       const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp';
       const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';
@@ -207,7 +201,6 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
         </div>
       `;
     }
-            
     case 'copyright': {
       const copyrightText = content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
       return `<div class="page-container blank-page copyright-page">
@@ -219,7 +212,6 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
                 </div>
               </div>`;
     }
-
     case 'toc': {
       const tocTitle = content.title || 'Sumário';
       const tocContent = content.content || '';
@@ -235,46 +227,61 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
                 ${tocLinesHtml}
               </div>`;
     }
-
     case 'introduction': {
       const introTitle = content.title || 'Introdução';
       return `<div class="page-container content-page">
                 <h2 class="font-merriweather">${introTitle}</h2>
-                ${formatMarkdownContent(content.content)} <!-- ALTERADO AQUI -->
+                ${formatMarkdownContent(content.content)}
               </div>`;
     }
-
     case 'chapter_title': {
       return `<div class="page-container blank-page chapter-title-page">
                 <h1 class="chapter-title-standalone">${content.title}</h1>
               </div>`;
     }
-
     case 'chapter_content': {
       let chapterHtml = '';
       if (content.title) {
         chapterHtml += `<h2 class="font-merriweather">${content.title}</h2>`;
       }
       if (content.introduction) {
-        chapterHtml += formatMarkdownContent(content.introduction); // ALTERADO AQUI
+        chapterHtml += formatMarkdownContent(content.introduction);
       }
       if (content.subchapters && Array.isArray(content.subchapters)) {
         content.subchapters.forEach((sub: any) => {
           chapterHtml += `<h3 class="font-merriweather-sans">${sub.title}</h3>`;
-          chapterHtml += formatMarkdownContent(sub.content); // ALTERADO AQUI
+          chapterHtml += formatMarkdownContent(sub.content);
         });
       }
       return `<div class="page-container content-page">${chapterHtml}</div>`;
     }
-            
     default:
       return '';
   }
 };
 
-export const assembleFullHtml = (book: Book, parts: BookPart[]): string => {
+/**
+ * Monta o HTML completo do livro.
+ * Adicionamos o parâmetro opcional 'isFreeTier'.
+ * Se for true (ou undefined, para testar), aplica a marca d'água.
+ */
+export const assembleFullHtml = (book: Book, parts: BookPart[], isFreeTier: boolean = true): string => {
   parts.sort((a, b) => a.part_index - b.part_index);
+  
   const head = getHeadContent(book);
   const bodyContent = parts.map(part => getInnerHtmlForPart(book, part)).join('\n');
-  return `<!DOCTYPE html><html lang="pt-BR">${head}<body>${bodyContent}</body></html>`;
+
+  // Lógica da Marca D'água: Injetada apenas se isFreeTier for true
+  const watermarkHtml = isFreeTier 
+    ? `<div class="watermark-overlay">Criado com Lidia - Versão Gratuita</div>` 
+    : '';
+
+  return `<!DOCTYPE html>
+    <html lang="pt-BR">
+      ${head}
+      <body>
+        ${watermarkHtml}
+        ${bodyContent}
+      </body>
+    </html>`;
 };
