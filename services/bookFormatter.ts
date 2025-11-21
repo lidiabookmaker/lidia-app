@@ -162,6 +162,7 @@ const getHeadContent = (book: Book): string => {
   switch (part.part_type) {
   
     case 'cover':
+      /*
       const coverData = content;
       const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp';
       const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';
@@ -173,6 +174,18 @@ const getHeadContent = (book: Book): string => {
           <p class="cover-element cover-author">${book.author}</p>
           <img class="cover-element cover-logo" src="${logoUrl}" alt="Logo Lidia">
       </div>`;
+      */
+
+       // --- NOVO CÓDIGO DE TESTE SIMULANDO O COPYRIGHT ---
+      const testTitle = content?.title || book?.title || "TÍTULO DE TESTE";
+
+      return `<div class="page-container blank-page copyright-page">
+            <div class="copyright-content" style="justify-content: center;">
+              <h1 style="font-size: 40pt; font-family: sans-serif;">${testTitle}</h1>
+              <p>Se isto aparecer, a estrutura base funciona.</p>
+            </div>
+          </div>`;
+    }
   
             
     case 'copyright': {
