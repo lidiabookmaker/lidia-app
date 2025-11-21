@@ -172,8 +172,8 @@ const getHeadContent = (book: Book): string => {
   switch (part.part_type) {
   
 case 'cover': {
-  const coverBgUrl = '...'; // sua url
-  const logoUrl = '...';    // sua url
+  const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp'; // sua url
+  const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';    // sua url
   const title = content?.title || book?.title || 'Título';
   const subtitle = content?.subtitle || book?.subtitle || 'Subtítulo';
   const author = book?.author || 'Autor';
