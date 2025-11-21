@@ -17,7 +17,7 @@ const formatParagraphs = (text: string): string => {
 
 /**
  * Gera o conteúdo completo da tag <head>, incluindo todos os estilos CSS.
- * VERSÃO FINAL: SUBCAPÍTULOS DO SUMÁRIO COM FONTE LEVE (300)
+ * VERSÃO FINAL: TEXTO CORRIDO LIGHT (300) E ENTRELINHA 1.5
  */
 const getHeadContent = (book: Book): string => {
   const safeTitle = book.title.toUpperCase().replace(/"/g, "'");
@@ -26,8 +26,8 @@ const getHeadContent = (book: Book): string => {
     <meta charset="utf-8">
     <title>${book.title}</title>
     <style>
-      /* --- FONTES --- */
-      @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@400;700&family=Merriweather+Sans:wght@300;400;700;800&display=swap&v=4');
+      /* --- FONTES (ATUALIZADO PARA INCLUIR PESO 300 NA MERRIWEATHER) --- */
+      @import url('https://fonts.googleapis.com/css2?family=League+Gothic&family=Merriweather:wght@300;400;700&family=Merriweather+Sans:wght@300;400;700;800&display=swap&v=4');
 
       /* ======================================= */
       /*   SISTEMA DE PÁGINAS MESTRAS            */
@@ -124,7 +124,7 @@ const getHeadContent = (book: Book): string => {
         width: 100%;
       }
 
-      /* --- SUMÁRIO (MUDANÇA AQUI) --- */
+      /* --- SUMÁRIO --- */
       .toc-chapter { 
         font-weight: 700; 
         margin-top: 12pt; 
@@ -132,10 +132,10 @@ const getHeadContent = (book: Book): string => {
       
       .toc-subchapter { 
         margin-left: 1cm; 
-        font-family: 'Merriweather Sans', sans-serif; /* Fonte Sans */
-        font-size: 10pt;                              /* Tamanho menor */
-        font-weight: 300;                             /* Peso leve (Light) */
-        line-height: 1.4;                             /* Melhor leitura */
+        font-family: 'Merriweather Sans', sans-serif;
+        font-size: 10pt;
+        font-weight: 300;
+        line-height: 1.4;
       }
 
       /* --- FOLHAS DE ROSTO DE CAPÍTULO --- */
@@ -174,8 +174,20 @@ const getHeadContent = (book: Book): string => {
         margin-bottom: 18pt; 
       }
 
+      /* PARÁGRAFOS DE TEXTO (MUDANÇA AQUI) */
       .content-page p.font-merriweather { 
-        text-align: justify; hyphens: auto; orphans: 2; widows: 2; page-break-inside: avoid; text-indent: 1cm; margin-top: 0; margin-bottom: 18pt;
+        text-align: justify; 
+        hyphens: auto; 
+        orphans: 2; 
+        widows: 2; 
+        page-break-inside: avoid; 
+        text-indent: 1cm; 
+        
+        margin-top: 0; 
+        margin-bottom: 18pt;
+        
+        font-weight: 300; /* Peso leve */
+        line-height: 1.5; /* Entrelinha 150% */
       }
       
       .content-page h2 + p.font-merriweather,
