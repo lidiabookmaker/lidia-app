@@ -182,7 +182,8 @@ const getHeadContent = (book: Book): string => {
       return `<div class="page-container blank-page copyright-page">
           <div class="copyright-content" style="justify-content: center;">
             <h1 class="cover-element cover-title">${testTitle}</h1>
-            {/* O resto dos elementos virá nos próximos passos */}
+            <p class="cover-element cover-subtitle">${content?.subtitle || book?.subtitle || 'Subtítulo de teste'}</p>
+            <p class="cover-element cover-author">${book?.author || 'Autor de Teste'}</p>
           </div>
         </div>`;
     }
