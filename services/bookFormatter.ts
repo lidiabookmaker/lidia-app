@@ -162,28 +162,20 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
   switch (part.part_type) {
   
 case 'cover': {
-  // =================================================================
-  // DEBUG NO NAVEGADOR: Vamos ver o que está chegando aqui
-  // =================================================================
-  console.log('--- DEBUG CAPA (NAVEGADOR) ---');
-  console.log('Objeto Book:', book);
-  console.log('Objeto Content da Capa:', content);
-  // =================================================================
-
-  // Garante que temos valores seguros, mesmo que os dados falhem
+  // Ignoramos as URLs externas por enquanto
+  // const coverBgUrl = '...';
+  // const logoUrl = '...';
+  
   const title = content?.title || book?.title || 'Título Indisponível';
   const subtitle = content?.subtitle || book?.subtitle || '';
   const author = book?.author || 'Autor Desconhecido';
-
-  const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp';
-  const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';
   
   const coverHtml = `
-    <div class="page-container cover-page" style="background-image: url('${coverBgUrl}');">
+    <div class="page-container cover-page" style="background-color: lightblue;"> {/* Usamos uma cor sólida para o teste */}
       <h1 class="cover-element cover-title">${title}</h1>
       <p class="cover-element cover-subtitle">${subtitle}</p>
       <p class="cover-element cover-author">${author}</p>
-      <img class="cover-element cover-logo" src="${logoUrl}" alt="Logo Lidia">
+      {/* <img class="cover-element cover-logo" src="${logoUrl}" alt="Logo Lidia">  Comentamos a logo */}
     </div>
   `;
   
