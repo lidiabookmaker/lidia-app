@@ -171,32 +171,42 @@ const getHeadContent = (book: Book): string => {
 
   switch (part.part_type) {
   
-    case 'cover': {
-      const coverBgUrl = '...'; // sua url
+case 'cover': {
+  const coverBgUrl = '...'; // sua url
   const logoUrl = '...';    // sua url
   const title = content?.title || book?.title || 'Título';
   const subtitle = content?.subtitle || book?.subtitle || 'Subtítulo';
   const author = book?.author || 'Autor';
 
-return `
-  <div class="page-container blank-page" style="background-image: url('${coverBgUrl}'); background-size: cover; background-position: center; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; padding: 30mm 0 15mm 0;">
-    
-    <div> <!-- Grupo do Topo -->
-      {/* REMOVEMOS A MARGIN-TOP DAQUI */}
-      <h1 class="cover-title">${title}</h1> 
-      {/* E REDUZIMOS A MARGIN-TOP AQUI */}
-      <p class="cover-subtitle" style="margin-top: 10mm;">${subtitle}</p> 
-    </div>
+  return `
+    <div 
+      class="page-container blank-page" 
+      style="
+        background-image: url('${coverBgUrl}'); 
+        background-size: cover; 
+        background-position: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between; /* Empurra os grupos para o topo e para o fundo */
+        align-items: center;
+        text-align: center;
+        padding: 30mm 20mm 15mm 20mm; /* CIMA | LATERAIS | BAIXO | LATERAIS */
+      "
+    >
+      
+      <div> <!-- Grupo do Topo: Centralizado no espaço superior -->
+        <h1 class="cover-title">${title}</h1>
+        <p class="cover-subtitle" style="margin-top: 15mm;">${subtitle}</p>
+      </div>
 
-    <div> <!-- Grupo de Baixo -->
-      <p class="cover-author">${author}</p>
-      {/* RESTAURAMOS A LOGO E REDUZIMOS A MARGIN-TOP */}
-      <img class="cover-logo" src="${logoUrl}" alt="Logo Lidia" style="margin-top: 10mm;">
-    </div>
+      <div> <!-- Grupo de Baixo: Centralizado no espaço inferior -->
+        <p class="cover-author">${author}</p>
+        <img class="cover-logo" src="${logoUrl}" alt="Logo Lidia" style="margin-top: 15mm;">
+      </div>
 
-  </div>
-`;
-    }
+    </div>
+  `;
+}
   
             
     case 'copyright': {
