@@ -76,27 +76,7 @@ export const ViewBookPage: React.FC<ViewBookPageProps> = ({ book, onNavigate }) 
     }
   }, [log]);
 
-useEffect(() => {
-    const fetchParts = async () => {
-      setIsLoadingParts(true);
-      setError(null);
-      try {
-        const { data: parts, error: fetchError } = await supabase.from('book_parts').select('*').eq('book_id', book.id).order('part_index', { ascending: true });
-        if (fetchError) throw fetchError;
-        if (!parts || parts.length === 0) throw new Error("Nenhuma parte do livro foi encontrada.");
-        
-        setBookParts(parts as BookPart[]); // Apenas guardamos as partes
-      } catch (err) {
-        console.error("Error fetching book parts:", err);
-        setError(`Não foi possível carregar o conteúdo do livro: ${(err as Error).message}`);
-      } finally {
-        setIsLoadingParts(false);
-      }
-    };
-    fetchParts();
-}, [book.id]);
 
-  /*
   useEffect(() => {
     const fetchAndAssemble = async () => {
       setIsLoadingParts(true);
@@ -118,7 +98,7 @@ useEffect(() => {
     };
     fetchAndAssemble();
   }, [book.id, book]);
-*/
+
 
   // --- Funções Auxiliares ---
   const updateLog = (message: string) => {
@@ -260,16 +240,10 @@ useEffect(() => {
                 ) : error ? (
                   <div className="h-[80vh] flex justify-center items-center text-red-600 p-4">{error}</div>
                 ) : (
+                                  
                   <iframe
                     ref={iframeRef}
-                    // Monta o HTML somente quando book e bookParts estiverem prontos
-                    srcDoc={(book && bookParts.length > 0) ? assembleFullHtml(book, bookParts) : ''}
-
-
-                /*
-                  <iframe
-                    ref={iframeRef}
-                    srcDoc={fullHtml || ''} */
+                    srcDoc={fullHtml || ''}
                     title={book.title}
                     className="w-full border-0 h-[80vh]"
                     sandbox="allow-scripts allow-same-origin"

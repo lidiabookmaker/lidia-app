@@ -151,23 +151,23 @@ const getHeadContent = (book: Book): string => {
 /**
  * Gera o HTML interno para uma única parte do livro.
  */
-const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
-  let content: any;
-  try {
-    content = JSON.parse(part.content);
-  } catch (e) {
-    content = { title: (book as any).title, content: part.content };
-  }
+  const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
+    let content: any;
+    try {
+      content = JSON.parse(part.content);
+    } catch (e) {
+      content = { title: (book as any).title, content: part.content };
+    }
 
   switch (part.part_type) {
   
-case 'cover':
-    const coverData = content;
-    const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp';
-    const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';
+    case 'cover':
+      const coverData = content;
+      const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp';
+      const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';
 
-    return `
-      <div class="page-container cover-page" style="background-image: url('${coverBgUrl}');">
+      return `
+      <div class="page-container blank-page cover-page" style="background-image: url('${coverBgUrl}');">
           <h1 class="cover-element cover-title">${coverData.title || book.title}</h1>
           <p class="cover-element cover-subtitle">${coverData.subtitle || ''}</p>
           <p class="cover-element cover-author">${book.author}</p>
