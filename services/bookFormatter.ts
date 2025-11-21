@@ -39,6 +39,14 @@ const getHeadContent = (book: Book): string => {
         margin: 0;
       }
 
+      /* 1. Mestra para a CAPA (Margem ZERO para sangria total da imagem) */
+      @page cover_style {
+        size: A5;
+        margin: 0; /* O segredo: removemos a margem do papel aqui */
+      }
+
+
+
       /* 2. Mestra para PÁGINAS LIMPAS (Copyright, Sumário, Folhas de Rosto) */
       @page blank_page {
         size: A5;
@@ -84,20 +92,37 @@ const getHeadContent = (book: Book): string => {
       
       /* --- ESTILOS DA CAPA --- */
       .cover-page {
+        page: cover_style; 
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        position: relative; 
+        overflow: hidden;
+        background-size: cover;
+        background-position: center;
+      
+      
+      /*
         position: relative; 
         overflow: hidden;
         background-size: cover;
         background-position: center;
         padding: 0 !important;
-        background-color: lightblue;
+        background-color: lightblue; 
+      */
+
       }
       .cover-layout {
         display: flex;
         flex-direction: column;    /* Empilha os itens verticalmente */
         justify-content: space-between; /* Empurra um grupo para o topo e outro para o fundo */
         align-items: center;      /* Centraliza horizontalmente */
+        width: 100%;
         height: 100%;             /* Ocupa a página inteira */
         text-align: center;       /* Garante que o texto dentro dos filhos esteja centrado */
+        box-sizing: border-box;
+        padding: 20mm;
       }
 
 
