@@ -178,22 +178,24 @@ const getHeadContent = (book: Book): string => {
   const subtitle = content?.subtitle || book?.subtitle || 'Subtítulo';
   const author = book?.author || 'Autor';
 
-  return `
-    <div class="page-container blank-page" style="background-image: url('${coverBgUrl}'); background-size: cover; background-position: center;">
-      <div class="cover-layout">
-        
-        <div> <!-- Grupo do Topo -->
-          <h1 class="cover-title" style="margin-top: 30mm;">${title}</h1>
-          <p class="cover-subtitle" style="margin-top: 20mm;">${subtitle}</p>
-        </div>
+return `
+  <div class="page-container blank-page" style="background-image: url('${coverBgUrl}'); background-size: cover; background-position: center; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; padding: 30mm 0 15mm 0;">
+    
+    <div> <!-- Grupo do Topo -->
+      {/* REMOVEMOS A MARGIN-TOP DAQUI */}
+      <h1 class="cover-title">${title}</h1> 
+      {/* E REDUZIMOS A MARGIN-TOP AQUI */}
+      <p class="cover-subtitle" style="margin-top: 10mm;">${subtitle}</p> 
+    </div>
 
-        <div> <!-- Grupo de Baixo -->
-          <p class="cover-author">${author}</p>
-          <img class="cover-logo" src="${logoUrl}" alt="Logo Lidia" style="margin-top: 20mm;">
-        </div>
+    <div> <!-- Grupo de Baixo -->
+      <p class="cover-author">${author}</p>
+      {/* RESTAURAMOS A LOGO E REDUZIMOS A MARGIN-TOP */}
+      <img class="cover-logo" src="${logoUrl}" alt="Logo Lidia" style="margin-top: 10mm;">
+    </div>
 
-      </div>
-    </div>`;
+  </div>
+`;
     }
   
             
