@@ -1,3 +1,5 @@
+// services/bookFormatter.ts
+
 import type { Book, BookPart } from '../types';
 
 /**
@@ -15,7 +17,7 @@ const formatParagraphs = (text: string): string => {
 
 /**
  * Gera o conteúdo completo da tag <head>, incluindo todos os estilos CSS.
- * VERSÃO FINAL E CONSOLIDADA - CORREÇÃO DE CAPA APLICADA
+ * VERSÃO FINAL E CONSOLIDADA
  */
 const getHeadContent = (book: Book): string => {
   const safeTitle = book.title.toUpperCase().replace(/"/g, "'");
@@ -31,11 +33,19 @@ const getHeadContent = (book: Book): string => {
       /*   SISTEMA DE PÁGINAS MESTRAS            */
       /* ======================================= */
 
-      /* 1. Mestra para a CAPA (Margem ZERO para sangria total) */
-      @page cover_style {
+      /* 1. Mestra para a CAPA (sempre a primeira página) */
+      @page :first {
         size: A5;
         margin: 0;
       }
+
+      /* 1. Mestra para a CAPA (Margem ZERO para sangria total da imagem) */
+      @page cover_style {
+        size: A5;
+        margin: 0; /* O segredo: removemos a margem do papel aqui */
+      }
+
+
 
       /* 2. Mestra para PÁGINAS LIMPAS (Copyright, Sumário, Folhas de Rosto) */
       @page blank_page {
@@ -81,37 +91,52 @@ const getHeadContent = (book: Book): string => {
       .blank-page { page: blank_page; }
       
       /* --- ESTILOS DA CAPA --- */
-      /* Conecta o div principal da capa à página mestra SEM margens */
       .cover-page {
         page: cover_style; 
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
         position: relative; 
         overflow: hidden;
         background-size: cover;
         background-position: center;
-        width: 100%;
-        height: 100%;
-        padding: 0;
-        margin: 0;
-        background-color: lightblue; /* fallback */
-      }
+      
+      
+      /*
+        position: relative; 
+        overflow: hidden;
+        background-size: cover;
+        background-position: center;
+        padding: 0 !important;
+        background-color: lightblue; 
+      */
 
-      /* Container interno que segura o texto longe das bordas */
+      }
       .cover-layout {
         display: flex;
-        flex-direction: column;    
-        justify-content: space-between; 
-        align-items: center;      
+        flex-direction: column;    /* Empilha os itens verticalmente */
+        justify-content: space-between; /* Empurra um grupo para o topo e outro para o fundo */
+        align-items: center;      /* Centraliza horizontalmente */
         width: 100%;
-        height: 100%;             
-        text-align: center;
+        height: 100%;             /* Ocupa a página inteira */
+        text-align: center;       /* Garante que o texto dentro dos filhos esteja centrado */
         box-sizing: border-box;
-        padding: 20mm; /* MARGEM VISUAL DE SEGURANÇA DO TEXTO */
+        padding: 20mm;
       }
 
-      .cover-title { font-family: 'League Gothic', sans-serif; font-size: 48pt; line-height: 1; text-transform: uppercase; color: #001f5c; margin: 0; }
-      .cover-subtitle { font-family: 'Merriweather Sans', sans-serif; font-weight: 300; font-size: 14.4pt; line-height: 1.25; color: #2b4b8a; margin-top: 15mm; }
-      .cover-author { font-family: 'Merriweather Sans', sans-serif; font-weight: 400; font-size: 10pt; text-transform: uppercase; color: #4a68a5; margin: 0; }
-      .cover-logo { height: 40px; margin-top: 15mm; }
+
+      /* .cover-element {
+        position: absolute;
+        width: 82%;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+      } */
+      .cover-title { font-family: 'League Gothic', sans-serif; font-size: 48pt; line-height: 1; text-transform: uppercase; color: #001f5c; }
+      .cover-subtitle { font-family: 'Merriweather Sans', sans-serif; font-weight: 300; font-size: 14.4pt; line-height: 1.25; color: #2b4b8a; }
+      .cover-author { font-family: 'Merriweather Sans', sans-serif; font-weight: 400; font-size: 10pt; text-transform: uppercase; color: #4a68a5; }
+      .cover-logo { height: 40px; }
 
       /* --- ESTILOS DA PÁGINA DE COPYRIGHT --- */
       .copyright-page {
@@ -162,22 +187,24 @@ const getHeadContent = (book: Book): string => {
 /**
  * Gera o HTML interno para uma única parte do livro.
  */
-const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
-  let content: any;
-  try {
-    content = JSON.parse(part.content);
-  } catch (e) {
-    content = { title: (book as any).title, content: part.content };
-  }
+  const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
+    let content: any;
+    try {
+      content = JSON.parse(part.content);
+    } catch (e) {
+      content = { title: (book as any).title, content: part.content };
+    }
 
   switch (part.part_type) {
   
-    case 'cover': {
-      const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp';
-      const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';
-      const title = content?.title || book?.title || 'Título';
-      const subtitle = content?.subtitle || book?.subtitle || 'Subtítulo';
-      const author = book?.author || 'Autor';
+
+    
+case 'cover': {
+  const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp'; // sua url
+  const logoUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/lidia-logo-trans.svg';    // sua url
+  const title = content?.title || book?.title || 'Título';
+  const subtitle = content?.subtitle || book?.subtitle || 'Subtítulo';
+  const author = book?.author || 'Autor';
 
       return `
         <div class="page-container cover-page" style="background-image: url('${coverBgUrl}');">
@@ -187,18 +214,21 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
             
             <div> <!-- Grupo do Topo -->
               <h1 class="cover-title">${title}</h1>
-              <p class="cover-subtitle">${subtitle}</p>
+              <p class="cover-subtitle" style="margin-top: 15mm;">${subtitle}</p>
             </div>
 
             <div> <!-- Grupo de Baixo -->
               <p class="cover-author">${author}</p>
-              <img class="cover-logo" src="${logoUrl}" alt="Logo Lidia">
+              <img class="cover-logo" src="${logoUrl}" alt="Logo Lidia" style="margin-top: 15mm;">
             </div>
 
           </div>
         </div>
       `;
     }
+
+
+  
             
     case 'copyright': {
       const copyrightText = content.content || `Copyright © ${new Date().getFullYear()} ${book.author}`;
