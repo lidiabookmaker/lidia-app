@@ -107,10 +107,10 @@ const getHeadContent = (book: Book): string => {
         transform: translateX(-50%);
         text-align: center;
       } */
-      .cover-title { font-family: 'League Gothic', sans-serif; font-size: 60pt; line-height: 1; text-transform: uppercase; color: #001f5c; }
+      .cover-title { font-family: 'League Gothic', sans-serif; font-size: 48pt; line-height: 1; text-transform: uppercase; color: #001f5c; }
       .cover-subtitle { font-family: 'Merriweather Sans', sans-serif; font-weight: 300; font-size: 14.4pt; line-height: 1.25; color: #2b4b8a; }
       .cover-author { font-family: 'Merriweather Sans', sans-serif; font-weight: 400; font-size: 10pt; text-transform: uppercase; color: #4a68a5; }
-      .cover-logo { height: 50px; }
+      .cover-logo { height: 40px; }
 
       /* --- ESTILOS DA PÁGINA DE COPYRIGHT --- */
       .copyright-page {
