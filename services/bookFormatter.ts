@@ -15,7 +15,7 @@ const formatParagraphs = (text: string): string => {
 
 /**
  * Gera o conteúdo completo da tag <head>, incluindo todos os estilos CSS.
- * VERSÃO FINAL E CONSOLIDADA - CORREÇÃO DE CAPA APLICADA
+ * VERSÃO AJUSTADA: CORREÇÃO DA ALTURA DA CAPA (WHITE BAR FIX)
  */
 const getHeadContent = (book: Book): string => {
   const safeTitle = book.title.toUpperCase().replace(/"/g, "'");
@@ -37,15 +37,15 @@ const getHeadContent = (book: Book): string => {
         margin: 0;
       }
 
-      /* 2. Mestra para PÁGINAS LIMPAS (Copyright, Sumário, Folhas de Rosto) */
+      /* 2. Mestra para PÁGINAS LIMPAS */
       @page blank_page {
         size: A5;
-        margin: 25mm 20mm 17mm 20mm; /* Margens para o conteúdo interno */
+        margin: 25mm 20mm 17mm 20mm; 
         @top-center { content: ""; }
         @bottom-center { content: ""; }
       }
 
-      /* 3. Mestra para o CONTEÚDO PADRÃO (com cabeçalho/rodapé) */
+      /* 3. Mestra para o CONTEÚDO PADRÃO */
       @page content {
         size: A5;
         margin: 25mm 20mm 17mm 20mm;
@@ -65,23 +65,25 @@ const getHeadContent = (book: Book): string => {
       }
 
       /* --- ESTILOS GERAIS E CONECTORES --- */
-      body {
+      /* IMPORTANTE: html e body com altura 100% garantem que o fundo estique */
+      html, body {
+        height: 100%; 
+        margin: 0;
+        padding: 0;
         font-family: 'Merriweather', serif;
         font-size: 12pt;
         color: #262626;
-        margin: 0;
       }
+
       .page-container {
         page-break-after: always;
         width: 100%;
-        height: 100%;
         box-sizing: border-box;
       }
       .content-page { page: content; }
       .blank-page { page: blank_page; }
       
       /* --- ESTILOS DA CAPA --- */
-      /* Conecta o div principal da capa à página mestra SEM margens */
       .cover-page {
         page: cover_style; 
         position: relative; 
@@ -89,13 +91,13 @@ const getHeadContent = (book: Book): string => {
         background-size: cover;
         background-position: center;
         width: 100%;
-        height: 100%;
+        height: 100vh; /* MUDANÇA CRÍTICA: 100vh força a altura total do papel */
         padding: 0;
         margin: 0;
-        background-color: lightblue; /* fallback */
+        background-color: lightblue;
       }
 
-      /* Container interno que segura o texto longe das bordas */
+      /* Container interno que segura o texto */
       .cover-layout {
         display: flex;
         flex-direction: column;    
@@ -105,7 +107,7 @@ const getHeadContent = (book: Book): string => {
         height: 100%;             
         text-align: center;
         box-sizing: border-box;
-        padding: 20mm; /* MARGEM VISUAL DE SEGURANÇA DO TEXTO */
+        padding: 20mm; /* Margem de segurança visual */
       }
 
       .cover-title { font-family: 'League Gothic', sans-serif; font-size: 48pt; line-height: 1; text-transform: uppercase; color: #001f5c; margin: 0; }
@@ -113,48 +115,20 @@ const getHeadContent = (book: Book): string => {
       .cover-author { font-family: 'Merriweather Sans', sans-serif; font-weight: 400; font-size: 10pt; text-transform: uppercase; color: #4a68a5; margin: 0; }
       .cover-logo { height: 40px; margin-top: 15mm; }
 
-      /* --- ESTILOS DA PÁGINA DE COPYRIGHT --- */
-      .copyright-page {
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-      }
-      .copyright-content {
-        text-align: center;
-        font-family: 'Merriweather Sans', sans-serif;
-        font-size: 10pt;
-        padding-bottom: 5mm;
-      }
-
-      /* --- ESTILOS DO SUMÁRIO --- */
+      /* --- Outros Estilos --- */
+      .copyright-page { display: flex; flex-direction: column; justify-content: flex-end; }
+      .copyright-content { text-align: center; font-family: 'Merriweather Sans', sans-serif; font-size: 10pt; padding-bottom: 5mm; }
       .toc-chapter { font-weight: 700; margin-top: 12pt; }
       .toc-subchapter { margin-left: 1cm; }
-
-      /* --- ESTILOS DAS FOLHAS DE ROSTO DOS CAPÍTULOS --- */
-      .chapter-title-page {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
+      .chapter-title-page { display: flex; justify-content: center; align-items: center; }
       .chapter-title-standalone { font-size: 24pt; }
 
-      /* --- ESTILOS DO CONTEÚDO (Títulos e Parágrafos) --- */
       .content-page h2.font-merriweather { font-family: 'Merriweather', serif; font-weight: 700; font-size: 24pt; line-height: 1.5; text-align: center; color: rgba(51, 51, 51, 0.5); margin-top: 36pt; margin-bottom: 54pt; }
       .content-page h3.font-merriweather-sans { font-family: 'Merriweather Sans', sans-serif; font-weight: 800; font-size: 14.4pt; line-height: 1.25; color: rgba(36, 36, 36, 0.75); margin-top: 36pt; margin-bottom: 18pt; }
       .content-page p.font-merriweather { 
-        text-align: justify;
-        hyphens: auto;
-        orphans: 2; 
-        widows: 2;
-        page-break-inside: avoid;
-        text-indent: 1cm;
-        margin-top: 0;
-        margin-bottom: 18pt;
+        text-align: justify; hyphens: auto; orphans: 2; widows: 2; page-break-inside: avoid; text-indent: 1cm; margin-top: 0; margin-bottom: 18pt;
       }
-      .content-page h2 + p.font-merriweather,
-      .content-page h3 + p.font-merriweather {
-        text-indent: 0;
-      }
+      .content-page h2 + p.font-merriweather, .content-page h3 + p.font-merriweather { text-indent: 0; }
     </style>
   </head>`;
 };
@@ -181,20 +155,15 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
 
       return `
         <div class="page-container cover-page" style="background-image: url('${coverBgUrl}');">
-          
-          <!-- Container INTERNO: Segura o conteúdo com padding, sem afetar o fundo -->
           <div class="cover-layout">
-            
-            <div> <!-- Grupo do Topo -->
+            <div> 
               <h1 class="cover-title">${title}</h1>
               <p class="cover-subtitle">${subtitle}</p>
             </div>
-
-            <div> <!-- Grupo de Baixo -->
+            <div> 
               <p class="cover-author">${author}</p>
               <img class="cover-logo" src="${logoUrl}" alt="Logo Lidia">
             </div>
-
           </div>
         </div>
       `;
@@ -265,20 +234,9 @@ const getInnerHtmlForPart = (book: Book, part: BookPart): string => {
 };
 
 
-/**
- * Monta o HTML completo do livro, juntando todas as partes.
- */
 export const assembleFullHtml = (book: Book, parts: BookPart[]): string => {
   parts.sort((a, b) => a.part_index - b.part_index);
-  
   const head = getHeadContent(book);
   const bodyContent = parts.map(part => getInnerHtmlForPart(book, part)).join('\n');
-
-  return `<!DOCTYPE html>
-    <html lang="pt-BR">
-      ${head}
-      <body>
-        ${bodyContent}
-      </body>
-    </html>`;
+  return `<!DOCTYPE html><html lang="pt-BR">${head}<body>${bodyContent}</body></html>`;
 };
