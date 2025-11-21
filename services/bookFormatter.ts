@@ -161,7 +161,7 @@ const getHeadContent = (book: Book): string => {
 
   switch (part.part_type) {
   
-    case 'cover':
+    case 'cover': {
       /*
       const coverData = content;
       const coverBgUrl = 'https://raw.githubusercontent.com/lidiabookmaker/lidia-app/main/public/fundo-light-lidia-cover.webp';
