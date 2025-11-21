@@ -179,7 +179,7 @@ const getHeadContent = (book: Book): string => {
        // --- NOVO CÓDIGO DE TESTE SIMULANDO O COPYRIGHT ---
       const testTitle = content?.title || book?.title || "TÍTULO DE TESTE";
 
-        return `<div class="page-container cover-page blank-page">
+        return `<div class="page-container blank-page copyright-page">
           <h1 class="cover-element cover-title">${content?.title || book?.title || 'TÍTULO'}</h1>
           <p class="cover-element cover-subtitle">${content?.subtitle || book?.subtitle || 'Subtítulo'}</p>
           <p class="cover-element cover-author">${book?.author || 'Autor'}</p>
