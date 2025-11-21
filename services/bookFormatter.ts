@@ -17,7 +17,7 @@ const formatParagraphs = (text: string): string => {
 
 /**
  * Gera o conteúdo completo da tag <head>, incluindo todos os estilos CSS.
- * VERSÃO FINAL: CORREÇÕES GERAIS DE ESTILO E ALINHAMENTO
+ * VERSÃO FINAL: SUBCAPÍTULOS DO SUMÁRIO COM FONTE LEVE (300)
  */
 const getHeadContent = (book: Book): string => {
   const safeTitle = book.title.toUpperCase().replace(/"/g, "'");
@@ -124,23 +124,33 @@ const getHeadContent = (book: Book): string => {
         width: 100%;
       }
 
-      /* --- SUMÁRIO --- */
-      .toc-chapter { font-weight: 700; margin-top: 12pt; }
-      .toc-subchapter { margin-left: 1cm; }
+      /* --- SUMÁRIO (MUDANÇA AQUI) --- */
+      .toc-chapter { 
+        font-weight: 700; 
+        margin-top: 12pt; 
+      }
+      
+      .toc-subchapter { 
+        margin-left: 1cm; 
+        font-family: 'Merriweather Sans', sans-serif; /* Fonte Sans */
+        font-size: 10pt;                              /* Tamanho menor */
+        font-weight: 300;                             /* Peso leve (Light) */
+        line-height: 1.4;                             /* Melhor leitura */
+      }
 
-      /* --- FOLHAS DE ROSTO DE CAPÍTULO (Ajuste Centralização) --- */
+      /* --- FOLHAS DE ROSTO DE CAPÍTULO --- */
       .chapter-title-page {
         display: flex;
         justify-content: center;
         align-items: center;
         text-align: center;
-        height: 160mm; /* Força a altura útil para permitir centralizar verticalmente */
+        height: 160mm; 
       }
       .chapter-title-standalone { font-size: 24pt; }
 
-      /* --- ESTILOS DO CONTEÚDO (Títulos e Parágrafos) --- */
+      /* --- ESTILOS DO CONTEÚDO --- */
       
-      /* TÍTULOS H2: Aplica explicitamente em .content-page (Introdução) E .blank-page (Sumário) */
+      /* TÍTULOS H2 */
       .content-page h2.font-merriweather,
       .blank-page h2.font-merriweather { 
         font-family: 'Merriweather', serif; 
@@ -168,7 +178,6 @@ const getHeadContent = (book: Book): string => {
         text-align: justify; hyphens: auto; orphans: 2; widows: 2; page-break-inside: avoid; text-indent: 1cm; margin-top: 0; margin-bottom: 18pt;
       }
       
-      /* Remove indentação após títulos */
       .content-page h2 + p.font-merriweather,
       .content-page h3 + p.font-merriweather,
       .blank-page h2 + p.font-merriweather { 
