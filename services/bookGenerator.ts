@@ -1,46 +1,72 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { supabase } from './supabase';
 import type { UserProfile, BookGenerationFormData } from '../types';
-import { GEMINI_API_KEY, OPENAI_API_KEY } from './geminiConfig';
+import { GEMINI_API_KEY } from './geminiConfig';
 
-// --- TIPOS E SCHEMAS ---
+// --- SCHEMAS SIMPLIFICADOS ---
+// No modo manual, não precisamos dos tipos complexos do SDK
 
-const outlineSchema = {
-    type: Type.OBJECT,
-    properties: {
-        optimized_title: { type: Type.STRING },
-        optimized_subtitle: { type: Type.STRING },
-        introduction_outline: { type: Type.STRING },
-        chapters: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    chapter_number: { type: Type.INTEGER },
-                    title: { type: Type.STRING },
-                    subchapters_list: { 
-                        type: Type.ARRAY, items: { type: Type.STRING } 
-                    }
-                },
-                required: ['chapter_number', 'title', 'subchapters_list']
-            }
-        },
-        conclusion_outline: { type: Type.STRING }
-    },
-    required: ['optimized_title', 'optimized_subtitle', 'chapters']
+// --- HELPER: CHAMADA MANUAL AO GEMINI (REST API) ---
+// Isso resolve o erro 404 da biblioteca e o erro de CORS da OpenAI
+const callGeminiRaw = async (prompt: string, logFunc: (msg: string) => void): Promise<any> => {
+    
+    // Vamos usar o modelo Flash que é rápido, barato e aceita chamadas diretas
+    const MODEL_NAME = "gemini-1.5-flash"; 
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${GEMINI_API_KEY}`;
+
+    const payload = {
+        contents: [{
+            parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+            response_mime_type: "application/json" // Força o JSON
+        }
+    };
+
+    try {
+        // logFunc(`[DEBUG] Conectando via REST API ao ${MODEL_NAME}...`);
+        
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erro Google (${response.status}): ${errorText}`);
+        }
+
+        const data = await response.json();
+        
+        // Extrai o texto do JSON complexo do Google
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (!rawText) throw new Error("Resposta vazia da IA.");
+
+        return JSON.parse(rawText);
+
+    } catch (error: any) {
+        console.error("Erro na chamada manual:", error);
+        throw error;
+    }
 };
 
-// --- PROMPTS BUILDERS ---
+// --- PROMPTS ---
 
 const buildOutlinePrompt = (formData: BookGenerationFormData): string => {
     return `
       Atue como um Arquiteto Editorial. Planeje a estrutura de um livro.
       Dados: Título="${formData.title}", Nicho="${formData.niche}", Público="${formData.tone}", Resumo="${formData.summary}".
-      Requisitos:
-      1. Otimize Título e Subtítulo.
-      2. Crie EXATAMENTE 10 CAPÍTULOS lógicos.
-      3. Defina 3 subcapítulos para cada.
-      IMPORTANTE: Responda estritamente com o JSON solicitado.
+      
+      Responda EXCLUSIVAMENTE com este JSON:
+      {
+        "optimized_title": "Título Otimizado",
+        "optimized_subtitle": "Subtítulo",
+        "chapters": [
+           { "chapter_number": 1, "title": "Nome do Cap", "subchapters_list": ["Sub 1", "Sub 2", "Sub 3"] },
+           ... (total 10 capítulos)
+        ]
+      }
     `;
 };
 
@@ -48,92 +74,29 @@ const buildChapterPrompt = (chapterTitle: string, subchapters: string[], context
     return `
       Escreva o capítulo: "${chapterTitle}".
       Contexto: ${context}
-      Estrutura:
-      - Intro (min 300 palavras).
-      - Subcapítulo 1: "${subchapters[0]}" (min 600 palavras).
-      - Subcapítulo 2: "${subchapters[1]}" (min 600 palavras).
-      - Subcapítulo 3: "${subchapters[2]}" (min 600 palavras).
-      Regras: Use parágrafos curtos com \\n.
-      Responda estritamente com o JSON.
+      
+      Responda EXCLUSIVAMENTE com este JSON:
+      {
+        "title": "${chapterTitle}",
+        "introduction": "Texto da introdução com parágrafos separados por \\n (min 300 palavras)",
+        "subchapters": [
+           { "title": "${subchapters[0]}", "content": "Texto completo com \\n (min 600 palavras)" },
+           { "title": "${subchapters[1]}", "content": "Texto completo com \\n (min 600 palavras)" },
+           { "title": "${subchapters[2]}", "content": "Texto completo com \\n (min 600 palavras)" }
+        ]
+      }
     `;
 };
 
 const buildSectionPrompt = (sectionType: string, context: string): string => {
-    return `Escreva a ${sectionType} completa (min 600 palavras). Contexto: ${context}. Responda estritamente com o JSON.`;
-};
-
-
-// --- MOTOR OPENAI (FALLBACK DE EMERGÊNCIA) ---
-// Usa fetch nativo para não precisar instalar SDKs novos agora
-const callOpenAIFallback = async (prompt: string, logFunc: (msg: string) => void) => {
-    if (!OPENAI_API_KEY || OPENAI_API_KEY.length < 10) {
-        throw new Error("OpenAI API Key não configurada.");
-    }
-
-    logFunc("🔄 Ativando Motor Auxiliar (OpenAI GPT-4o-mini)...");
-
-    try {
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${OPENAI_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: "gpt-4o-mini", // Muito barato e inteligente
-                messages: [
-                    { role: "system", content: "Você é um assistente editorial especializado que responde EXCLUSIVAMENTE em JSON válido." },
-                    { role: "user", content: prompt }
-                ],
-                response_format: { type: "json_object" }, // Força JSON
-                temperature: 0.7
-            })
-        });
-
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Erro OpenAI: ${response.status} - ${errText}`);
-        }
-
-        const data = await response.json();
-        const rawContent = data.choices[0].message.content;
-        return JSON.parse(rawContent);
-
-    } catch (error: any) {
-        console.error("Erro OpenAI:", error);
-        throw new Error(`Falha no Motor Auxiliar: ${error.message}`);
-    }
-};
-
-
-// --- MOTOR HÍBRIDO (TRY GOOGLE -> CATCH -> OPENAI) ---
-
-const generateHybridContent = async (
-    ai: GoogleGenAI, 
-    prompt: string, 
-    schema: any, 
-    logFunc: (msg: string) => void
-): Promise<any> => {
-    
-    // 1. Tentar Gemini (Google)
-    const googleModels = ['gemini-1.5-flash', 'gemini-1.5-pro']; // Flash primeiro pois é mais estável na v1beta
-    
-    for (const model of googleModels) {
-        try {
-            // console.log(`Tentando Google ${model}...`);
-            const response = await ai.models.generateContent({
-                model: model,
-                contents: prompt,
-                config: { responseMimeType: "application/json", responseSchema: schema }
-            });
-            return JSON.parse(response.text.trim());
-        } catch (error: any) {
-            console.warn(`Google ${model} falhou.`);
-        }
-    }
-
-    // 2. Se tudo do Google falhar, chamar OpenAI
-    return await callOpenAIFallback(prompt, logFunc);
+    return `
+      Escreva a ${sectionType}. Contexto: ${context}.
+      Responda EXCLUSIVAMENTE com este JSON:
+      {
+        "title": "${sectionType}",
+        "content": "Texto completo da seção com parágrafos separados por \\n (min 600 palavras)"
+      }
+    `;
 };
 
 
@@ -145,20 +108,15 @@ export const generateBookContent = async (
     updateLog: (message: string) => void
 ): Promise<string> => {
     
-    updateLog("Inicializando Lidia SNT® Core (Hybrid Engine)...");
-    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    updateLog("Inicializando Lidia SNT® Core (Direct Link Mode)...");
     const bookContext = `Livro: ${formData.title}. Nicho: ${formData.niche}. Objetivo: ${formData.summary}`;
 
     // --- FASE 1: ESTRUTURA ---
     updateLog("Fase 1: Blueprint Editorial...");
     
-    // Schema manual para OpenAI (pois ele não lê o objeto Type do Google)
-    // O prompt já pede JSON, então o gpt-4o-mini vai entender
-    const outline = await generateHybridContent(ai, buildOutlinePrompt(formData), outlineSchema, updateLog);
+    const outline = await callGeminiRaw(buildOutlinePrompt(formData), updateLog);
     
-    // Validação básica
     const title = outline.optimized_title || formData.title;
-    const subtitle = outline.optimized_subtitle || formData.subtitle;
     const chapters = outline.chapters || [];
 
     updateLog(`Estrutura definida: ${chapters.length} Capítulos.`);
@@ -169,27 +127,24 @@ export const generateBookContent = async (
         .insert({
             user_id: user.id,
             title: title,
-            subtitle: subtitle,
+            subtitle: outline.optimized_subtitle || formData.subtitle,
             author: formData.author,
             status: 'processing_parts',
         })
         .select()
         .single();
     
-    if (bookError) {
-        updateLog("Erro crítico ao salvar no banco.");
-        throw bookError;
-    }
+    if (bookError) throw bookError;
 
     let partIndex = 1;
     await supabase.from('book_parts').insert([
-        { book_id: newBook.id, part_index: partIndex++, part_type: 'cover', content: JSON.stringify({ title, subtitle, author: formData.author }) },
+        { book_id: newBook.id, part_index: partIndex++, part_type: 'cover', content: JSON.stringify({ title, subtitle: outline.optimized_subtitle, author: formData.author }) },
         { book_id: newBook.id, part_index: partIndex++, part_type: 'copyright', content: JSON.stringify(`Copyright © ${new Date().getFullYear()} ${formData.author}`) }
     ]);
 
     // --- FASE 2: INTRODUÇÃO ---
     updateLog("Escrevendo Introdução...");
-    const introContent = await generateHybridContent(ai, buildSectionPrompt('Introdução', bookContext), null, updateLog);
+    const introContent = await callGeminiRaw(buildSectionPrompt('Introdução', bookContext), updateLog);
     await supabase.from('book_parts').insert({ book_id: newBook.id, part_index: partIndex++, part_type: 'introduction', content: JSON.stringify(introContent) });
 
     // Salva TOC
@@ -207,23 +162,14 @@ export const generateBookContent = async (
         updateLog(`[SNT Core] Escrevendo Cap ${chapterNum}: "${chapterTitle}"...`);
         
         try {
-            const chapContent = await generateHybridContent(
-                ai, 
+            const chapContent = await callGeminiRaw(
                 buildChapterPrompt(chapterTitle, subchapters, bookContext), 
-                null, // OpenAI não precisa do schema do Google aqui
                 updateLog
             );
 
-            // Garante formato correto
-            const contentToSave = {
-                title: chapContent.title || chapterTitle,
-                introduction: chapContent.introduction || "",
-                subchapters: chapContent.subchapters || []
-            };
-
             await supabase.from('book_parts').insert([
-                { book_id: newBook.id, part_index: partIndex++, part_type: 'chapter_title', content: JSON.stringify({ title: contentToSave.title }) },
-                { book_id: newBook.id, part_index: partIndex++, part_type: 'chapter_content', content: JSON.stringify(contentToSave) }
+                { book_id: newBook.id, part_index: partIndex++, part_type: 'chapter_title', content: JSON.stringify({ title: chapContent.title }) },
+                { book_id: newBook.id, part_index: partIndex++, part_type: 'chapter_content', content: JSON.stringify(chapContent) }
             ]);
 
             updateLog(`Capítulo ${chapterNum} salvo.`);
@@ -236,7 +182,7 @@ export const generateBookContent = async (
 
     // --- FASE 4: CONCLUSÃO ---
     updateLog("Escrevendo Conclusão...");
-    const conclContent = await generateHybridContent(ai, buildSectionPrompt('Conclusão', bookContext), null, updateLog);
+    const conclContent = await callGeminiRaw(buildSectionPrompt('Conclusão', bookContext), updateLog);
     await supabase.from('book_parts').insert({ book_id: newBook.id, part_index: partIndex++, part_type: 'conclusion', content: JSON.stringify(conclContent) });
 
     updateLog("Finalizando...");
