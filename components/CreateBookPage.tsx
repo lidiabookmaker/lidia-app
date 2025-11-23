@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { UserProfile, BookGenerationFormData, Page } from '../types';
 import { Button } from './ui/Button';
-import { Input, TextArea } from './ui/Input';
-import { Card } from './ui/Card';
 import { generateBookContent } from '../services/bookGenerator';
 import { ProgressScreen } from './ProgressScreen'; 
 
@@ -25,6 +23,7 @@ const NICHE_EXAMPLES = [
   "Finanças Pessoais",
   "Culinária e Gastronomia",
   "Ficção Científica",
+  "Direito e Legislação",
   "Educação Infantil"
 ];
 
@@ -47,18 +46,11 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
   });
   
   const [log, setLog] = useState<string[]>([]);
-  // Adicionamos o estado 'finished_animation' para controlar quando sair da tela cheia
-  const [generationState, setGenerationState] = useState<'idle' | 'generating' | 'success' | 'finished_animation' | 'error'>('idle');
+  const [generationState, setGenerationState] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [createdBookId, setCreatedBookId] = useState<string | null>(null);
   
-  const logContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-    }
-  }, [log]);
+  const getTimestamp = () => new Date().toLocaleTimeString('pt-BR');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -66,7 +58,7 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
   };
 
   const updateLog = (message: string) => {
-    setLog(prev => [...prev, message]);
+    setLog(prev => [...prev, `[${getTimestamp()}] ${message}`]);
   };
   
   const handleGenerateBook = async () => {
@@ -77,41 +69,39 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
         return;
     }
 
-    setLog([]);
+    setLog([`[${getTimestamp()}] Iniciando conexão segura com SNT Core...`]);
     setErrorMessage('');
     setGenerationState('generating');
 
     try {
-      // A geração acontece em background enquanto a animação roda
       const newBookId = await generateBookContent(formData, user, updateLog);
       
       setCreatedBookId(newBookId);
-      // Aqui mudamos para success, mas a ProgressScreen ainda vai estar na tela
-      // Ela vai receber o sinal de isDone=true e mostrar a tela final
+      updateLog("Processo finalizado. PDF gerado com sucesso.");
       setGenerationState('success');
 
     } catch (error) {
         console.error("Erro ao gerar o livro:", error);
         const err = error as Error;
-        updateLog(`ERRO: ${err.message}`);
-        setErrorMessage(`Ocorreu um erro: ${err.message}. Tente novamente.`);
+        updateLog(`ERRO FATAL: ${err.message}`);
+        setErrorMessage(`Ocorreu um erro: ${err.message}.`);
         setGenerationState('error');
     }
   };
 
-  // Função chamada quando o usuário clica em "Baixar" na tela final da animação
   const handleFinishFlow = async () => {
     if (createdBookId) {
+        setGenerationState('idle'); 
+        setLog([]);
         await onGenerationComplete(createdBookId);
     } else {
-        setGenerationState('idle'); // Fallback
+        setGenerationState('idle');
     }
   };
 
   const isFormValid = formData.title && formData.summary && formData.niche;
 
-  // Renderiza o Cinema Mode se estiver gerando OU se tiver terminado (success)
-  // O ProgressScreen vai decidir se mostra a barra ou a tela de parabéns
+  // --- MODO TERMINAL (MATRIX) ---
   if (generationState === 'generating' || generationState === 'success') {
     return (
       <ProgressScreen 
@@ -122,87 +112,148 @@ export const CreateBookPage: React.FC<CreateBookPageProps> = ({ user, onGenerati
     );
   }
 
+  // --- MODO FORMULÁRIO (CLEAN & ROBUSTO) ---
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        <header className="mb-6 flex justify-between items-center">
-          <Button onClick={() => onNavigate('dashboard')} variant="secondary" className="inline-flex items-center">
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8 font-sans">
+      <div className="max-w-4xl mx-auto">
+        <header className="mb-8">
+          <Button onClick={() => onNavigate('dashboard')} variant="secondary" className="inline-flex items-center text-gray-600 bg-white border-gray-300 hover:bg-gray-50">
             <ArrowLeftIcon />
             Voltar ao Dashboard
           </Button>
         </header>
+
         <main>
-          <Card>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Formulário (Mantido igual ao anterior) */}
-              <div>
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">Criar Novo Livro</h1>
-                <p className="text-gray-600 mb-6">A IA Lidia escreverá ~22.000 palavras para você em minutos.</p>
-                
-                <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); handleGenerateBook(); }}>
-                  <div className="space-y-4">
-                    <Input name="title" label="Título do Livro *" value={formData.title} onChange={handleInputChange} placeholder="Ex: O Guia Definitivo do Marketing" required />
-                    <Input name="subtitle" label="Subtítulo (Opcional)" value={formData.subtitle} onChange={handleInputChange} placeholder="Ex: Do zero ao milhão em 12 meses" />
-                  </div>
-
-                  <TextArea name="summary" label="Sobre o que é o livro? (Prompt Principal) *" value={formData.summary} onChange={handleInputChange} placeholder="Descreva o conteúdo, público-alvo e o que o leitor vai aprender." required rows={6} className="text-base"/>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Nicho/Assunto *</label>
-                        <input list="niche-suggestions" name="niche" value={formData.niche} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: Culinária Vegana" required />
-                        <datalist id="niche-suggestions">{NICHE_EXAMPLES.map(n => <option key={n} value={n} />)}</datalist>
-                    </div>
-                    <Input name="author" label="Nome do Autor" value={formData.author} onChange={handleInputChange} required />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Tom de Voz</label>
-                        <select name="tone" value={formData.tone} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                            {TONE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Idioma</label>
-                        <select name="language" value={formData.language} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                            <option value="Português (Brasil)">Português (Brasil)</option>
-                            <option value="Inglês (EUA)">Inglês (EUA)</option>
-                            <option value="Espanhol">Espanhol</option>
-                        </select>
-                    </div>
-                  </div>
-
-                  <div className="pt-4">
-                    <Button type="submit" className="w-full text-lg py-4 shadow-lg hover:shadow-xl transition-all" disabled={!isFormValid}>
-                        ✨ Gerar Livro Completo
-                    </Button>
-                  </div>
-                </form>
-              </div>
-
-              {/* Coluna Direita */}
-              <div className="hidden lg:flex flex-col justify-center items-center bg-indigo-50 rounded-xl p-8 border-2 border-dashed border-indigo-200">
-                <div className="text-center space-y-4">
-                    <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span className="text-4xl">🤖</span>
-                    </div>
-                    <h3 className="text-xl font-bold text-indigo-900">Dicas da Lidia</h3>
-                    <ul className="text-left text-indigo-800 space-y-3 text-sm">
-                        <li className="flex items-start"><span className="mr-2">✔️</span> <strong>Resumo Detalhado:</strong> Mais detalhes geram capítulos melhores.</li>
-                        <li className="flex items-start"><span className="mr-2">✔️</span> <strong>Paciência:</strong> A magia leva alguns minutos.</li>
-                    </ul>
+            <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200">
+                {/* Cabeçalho do Card */}
+                <div className="bg-indigo-900 p-8 text-white text-center">
+                    <h1 className="text-3xl font-bold mb-2">Editor de Novos Livros</h1>
+                    <p className="text-indigo-200 opacity-90">Preencha os dados essenciais para iniciar a geração.</p>
                 </div>
-                {generationState === 'error' && (
-                  <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-lg w-full">
-                    <h3 className="text-red-800 font-bold">⚠️ Erro na Geração</h3>
-                    <p className="text-red-600 text-sm mt-1">{errorMessage}</p>
-                    <Button variant="secondary" size="sm" className="mt-2 w-full" onClick={() => setGenerationState('idle')}>Tentar Novamente</Button>
-                  </div>
-                )}
-              </div>
+
+                <div className="p-8 md:p-12">
+                    <form className="space-y-8" onSubmit={(e) => { e.preventDefault(); handleGenerateBook(); }}>
+                        
+                        {/* Seção 1: Identidade */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide">Título do Livro *</label>
+                                <input 
+                                    name="title" 
+                                    value={formData.title} 
+                                    onChange={handleInputChange} 
+                                    className="w-full h-12 px-4 rounded-md border-2 border-gray-300 focus:border-indigo-600 focus:ring-0 transition-colors text-lg"
+                                    placeholder="Ex: O Código da Riqueza" 
+                                    required 
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide">Subtítulo</label>
+                                <input 
+                                    name="subtitle" 
+                                    value={formData.subtitle} 
+                                    onChange={handleInputChange} 
+                                    className="w-full h-12 px-4 rounded-md border-2 border-gray-300 focus:border-indigo-600 focus:ring-0 transition-colors text-lg"
+                                    placeholder="Ex: Guia prático para iniciantes" 
+                                />
+                            </div>
+                        </div>
+
+                        {/* Seção 2: O Core (Resumo) */}
+                        <div className="space-y-2">
+                            <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide">
+                                Resumo Estrutural (Prompt) *
+                            </label>
+                            <p className="text-xs text-gray-500 mb-2">
+                                Descreva o que você quer no livro. Quanto mais detalhado, melhores serão os capítulos.
+                            </p>
+                            <textarea 
+                                name="summary" 
+                                value={formData.summary} 
+                                onChange={handleInputChange} 
+                                className="w-full p-4 rounded-md border-2 border-gray-300 focus:border-indigo-600 focus:ring-0 transition-colors text-base leading-relaxed"
+                                placeholder="Este livro deve ensinar sobre..." 
+                                required 
+                                rows={8} 
+                            />
+                        </div>
+
+                        {/* Seção 3: Configurações Técnicas */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-lg border border-gray-200">
+                             <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Nicho/Assunto *</label>
+                                <input 
+                                    list="niche-suggestions" 
+                                    name="niche" 
+                                    value={formData.niche} 
+                                    onChange={handleInputChange} 
+                                    className="w-full h-10 px-3 rounded border-2 border-gray-300 focus:border-indigo-500" 
+                                    placeholder="Selecione ou digite..."
+                                    required 
+                                />
+                                <datalist id="niche-suggestions">{NICHE_EXAMPLES.map(n => <option key={n} value={n} />)}</datalist>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Autor</label>
+                                <input 
+                                    name="author" 
+                                    value={formData.author} 
+                                    onChange={handleInputChange} 
+                                    className="w-full h-10 px-3 rounded border-2 border-gray-300 focus:border-indigo-500"
+                                    required 
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Tom de Voz</label>
+                                <select 
+                                    name="tone" 
+                                    value={formData.tone} 
+                                    onChange={handleInputChange} 
+                                    className="w-full h-10 px-3 rounded border-2 border-gray-300 bg-white focus:border-indigo-500"
+                                >
+                                    {TONE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Idioma</label>
+                                <select 
+                                    name="language" 
+                                    value={formData.language} 
+                                    onChange={handleInputChange} 
+                                    className="w-full h-10 px-3 rounded border-2 border-gray-300 bg-white focus:border-indigo-500"
+                                >
+                                    <option value="Português (Brasil)">Português (Brasil)</option>
+                                    <option value="Inglês (EUA)">Inglês (EUA)</option>
+                                    <option value="Espanhol">Espanhol</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Botão de Ação */}
+                        <div className="pt-4">
+                            <Button 
+                                type="submit" 
+                                className="w-full text-lg py-5 font-bold shadow-lg hover:shadow-xl transition-all uppercase tracking-wider bg-indigo-600 hover:bg-indigo-700" 
+                                disabled={!isFormValid}
+                            >
+                                Iniciar Geração com IA
+                            </Button>
+                        </div>
+                    </form>
+                </div>
             </div>
-          </Card>
+
+            {/* Mensagem de Erro */}
+            {generationState === 'error' && (
+                <div className="mt-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded shadow-md max-w-4xl mx-auto">
+                    <p className="font-bold">Não foi possível iniciar:</p>
+                    <p>{errorMessage}</p>
+                    <button onClick={() => setGenerationState('idle')} className="mt-2 text-sm underline hover:text-red-900">Tentar novamente</button>
+                </div>
+            )}
         </main>
       </div>
     </div>
