@@ -1,51 +1,51 @@
-import { GoogleGenAI, SchemaType } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { supabase } from './supabase';
 import type { UserProfile, BookGenerationFormData } from '../types';
 import { GEMINI_API_KEY } from './geminiConfig';
 
-// --- SCHEMAS (TIPOS PARA A IA) ---
+// --- SCHEMAS (TIPOS PARA A IA - Corrigido para 'Type') ---
 
 // 1. Schema leve apenas para a ESTRUTURA (Outline)
 const outlineSchema = {
-    type: SchemaType.OBJECT,
+    type: Type.OBJECT,
     properties: {
-        optimized_title: { type: SchemaType.STRING, description: "Título otimizado para a capa." },
-        optimized_subtitle: { type: SchemaType.STRING, description: "Subtítulo otimizado para a capa." },
-        introduction_outline: { type: SchemaType.STRING, description: "Breve resumo do que será a introdução." },
+        optimized_title: { type: Type.STRING, description: "Título otimizado para a capa." },
+        optimized_subtitle: { type: Type.STRING, description: "Subtítulo otimizado para a capa." },
+        introduction_outline: { type: Type.STRING, description: "Breve resumo do que será a introdução." },
         chapters: {
-            type: SchemaType.ARRAY,
+            type: Type.ARRAY,
             items: {
-                type: SchemaType.OBJECT,
+                type: Type.OBJECT,
                 properties: {
-                    chapter_number: { type: SchemaType.INTEGER },
-                    title: { type: SchemaType.STRING, description: "O título deste capítulo." },
+                    chapter_number: { type: Type.INTEGER },
+                    title: { type: Type.STRING, description: "O título deste capítulo." },
                     subchapters_list: { 
-                        type: SchemaType.ARRAY, 
-                        items: { type: SchemaType.STRING },
+                        type: Type.ARRAY, 
+                        items: { type: Type.STRING },
                         description: "Lista de 3 títulos de subcapítulos para este capítulo."
                     }
                 },
                 required: ['chapter_number', 'title', 'subchapters_list']
             }
         },
-        conclusion_outline: { type: SchemaType.STRING, description: "Breve resumo da conclusão." }
+        conclusion_outline: { type: Type.STRING, description: "Breve resumo da conclusão." }
     },
     required: ['optimized_title', 'optimized_subtitle', 'chapters']
 };
 
 // 2. Schema pesado para o CONTEÚDO DE UM CAPÍTULO
 const chapterContentSchema = {
-    type: SchemaType.OBJECT,
+    type: Type.OBJECT,
     properties: {
-        title: { type: SchemaType.STRING },
-        introduction: { type: SchemaType.STRING, description: "Texto introdutório do capítulo (múltiplos parágrafos com \\n)." },
+        title: { type: Type.STRING },
+        introduction: { type: Type.STRING, description: "Texto introdutório do capítulo (múltiplos parágrafos com \\n)." },
         subchapters: {
-            type: SchemaType.ARRAY,
+            type: Type.ARRAY,
             items: {
-                type: SchemaType.OBJECT,
+                type: Type.OBJECT,
                 properties: {
-                    title: { type: SchemaType.STRING },
-                    content: { type: SchemaType.STRING, description: "Texto rico do subcapítulo (600+ palavras, parágrafos com \\n)." }
+                    title: { type: Type.STRING },
+                    content: { type: Type.STRING, description: "Texto rico do subcapítulo (600+ palavras, parágrafos com \\n)." }
                 },
                 required: ['title', 'content']
             }
@@ -56,10 +56,10 @@ const chapterContentSchema = {
 
 // 3. Schema para INTRODUÇÃO ou CONCLUSÃO isoladas
 const sectionContentSchema = {
-    type: SchemaType.OBJECT,
+    type: Type.OBJECT,
     properties: {
-        title: { type: SchemaType.STRING },
-        content: { type: SchemaType.STRING, description: "Texto completo (múltiplos parágrafos com \\n)." }
+        title: { type: Type.STRING },
+        content: { type: Type.STRING, description: "Texto completo (múltiplos parágrafos com \\n)." }
     },
     required: ['title', 'content']
 };
@@ -130,7 +130,10 @@ export const generateBookContent = async (
     // 1. Inicialização
     updateLog("Inicializando Lidia SNT® Core (Arquitetura Distribuída)...");
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-    const modelName = 'gemini-2.5-pro'; // Usar o melhor modelo sempre
+    // Usamos o modelo Pro para melhor qualidade, ou Flash se preferir velocidade
+    const modelName = 'gemini-1.5-pro'; 
+    // OBS: Se 'gemini-2.5-pro' não estiver disponível na sua conta ainda, use 'gemini-1.5-pro' ou 'gemini-pro'.
+    // Deixei 'gemini-1.5-pro' como padrão seguro, mas você pode tentar 'gemini-2.5-pro' se tiver acesso.
     
     // Contexto resumido para passar em cada prompt subsequente (economia de tokens)
     const bookContext = `Livro: ${formData.title}. Nicho: ${formData.niche}. Objetivo: ${formData.summary}`;
@@ -186,8 +189,7 @@ export const generateBookContent = async (
     await supabase.from('book_parts').insert({ book_id: newBook.id, part_index: partIndex++, part_type: 'introduction', content: JSON.stringify(introContent) });
     updateLog("Introdução finalizada e salva.");
 
-    // Salva TOC (Sumário) agora que temos a estrutura confirmada
-    // (Podemos montar um TOC simples baseado no outline)
+    // Salva TOC (Sumário)
     const tocContent = {
         title: "Sumário",
         content: outline.chapters.map((c: any) => `${c.chapter_number}. ${c.title}`).join('\n')
@@ -207,7 +209,6 @@ export const generateBookContent = async (
         // Log Realista para o usuário
         updateLog(`[SNT Core] Escrevendo Cap ${chapterNum}: "${chapterTitle}"...`);
         
-        // Chama a IA só para este capítulo
         try {
             const chapRes = await ai.models.generateContent({
                 model: modelName,
@@ -217,7 +218,6 @@ export const generateBookContent = async (
 
             const chapContent = JSON.parse(chapRes.text.trim());
             
-            // Salva no banco imediatamente
             await supabase.from('book_parts').insert([
                 { book_id: newBook.id, part_index: partIndex++, part_type: 'chapter_title', content: JSON.stringify({ title: chapContent.title }) },
                 { book_id: newBook.id, part_index: partIndex++, part_type: 'chapter_content', content: JSON.stringify(chapContent) }
@@ -228,7 +228,6 @@ export const generateBookContent = async (
         } catch (err) {
             console.error(`Erro no Cap ${chapterNum}`, err);
             updateLog(`AVISO: Houve uma instabilidade no Cap ${chapterNum}. Tentando recuperar...`);
-            // Em produção, aqui poderia ter um retry automático
         }
     }
 
@@ -244,7 +243,7 @@ export const generateBookContent = async (
     const conclContent = JSON.parse(conclRes.text.trim());
     await supabase.from('book_parts').insert({ book_id: newBook.id, part_index: partIndex++, part_type: 'conclusion', content: JSON.stringify(conclContent) });
 
-    // Atualiza Status Final e Créditos
+    // Atualiza Status Final
     updateLog("Compilando arquivo final...");
     await supabase.from('books').update({ status: 'content_ready' }).eq('id', newBook.id);
     
