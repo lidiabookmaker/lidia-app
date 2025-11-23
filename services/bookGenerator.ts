@@ -1,28 +1,27 @@
-import { GoogleGenAI, SchemaType } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { supabase } from './supabase';
 import type { UserProfile, BookGenerationFormData } from '../types';
 import { GEMINI_API_KEY } from './geminiConfig';
 
 // --- CONFIGURAÇÃO DO MODELO ---
-// Usaremos o Flash por ser rápido e estável. Se sua chave permitir, mudamos para Pro depois.
 const MODEL_NAME = "gemini-1.5-flash";
 
-// --- TIPOS DE RESPOSTA (JSON SCHEMAS) ---
+// --- TIPOS DE RESPOSTA (JSON SCHEMAS CORRIGIDOS PARA 'Type') ---
 
 const outlineSchema = {
-    type: SchemaType.OBJECT,
+    type: Type.OBJECT,
     properties: {
-        optimized_title: { type: SchemaType.STRING },
-        optimized_subtitle: { type: SchemaType.STRING },
+        optimized_title: { type: Type.STRING },
+        optimized_subtitle: { type: Type.STRING },
         chapters: {
-            type: SchemaType.ARRAY,
+            type: Type.ARRAY,
             items: {
-                type: SchemaType.OBJECT,
+                type: Type.OBJECT,
                 properties: {
-                    chapter_number: { type: SchemaType.INTEGER },
-                    title: { type: SchemaType.STRING },
+                    chapter_number: { type: Type.INTEGER },
+                    title: { type: Type.STRING },
                     subchapters_list: { 
-                        type: SchemaType.ARRAY, items: { type: SchemaType.STRING } 
+                        type: Type.ARRAY, items: { type: Type.STRING } 
                     }
                 },
                 required: ['chapter_number', 'title', 'subchapters_list']
@@ -33,17 +32,17 @@ const outlineSchema = {
 };
 
 const chapterContentSchema = {
-    type: SchemaType.OBJECT,
+    type: Type.OBJECT,
     properties: {
-        title: { type: SchemaType.STRING },
-        introduction: { type: SchemaType.STRING },
+        title: { type: Type.STRING },
+        introduction: { type: Type.STRING },
         subchapters: {
-            type: SchemaType.ARRAY,
+            type: Type.ARRAY,
             items: {
-                type: SchemaType.OBJECT,
+                type: Type.OBJECT,
                 properties: {
-                    title: { type: SchemaType.STRING },
-                    content: { type: SchemaType.STRING }
+                    title: { type: Type.STRING },
+                    content: { type: Type.STRING }
                 },
                 required: ['title', 'content']
             }
@@ -53,10 +52,10 @@ const chapterContentSchema = {
 };
 
 const sectionContentSchema = {
-    type: SchemaType.OBJECT,
+    type: Type.OBJECT,
     properties: {
-        title: { type: SchemaType.STRING },
-        content: { type: SchemaType.STRING }
+        title: { type: Type.STRING },
+        content: { type: Type.STRING }
     },
     required: ['title', 'content']
 };
