@@ -2,53 +2,66 @@ import { supabase } from './supabase';
 import type { UserProfile, BookGenerationFormData } from '../types';
 import { GEMINI_API_KEY } from './geminiConfig';
 
-// --- SCHEMAS SIMPLIFICADOS ---
-// No modo manual, não precisamos dos tipos complexos do SDK
+// --- LISTA DE MODELOS PARA TENTAR (ORDEM DE PREFERÊNCIA) ---
+const GOOGLE_MODELS = [
+    "gemini-1.5-flash-latest", // Tentativa 1: Versão mais recente
+    "gemini-1.5-flash",        // Tentativa 2: Versão padrão
+    "gemini-1.5-pro",          // Tentativa 3: Versão Pro
+    "gemini-1.0-pro",          // Tentativa 4: Versão 1.0 Estável
+    "gemini-pro"               // Tentativa 5: O Clássico (Legado, mas funciona)
+];
 
-// --- HELPER: CHAMADA MANUAL AO GEMINI (REST API) ---
-// Isso resolve o erro 404 da biblioteca e o erro de CORS da OpenAI
+// --- HELPER: CHAMADA MANUAL ROBUSTA (REST API) ---
 const callGeminiRaw = async (prompt: string, logFunc: (msg: string) => void): Promise<any> => {
     
-    // Vamos usar o modelo Flash que é rápido, barato e aceita chamadas diretas
-    const MODEL_NAME = "gemini-1.5-flash"; 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${GEMINI_API_KEY}`;
+    let lastError: any;
 
-    const payload = {
-        contents: [{
-            parts: [{ text: prompt }]
-        }],
-        generationConfig: {
-            response_mime_type: "application/json" // Força o JSON
+    // Loop "Try-Catch" para tentar todos os modelos da lista
+    for (const modelName of GOOGLE_MODELS) {
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+
+        const payload = {
+            contents: [{
+                parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+                response_mime_type: "application/json" // Tenta forçar JSON
+            }
+        };
+
+        try {
+            // logFunc(`[DEBUG] Testando conexão com motor: ${modelName}...`);
+            
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                // Se der erro 404 ou 500, lança erro para o catch pegar e tentar o próximo
+                const errorText = await response.text();
+                throw new Error(`Erro HTTP ${response.status}: ${errorText}`);
+            }
+
+            const data = await response.json();
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            
+            if (!rawText) throw new Error("Resposta vazia da IA.");
+
+            // Se chegou aqui, FUNCIONOU! Retorna e sai do loop.
+            return JSON.parse(rawText);
+
+        } catch (error: any) {
+            // Apenas loga internamente e continua o loop
+            console.warn(`Falha no modelo ${modelName}:`, error.message);
+            lastError = error;
+            // Não paramos o loop, o 'for' vai tentar o próximo modelo da lista
         }
-    };
-
-    try {
-        // logFunc(`[DEBUG] Conectando via REST API ao ${MODEL_NAME}...`);
-        
-        const response = await fetch(API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Erro Google (${response.status}): ${errorText}`);
-        }
-
-        const data = await response.json();
-        
-        // Extrai o texto do JSON complexo do Google
-        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        
-        if (!rawText) throw new Error("Resposta vazia da IA.");
-
-        return JSON.parse(rawText);
-
-    } catch (error: any) {
-        console.error("Erro na chamada manual:", error);
-        throw error;
     }
+
+    // Se saiu do loop, é porque TODOS falharam
+    throw new Error(`Todos os modelos falharam. Verifique sua API Key. Último erro: ${lastError?.message}`);
 };
 
 // --- PROMPTS ---
@@ -108,7 +121,7 @@ export const generateBookContent = async (
     updateLog: (message: string) => void
 ): Promise<string> => {
     
-    updateLog("Inicializando Lidia SNT® Core (Direct Link Mode)...");
+    updateLog("Inicializando Lidia SNT® Core (Auto-Scaling Mode)...");
     const bookContext = `Livro: ${formData.title}. Nicho: ${formData.niche}. Objetivo: ${formData.summary}`;
 
     // --- FASE 1: ESTRUTURA ---
