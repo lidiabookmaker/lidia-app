@@ -3,9 +3,8 @@ import { supabase } from './supabase';
 import type { UserProfile, BookGenerationFormData } from '../types';
 import { GEMINI_API_KEY } from './geminiConfig';
 
-// --- SCHEMAS (TIPOS PARA A IA - Corrigido para 'Type') ---
+// --- SCHEMAS (TIPOS PARA A IA) ---
 
-// 1. Schema leve apenas para a ESTRUTURA (Outline)
 const outlineSchema = {
     type: Type.OBJECT,
     properties: {
@@ -33,7 +32,6 @@ const outlineSchema = {
     required: ['optimized_title', 'optimized_subtitle', 'chapters']
 };
 
-// 2. Schema pesado para o CONTEÚDO DE UM CAPÍTULO
 const chapterContentSchema = {
     type: Type.OBJECT,
     properties: {
@@ -54,7 +52,6 @@ const chapterContentSchema = {
     required: ['title', 'introduction', 'subchapters']
 };
 
-// 3. Schema para INTRODUÇÃO ou CONCLUSÃO isoladas
 const sectionContentSchema = {
     type: Type.OBJECT,
     properties: {
@@ -65,61 +62,83 @@ const sectionContentSchema = {
 };
 
 
-// --- HELPER: PROMPT BUILDERS ---
+// --- PROMPTS ---
 
 const buildOutlinePrompt = (formData: BookGenerationFormData): string => {
     return `
-      Atue como um Arquiteto Editorial de Elite. Sua tarefa é PLANEJAR a estrutura de um best-seller.
-      NÃO escreva o livro ainda. Apenas defina a estrutura de capítulos.
-      
-      **Dados do Livro:**
-      - Título Sugerido: "${formData.title}"
-      - Subtítulo: "${formData.subtitle}"
-      - Nicho: "${formData.niche}"
-      - Público: "${formData.tone}"
-      - Resumo: "${formData.summary}"
-      
-      **Requisitos:**
-      1. Otimize o Título e Subtítulo para serem virais e "vendáveis".
-      2. Crie uma estrutura com EXATAMENTE 10 CAPÍTULOS lógicos e progressivos.
-      3. Para cada capítulo, defina 3 subcapítulos interessantes.
-      
-      Responda APENAS com o JSON seguindo o schema fornecido.
+      Atue como um Arquiteto Editorial de Elite. Planeje a estrutura de um best-seller.
+      Dados: Título="${formData.title}", Nicho="${formData.niche}", Público="${formData.tone}", Resumo="${formData.summary}".
+      Requisitos:
+      1. Otimize Título e Subtítulo.
+      2. Crie EXATAMENTE 10 CAPÍTULOS lógicos.
+      3. Defina 3 subcapítulos para cada.
+      Responda APENAS com o JSON.
     `;
 };
 
 const buildChapterPrompt = (chapterTitle: string, subchapters: string[], context: string): string => {
     return `
-      Atue como um Ghostwriter Profissional. Escreva AGORA o conteúdo completo do capítulo: "${chapterTitle}".
-      
-      **Contexto do Livro:** ${context}
-      
-      **Estrutura Obrigatória deste Capítulo:**
-      - Introdução do Capítulo (min. 300 palavras).
+      Atue como um Ghostwriter Profissional. Escreva o conteúdo do capítulo: "${chapterTitle}".
+      Contexto: ${context}
+      Estrutura:
+      - Intro do Capítulo (min. 300 palavras).
       - Subcapítulo 1: "${subchapters[0]}" (min. 600 palavras).
       - Subcapítulo 2: "${subchapters[1]}" (min. 600 palavras).
       - Subcapítulo 3: "${subchapters[2]}" (min. 600 palavras).
-      
-      **Regras de Estilo:**
-      - Use parágrafos curtos e dinâmicos (use \\n para separar).
-      - Tom de voz envolvente. Evite repetições.
-      - Aprofunde-se no tema. Use exemplos práticos.
-      
-      Responda APENAS com o JSON do conteúdo deste capítulo.
-    `;
-};
-
-const buildSectionPrompt = (sectionType: 'Introdução' | 'Conclusão', context: string): string => {
-    return `
-      Escreva a ${sectionType} completa e envolvente para este livro.
-      **Contexto:** ${context}
-      **Requisito:** Mínimo de 600 palavras. Use \\n para parágrafos.
+      Regras: Parágrafos curtos, use \\n, tom envolvente.
       Responda APENAS com o JSON.
     `;
 };
 
+const buildSectionPrompt = (sectionType: 'Introdução' | 'Conclusão', context: string): string => {
+    return `Escreva a ${sectionType} completa (min 600 palavras) para este livro. Contexto: ${context}. Responda APENAS com o JSON.`;
+};
 
-// --- FUNÇÃO PRINCIPAL (LOOP CIRÚRGICO) ---
+
+// --- HELPER: GERADOR COM RETRY (ROBUSTEZ) ---
+// Tenta o modelo Pro, se falhar, tenta o Flash.
+
+const generateSafeContent = async (
+    ai: GoogleGenAI, 
+    prompt: string, 
+    schema: any, 
+    logFunc: (msg: string) => void
+): Promise<any> => {
+    // Lista de modelos para tentar em ordem de preferência
+    const modelsToTry = ['gemini-1.5-pro', 'gemini-1.5-flash'];
+    
+    let lastError: any;
+
+    for (const model of modelsToTry) {
+        try {
+            // logFunc(`[SNT Core] Tentando processar com ${model}...`);
+            
+            const response = await ai.models.generateContent({
+                model: model,
+                contents: prompt,
+                config: { responseMimeType: "application/json", responseSchema: schema }
+            });
+
+            // Se chegou aqui, deu certo. Retorna o JSON.
+            return JSON.parse(response.text.trim());
+
+        } catch (error: any) {
+            console.warn(`Falha no modelo ${model}:`, error.message);
+            lastError = error;
+            
+            // Se falhar o Pro, avisa no log que vai tentar o Flash (modo rápido)
+            if (model === 'gemini-1.5-pro') {
+                logFunc(`⚠️ Alta demanda no Core Pro. Ativando Turbo Flash para continuar...`);
+            }
+        }
+    }
+
+    // Se sair do loop, todos falharam
+    throw new Error(`Todos os modelos falharam. Último erro: ${lastError?.message}`);
+};
+
+
+// --- FUNÇÃO PRINCIPAL ---
 
 export const generateBookContent = async (
     formData: BookGenerationFormData,
@@ -127,34 +146,21 @@ export const generateBookContent = async (
     updateLog: (message: string) => void
 ): Promise<string> => {
     
-    // 1. Inicialização
-    updateLog("Inicializando Lidia SNT® Core (Arquitetura Distribuída)...");
+    updateLog("Inicializando Lidia SNT® Core (Multi-Model Architecture)...");
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-    // Usamos o modelo Pro para melhor qualidade, ou Flash se preferir velocidade
-    const modelName = 'gemini-1.5-pro'; 
-    // OBS: Se 'gemini-2.5-pro' não estiver disponível na sua conta ainda, use 'gemini-1.5-pro' ou 'gemini-pro'.
-    // Deixei 'gemini-1.5-pro' como padrão seguro, mas você pode tentar 'gemini-2.5-pro' se tiver acesso.
-    
-    // Contexto resumido para passar em cada prompt subsequente (economia de tokens)
     const bookContext = `Livro: ${formData.title}. Nicho: ${formData.niche}. Objetivo: ${formData.summary}`;
 
     // -----------------------------------------------------------------------
-    // FASE 1: O ARQUITETO (Gera a Estrutura)
+    // FASE 1: ESTRUTURA
     // -----------------------------------------------------------------------
-    updateLog("Fase 1: Desenhando o Blueprint Editorial (Estrutura)...");
+    updateLog("Fase 1: Desenhando o Blueprint Editorial...");
     
-    const outlineResponse = await ai.models.generateContent({
-        model: modelName,
-        contents: buildOutlinePrompt(formData),
-        config: { responseMimeType: "application/json", responseSchema: outlineSchema }
-    });
-    
-    const outline = JSON.parse(outlineResponse.text.trim());
+    // Usa a função segura
+    const outline = await generateSafeContent(ai, buildOutlinePrompt(formData), outlineSchema, updateLog);
     
     updateLog(`Título Definido: "${outline.optimized_title}"`);
     updateLog(`Estrutura Aprovada: ${outline.chapters.length} Capítulos detectados.`);
 
-    // Cria o livro no banco (Status: Processing)
     const { data: newBook, error: bookError } = await supabase
         .from('books')
         .insert({
@@ -169,87 +175,69 @@ export const generateBookContent = async (
     if (bookError) throw bookError;
 
     let partIndex = 1;
-
-    // Salva Capa e Copyright
     await supabase.from('book_parts').insert([
         { book_id: newBook.id, part_index: partIndex++, part_type: 'cover', content: JSON.stringify({ title: outline.optimized_title, subtitle: outline.optimized_subtitle, author: formData.author }) },
         { book_id: newBook.id, part_index: partIndex++, part_type: 'copyright', content: JSON.stringify(`Copyright © ${new Date().getFullYear()} ${formData.author}`) }
     ]);
 
     // -----------------------------------------------------------------------
-    // FASE 2: A INTRODUÇÃO
+    // FASE 2: INTRODUÇÃO
     // -----------------------------------------------------------------------
-    updateLog("Escrevendo Introdução Imersiva...");
-    const introRes = await ai.models.generateContent({
-        model: modelName,
-        contents: buildSectionPrompt('Introdução', bookContext),
-        config: { responseMimeType: "application/json", responseSchema: sectionContentSchema }
-    });
-    const introContent = JSON.parse(introRes.text.trim());
+    updateLog("Escrevendo Introdução...");
+    const introContent = await generateSafeContent(ai, buildSectionPrompt('Introdução', bookContext), sectionContentSchema, updateLog);
     await supabase.from('book_parts').insert({ book_id: newBook.id, part_index: partIndex++, part_type: 'introduction', content: JSON.stringify(introContent) });
-    updateLog("Introdução finalizada e salva.");
 
-    // Salva TOC (Sumário)
+    // Salva TOC
     const tocContent = {
         title: "Sumário",
         content: outline.chapters.map((c: any) => `${c.chapter_number}. ${c.title}`).join('\n')
     };
     await supabase.from('book_parts').insert({ book_id: newBook.id, part_index: partIndex++, part_type: 'toc', content: JSON.stringify(tocContent) });
 
-
     // -----------------------------------------------------------------------
-    // FASE 3: O LOOP MATRIX (Capítulo por Capítulo)
+    // FASE 3: O LOOP MATRIX
     // -----------------------------------------------------------------------
     updateLog("Iniciando Motor de Escrita Sequencial...");
 
     for (const chapter of outline.chapters) {
         const chapterNum = chapter.chapter_number;
-        const chapterTitle = chapter.title;
         
-        // Log Realista para o usuário
-        updateLog(`[SNT Core] Escrevendo Cap ${chapterNum}: "${chapterTitle}"...`);
+        updateLog(`[SNT Core] Escrevendo Cap ${chapterNum}: "${chapter.title}"...`);
         
         try {
-            const chapRes = await ai.models.generateContent({
-                model: modelName,
-                contents: buildChapterPrompt(chapterTitle, chapter.subchapters_list, bookContext),
-                config: { responseMimeType: "application/json", responseSchema: chapterContentSchema }
-            });
+            // Chama a função segura (tenta Pro -> falha -> tenta Flash)
+            const chapContent = await generateSafeContent(
+                ai, 
+                buildChapterPrompt(chapter.title, chapter.subchapters_list, bookContext), 
+                chapterContentSchema, 
+                updateLog
+            );
 
-            const chapContent = JSON.parse(chapRes.text.trim());
-            
             await supabase.from('book_parts').insert([
                 { book_id: newBook.id, part_index: partIndex++, part_type: 'chapter_title', content: JSON.stringify({ title: chapContent.title }) },
                 { book_id: newBook.id, part_index: partIndex++, part_type: 'chapter_content', content: JSON.stringify(chapContent) }
             ]);
 
-            updateLog(`Capítulo ${chapterNum} finalizado e salvo com sucesso.`);
+            updateLog(`Capítulo ${chapterNum} salvo.`);
 
         } catch (err) {
-            console.error(`Erro no Cap ${chapterNum}`, err);
-            updateLog(`AVISO: Houve uma instabilidade no Cap ${chapterNum}. Tentando recuperar...`);
+            console.error(`Erro fatal no Cap ${chapterNum}`, err);
+            updateLog(`ERRO NO CAPÍTULO ${chapterNum}. Pulando para manter integridade...`);
         }
     }
 
     // -----------------------------------------------------------------------
-    // FASE 4: A CONCLUSÃO E FINALIZAÇÃO
+    // FASE 4: CONCLUSÃO
     // -----------------------------------------------------------------------
-    updateLog("Escrevendo Conclusão e Considerações Finais...");
-    const conclRes = await ai.models.generateContent({
-        model: modelName,
-        contents: buildSectionPrompt('Conclusão', bookContext),
-        config: { responseMimeType: "application/json", responseSchema: sectionContentSchema }
-    });
-    const conclContent = JSON.parse(conclRes.text.trim());
+    updateLog("Escrevendo Conclusão...");
+    const conclContent = await generateSafeContent(ai, buildSectionPrompt('Conclusão', bookContext), sectionContentSchema, updateLog);
     await supabase.from('book_parts').insert({ book_id: newBook.id, part_index: partIndex++, part_type: 'conclusion', content: JSON.stringify(conclContent) });
 
-    // Atualiza Status Final
     updateLog("Compilando arquivo final...");
     await supabase.from('books').update({ status: 'content_ready' }).eq('id', newBook.id);
-    
     await supabase.from('profiles').update({ book_credits: user.book_credits - 1 }).eq('id', user.id);
     
-    updateLog("Processo concluído com sucesso. Gerando PDF...");
+    updateLog("Processo concluído com sucesso.");
     
     return newBook.id;
 };
