@@ -95,8 +95,8 @@ const buildSectionPrompt = (sectionType: 'Introdução' | 'Conclusão', context:
 };
 
 
-// --- HELPER: GERADOR COM RETRY (ROBUSTEZ) ---
-// Tenta o modelo Pro, se falhar, tenta o Flash.
+// --- HELPER: GERADOR COM RETRY ROBUSTO ---
+// Tenta uma lista extensa de modelos para garantir que algum funcione
 
 const generateSafeContent = async (
     ai: GoogleGenAI, 
@@ -104,14 +104,23 @@ const generateSafeContent = async (
     schema: any, 
     logFunc: (msg: string) => void
 ): Promise<any> => {
-    // Lista de modelos para tentar em ordem de preferência
-    const modelsToTry = ['gemini-1.5-pro', 'gemini-1.5-flash'];
+    
+    // LISTA DE FALLBACKS: Do mais novo para o mais antigo/estável
+    const modelsToTry = [
+        'gemini-1.5-pro',           // Tentativa 1: Pro Atual
+        'gemini-1.5-flash',         // Tentativa 2: Flash Atual
+        'gemini-1.5-pro-latest',    // Tentativa 3: Variação de nome
+        'gemini-1.5-flash-latest',  // Tentativa 4: Variação de nome
+        'gemini-pro',               // Tentativa 5: O Clássico (Estável)
+        'gemini-1.0-pro'            // Tentativa 6: Legado
+    ];
     
     let lastError: any;
 
     for (const model of modelsToTry) {
         try {
-            // logFunc(`[SNT Core] Tentando processar com ${model}...`);
+            // Descomente para debug se necessário
+            // console.log(`Tentando modelo: ${model}`);
             
             const response = await ai.models.generateContent({
                 model: model,
@@ -119,22 +128,23 @@ const generateSafeContent = async (
                 config: { responseMimeType: "application/json", responseSchema: schema }
             });
 
-            // Se chegou aqui, deu certo. Retorna o JSON.
+            // Sucesso!
             return JSON.parse(response.text.trim());
 
         } catch (error: any) {
-            console.warn(`Falha no modelo ${model}:`, error.message);
+            // Apenas loga no console do navegador/servidor, não polui a UI do usuário
+            console.warn(`Falha silenciosa no modelo ${model}: ${error.message}`);
             lastError = error;
             
-            // Se falhar o Pro, avisa no log que vai tentar o Flash (modo rápido)
+            // Se for um dos principais e falhar, avisa o usuário que está trocando de motor
             if (model === 'gemini-1.5-pro') {
-                logFunc(`⚠️ Alta demanda no Core Pro. Ativando Turbo Flash para continuar...`);
+                logFunc(`⚠️ Otimizando conexão com IA... Alternando para motor de redundância.`);
             }
         }
     }
 
-    // Se sair do loop, todos falharam
-    throw new Error(`Todos os modelos falharam. Último erro: ${lastError?.message}`);
+    // Se sair do loop, realmente nada funcionou
+    throw new Error(`Falha geral na IA. Verifique sua API Key. Detalhe: ${lastError?.message}`);
 };
 
 
@@ -155,7 +165,6 @@ export const generateBookContent = async (
     // -----------------------------------------------------------------------
     updateLog("Fase 1: Desenhando o Blueprint Editorial...");
     
-    // Usa a função segura
     const outline = await generateSafeContent(ai, buildOutlinePrompt(formData), outlineSchema, updateLog);
     
     updateLog(`Título Definido: "${outline.optimized_title}"`);
@@ -205,7 +214,6 @@ export const generateBookContent = async (
         updateLog(`[SNT Core] Escrevendo Cap ${chapterNum}: "${chapter.title}"...`);
         
         try {
-            // Chama a função segura (tenta Pro -> falha -> tenta Flash)
             const chapContent = await generateSafeContent(
                 ai, 
                 buildChapterPrompt(chapter.title, chapter.subchapters_list, bookContext), 
@@ -222,7 +230,7 @@ export const generateBookContent = async (
 
         } catch (err) {
             console.error(`Erro fatal no Cap ${chapterNum}`, err);
-            updateLog(`ERRO NO CAPÍTULO ${chapterNum}. Pulando para manter integridade...`);
+            updateLog(`AVISO: Erro no Capítulo ${chapterNum}. O sistema continuará para o próximo.`);
         }
     }
 
