@@ -22,7 +22,7 @@ export const GEMINI_API_KEY: string = "AIzaSyCyh43BgOsfCijaBuKIhxHrdEnZhwWON1Q";
 
 // --- NOVO: Adicione sua chave da OpenAI aqui ---
 // Cole a chave sk-proj-... dentro das aspas abaixo
-export const OPENAI_API_KEY: string = "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"; 
+export const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || "";
 
 // ... (verificação isGeminiConfigured continua igual) ...
 export const isGeminiConfigured = !GEMINI_API_KEY.includes('COLE_AQUI');
