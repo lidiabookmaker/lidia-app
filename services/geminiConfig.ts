@@ -10,7 +10,7 @@
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // ALERTA DE SEGURANÇA: Não envie este arquivo para um repositório público com as
-// chaves preenchidas. Esta abordagem é APENAS para a fase de validação inicial.
+// chaves preenchidas. Esta abordagem é APENAS   para a fase de validação inicial.
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
