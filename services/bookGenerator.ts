@@ -1,45 +1,31 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { supabase } from './supabase';
 import type { UserProfile, BookGenerationFormData } from '../types';
 import { GEMINI_API_KEY } from './geminiConfig';
 
-// --- SCHEMA DO LIVRO COMPLETO (MONÓLITO) ---
-// Exatamente como era na versão que funcionava
-const bookSchema = {
-    type: Type.OBJECT,
-    properties: {
-        optimized_title: { type: Type.STRING },
-        optimized_subtitle: { type: Type.STRING },
-        introduction: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, content: { type: Type.STRING } }, required: ['title', 'content'] },
-        table_of_contents: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, content: { type: Type.STRING } }, required: ['title', 'content'] },
-        chapters: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    title: { type: Type.STRING },
-                    introduction: { type: Type.STRING },
-                    subchapters: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                title: { type: Type.STRING },
-                                content: { type: Type.STRING },
-                            },
-                            required: ['title', 'content']
-                        }
-                    }
-                },
-                required: ['title', 'introduction', 'subchapters']
-            }
-        },
-        conclusion: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, content: { type: Type.STRING } }, required: ['title', 'content'] },
-    },
-    required: ['optimized_title', 'optimized_subtitle', 'introduction', 'table_of_contents', 'chapters', 'conclusion']
+// --- HELPER: LIMPEZA DE JSON ---
+// O Gemini Pro manda markdown (```json), então precisamos limpar na mão
+const cleanAndParseJSON = (text: string): any => {
+    // 1. Remove crases de markdown
+    let clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+    
+    // 2. Tenta encontrar o bloco JSON válido
+    const first = clean.indexOf('{');
+    const last = clean.lastIndexOf('}');
+    
+    if (first !== -1 && last !== -1) {
+        clean = clean.substring(first, last + 1);
+    }
+
+    try {
+        return JSON.parse(clean);
+    } catch (e) {
+        console.error("Texto inválido recebido da IA:", text);
+        throw new Error("A IA gerou um texto que não é JSON válido.");
+    }
 };
 
-// --- PROMPT GIGANTE (ÚNICO) ---
+// --- PROMPT GIGANTE (MONÓLITO) ---
 const buildPrompt = (formData: BookGenerationFormData): string => {
     return `
       Atue como um escritor profissional. Crie um livro COMPLETO agora.
@@ -62,53 +48,65 @@ const buildPrompt = (formData: BookGenerationFormData): string => {
       REGRAS DE CONTEÚDO:
       - Texto fluído, parágrafos bem divididos com \\n.
       - Mínimo de 600 palavras por subcapítulo.
-      - Total do livro deve ser extenso e detalhado.
       
-      Responda APENAS com o JSON seguindo o schema.
+      FORMATO DE RESPOSTA (JSON OBRIGATÓRIO):
+      Responda APENAS com este JSON exato, sem nada antes ou depois:
+      {
+        "optimized_title": "...",
+        "optimized_subtitle": "...",
+        "introduction": { "title": "Introdução", "content": "..." },
+        "table_of_contents": { "title": "Sumário", "content": "..." },
+        "chapters": [
+            {
+                "title": "...",
+                "introduction": "...",
+                "subchapters": [
+                    { "title": "...", "content": "..." },
+                    { "title": "...", "content": "..." },
+                    { "title": "...", "content": "..." }
+                ]
+            }
+        ],
+        "conclusion": { "title": "Conclusão", "content": "..." }
+      }
     `;
 };
 
-// --- FUNÇÃO PRINCIPAL (RESTAURADA) ---
+// --- FUNÇÃO PRINCIPAL ---
 export const generateBookContent = async (
     formData: BookGenerationFormData,
     user: UserProfile,
     updateLog: (message: string) => void
 ): Promise<string> => {
     
-    // Configura o cliente
+    updateLog("Inicializando Lidia AI (Classic Mode)...");
+    
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
     
-    updateLog("Inicializando conexão com Lidia AI...");
-    updateLog("Enviando prompt estrutural completo...");
-    
     try {
-        // Tenta usar o modelo Flash (mais rápido/barato) ou Pro
-        // Se sua chave funcionava antes, provavelmente era com um desses
-        const modelName = 'gemini-1.5-flash'; 
+        // Usamos 'gemini-pro' que é o modelo mais compatível
+        const modelName = 'gemini-pro'; 
 
-        updateLog(`Processando conteúdo com modelo ${modelName}... (Isso pode levar alguns minutos)`);
+        updateLog(`Enviando prompt mestre para o modelo ${modelName}...`);
+        updateLog("Aguarde... Escrevendo o livro inteiro (isso pode levar 2-5 minutos)...");
 
-        // CHAMADA ÚNICA (O jeito que funcionava)
         const result = await ai.models.generateContent({
             model: modelName,
-            contents: buildPrompt(formData),
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: bookSchema
-            }
+            contents: buildPrompt(formData)
+            // IMPORTANTE: Removemos 'config' com schemas, pois o gemini-pro não suporta
         });
 
-        updateLog("Resposta da IA recebida! Processando dados...");
-        
         const responseText = result.text();
         if (!responseText) throw new Error("Resposta vazia da IA");
+
+        updateLog("Resposta recebida! Processando JSON...");
         
-        const bookContent = JSON.parse(responseText);
+        // Limpeza manual (Back to basics)
+        const bookContent = cleanAndParseJSON(responseText);
 
-        // --- SALVAMENTO NO BANCO ---
-        updateLog("Salvando livro no banco de dados...");
+        // --- SALVAMENTO ---
+        updateLog("Salvando no banco de dados...");
 
-        // 1. Cria o Livro
         const { data: newBook, error: bookError } = await supabase
             .from('books')
             .insert({
@@ -122,51 +120,39 @@ export const generateBookContent = async (
             .single();
     
         if (bookError) throw bookError;
-        updateLog(`Livro criado ID: ${newBook.id}`);
 
-        // 2. Prepara as Partes
         let partIndex = 1;
         const partsToInsert: any[] = [];
 
-        // Capa
         partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'cover', content: JSON.stringify({ title: newBook.title, subtitle: newBook.subtitle, author: formData.author }) });
-        
-        // Copyright
         partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'copyright', content: JSON.stringify(`Copyright © ${new Date().getFullYear()} ${formData.author}`) });
-        
-        // TOC
         partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'toc', content: JSON.stringify(bookContent.table_of_contents) });
-        
-        // Intro
         partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'introduction', content: JSON.stringify(bookContent.introduction) });
 
-        // Capítulos
         if (bookContent.chapters && Array.isArray(bookContent.chapters)) {
             bookContent.chapters.forEach((chapter: any) => {
-                // Título do Cap
                 partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'chapter_title', content: JSON.stringify({ title: chapter.title }) });
-                // Conteúdo do Cap (Intro + Subs)
                 partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'chapter_content', content: JSON.stringify(chapter) });
             });
         }
 
-        // Conclusão
         partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'conclusion', content: JSON.stringify(bookContent.conclusion) });
 
-        // Salva tudo
         const { error: partsError } = await supabase.from('book_parts').insert(partsToInsert);
         if (partsError) throw partsError;
 
-        // Finaliza
         await supabase.from('books').update({ status: 'content_ready' }).eq('id', newBook.id);
         await supabase.from('profiles').update({ book_credits: user.book_credits - 1 }).eq('id', user.id);
 
-        updateLog("Sucesso! Livro gerado e salvo.");
+        updateLog("Sucesso! Livro gerado.");
         return newBook.id;
 
     } catch (error: any) {
+        // Se der 404 aqui, é realmente a chave
+        if (error.message && error.message.includes("404")) {
+            updateLog("ERRO CRÍTICO DE API KEY: O Google não encontrou o modelo 'gemini-pro' para sua chave.");
+        }
         console.error("Erro na geração:", error);
-        updateLog(`Erro Fatal: ${error.message}`);
         throw error;
     }
 };
