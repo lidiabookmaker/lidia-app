@@ -2,28 +2,53 @@ import { supabase } from './supabase';
 import type { UserProfile, BookGenerationFormData } from '../types';
 import { GEMINI_API_KEY } from './geminiConfig';
 
-// --- LISTA DE MODELOS (ORDEM DE TENTATIVA) ---
-// Removemos sufixos complexos, vamos no básico que funciona via REST
+// --- CONFIGURAÇÃO ---
+// Tenta o Flash (rápido) e depois o Pro (estável) e o Pro 1.0 (Legacy)
 const MODELS = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
 
-// --- HELPER: CONEXÃO HTTP DIRETA (SEM SDK) ---
+// --- HELPER: LIMPEZA CIRÚRGICA DE JSON ---
+const cleanAndParseJSON = (text: string): any => {
+    try {
+        // 1. Tenta parse direto
+        return JSON.parse(text);
+    } catch (e) {
+        // 2. Se falhar, tenta extrair o primeiro bloco JSON válido encontrado no texto
+        // Procura pelo primeiro '{' e o último '}'
+        const firstOpen = text.indexOf('{');
+        const lastClose = text.lastIndexOf('}');
+        
+        if (firstOpen !== -1 && lastClose !== -1) {
+            const jsonCandidate = text.substring(firstOpen, lastClose + 1);
+            try {
+                return JSON.parse(jsonCandidate);
+            } catch (e2) {
+                // Continua falhando...
+            }
+        }
+        throw new Error("A resposta da IA não contém um JSON válido.");
+    }
+};
+
+// --- HELPER: CONEXÃO HTTP DIRETA ---
 const callGeminiDirect = async (prompt: string, logFunc: (m: string) => void): Promise<any> => {
     
     let lastErrorDetails = "";
 
     for (const model of MODELS) {
-        // URL Oficial da API REST do Google
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
-        // Corpo da requisição padrão REST
         const body = {
-            contents: [{ parts: [{ text: prompt }] }]
-            // Removemos 'generationConfig' com JSON mode para evitar erros de compatibilidade no modelo 'gemini-pro'
+            contents: [{ parts: [{ text: prompt }] }],
+            // Configurações de segurança para evitar bloqueios de conteúdo inofensivo
+            safetySettings: [
+                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+            ]
         };
 
         try {
-            // logFunc(`[System] Tentando motor: ${model}...`);
-            
             const response = await fetch(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -31,56 +56,46 @@ const callGeminiDirect = async (prompt: string, logFunc: (m: string) => void): P
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                const errorMessage = errorData.error?.message || response.statusText;
-                
-                // Se for 404, o modelo não existe pra essa chave, tenta o próximo
                 if (response.status === 404) {
-                    console.warn(`Modelo ${model} não encontrado (404). Tentando próximo.`);
-                    lastErrorDetails = `404 - ${errorMessage}`;
-                    continue; 
+                    // console.warn(`Modelo ${model} off (404).`);
+                    continue; // Tenta o próximo silenciosamente
                 }
-                
-                // Outros erros (400, 403, 500)
-                throw new Error(`Erro API Google (${response.status}): ${errorMessage}`);
+                const errText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errText}`);
             }
 
             const data = await response.json();
             
-            // Extração segura do texto
-            let text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            
-            if (!text) throw new Error("IA retornou resposta vazia.");
-
-            // Limpeza manual de Markdown para garantir JSON válido
-            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-            
-            // Tenta converter para Objeto
-            try {
-                return JSON.parse(text);
-            } catch (jsonError) {
-                console.error("Erro ao fazer parse do JSON:", text);
-                throw new Error("A IA gerou um texto que não é JSON válido.");
+            // Verifica se houve bloqueio de segurança
+            if (data.promptFeedback?.blockReason) {
+                throw new Error(`Bloqueio de Segurança Google: ${data.promptFeedback.blockReason}`);
             }
 
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!rawText) throw new Error("Resposta vazia da IA (Candidate nulo).");
+
+            // Usa o limpador cirúrgico
+            const finalJSON = cleanAndParseJSON(rawText);
+            return finalJSON;
+
         } catch (error: any) {
-            console.warn(`Falha em ${model}:`, error.message);
-            // Se for o último modelo, salva o erro para lançar
+            console.warn(`Erro no modelo ${model}:`, error.message);
+            lastErrorDetails = error.message;
+            // Se foi o último modelo, falha de vez
             if (model === MODELS[MODELS.length - 1]) {
-                throw new Error(`Falha em todos os modelos. Último erro: ${error.message} || Detalhe anterior: ${lastErrorDetails}`);
+                throw new Error(`Falha na IA: ${lastErrorDetails}`);
             }
         }
     }
 };
 
-// --- PROMPTS ---
+// --- PROMPTS (Reforçando JSON puro) ---
 
 const buildOutlinePrompt = (formData: BookGenerationFormData) => `
   Atue como Editor Chefe.
-  Livro: "${formData.title}" (${formData.niche}).
-  Objetivo: ${formData.summary}.
+  Livro: "${formData.title}" (${formData.niche}). Resumo: ${formData.summary}.
   
-  Crie uma estrutura JSON EXATAMENTE neste formato:
+  Tarefa: Crie a estrutura JSON abaixo. Não use markdown. Não converse.
   {
     "optimized_title": "...",
     "optimized_subtitle": "...",
@@ -88,30 +103,29 @@ const buildOutlinePrompt = (formData: BookGenerationFormData) => `
       { "chapter_number": 1, "title": "...", "subchapters_list": ["Sub 1", "Sub 2", "Sub 3"] }
     ]
   }
-  Requisito: Exatamente 10 capítulos. Responda APENAS o JSON.
+  Requisito: Exatamente 10 capítulos.
 `;
 
 const buildChapterPrompt = (title: string, subs: string[], ctx: string) => `
   Escreva o capítulo "${title}". Contexto: ${ctx}.
-  Estrutura: Intro + 3 Subcapítulos (${subs.join(', ')}).
-  
-  Responda APENAS um JSON neste formato:
+  Tarefa: Responda APENAS com este JSON preenchido:
   {
     "title": "${title}",
-    "introduction": "texto com \\n",
+    "introduction": "texto longo com \\n",
     "subchapters": [
-      { "title": "...", "content": "texto longo com \\n" },
-      { "title": "...", "content": "texto longo com \\n" },
-      { "title": "...", "content": "texto longo com \\n" }
+      { "title": "${subs[0]}", "content": "texto longo com \\n" },
+      { "title": "${subs[1]}", "content": "texto longo com \\n" },
+      { "title": "${subs[2]}", "content": "texto longo com \\n" }
     ]
   }
 `;
 
 const buildSectionPrompt = (type: string, ctx: string) => `
   Escreva a ${type} (min 600 palavras). Contexto: ${ctx}.
-  Responda APENAS um JSON neste formato:
-  { "title": "${type}", "content": "texto com \\n" }
+  Tarefa: Responda APENAS com este JSON:
+  { "title": "${type}", "content": "texto longo com \\n" }
 `;
+
 
 // --- FUNÇÃO PRINCIPAL ---
 
@@ -121,14 +135,22 @@ export const generateBookContent = async (
     updateLog: (message: string) => void
 ): Promise<string> => {
     
-    updateLog("Inicializando Lidia SNT® Core (Direct Protocol)...");
+    updateLog("Inicializando Lidia SNT® Core...");
     const bookContext = `Livro: ${formData.title}. Nicho: ${formData.niche}`;
 
     // --- FASE 1: ESTRUTURA ---
     updateLog("Fase 1: Estrutura Editorial...");
+    
+    // Chama a IA
     const outline = await callGeminiDirect(buildOutlinePrompt(formData), updateLog);
     
-    updateLog(`Estrutura definida: ${outline.chapters?.length || 0} Capítulos.`);
+    // VALIDAÇÃO CRÍTICA: Se a IA não devolveu chapters, falha aqui com mensagem clara
+    if (!outline || !outline.chapters || !Array.isArray(outline.chapters)) {
+        console.error("JSON Inválido recebido:", outline);
+        throw new Error("A IA não gerou uma estrutura válida. Tente novamente.");
+    }
+
+    updateLog(`Estrutura definida: ${outline.chapters.length} Capítulos.`);
 
     const { data: newBook, error: bookError } = await supabase
         .from('books')
@@ -151,6 +173,7 @@ export const generateBookContent = async (
     const introContent = await callGeminiDirect(buildSectionPrompt('Introdução', bookContext), updateLog);
     await supabase.from('book_parts').insert({ book_id: newBook.id, part_index: partIndex++, part_type: 'introduction', content: JSON.stringify(introContent) });
 
+    // Salva Sumário
     const tocList = outline.chapters.map((c: any) => `${c.chapter_number}. ${c.title}`).join('\n');
     await supabase.from('book_parts').insert({ book_id: newBook.id, part_index: partIndex++, part_type: 'toc', content: JSON.stringify({ title: "Sumário", content: tocList }) });
 
