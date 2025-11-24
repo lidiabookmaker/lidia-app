@@ -5,7 +5,7 @@
 // ATENÇÃO: INSTRUÇÕES DE CONFIGURAÇÃO PARA O MVP
 // =================================================================================
 // 1. Obtenha sua chave de API no Google AI Studio.
-// 2. Cole a chave na constante GEMINI_API_KEY abaixo, substituindo "COLE_AQUI_SUA_CHAVE_API_DO_GEMINI".
+// 2. Cole a chave na constante GEMINI_API_KEY abaixo,  substituindo "COLE_AQUI_SUA_CHAVE_API_DO_GEMINI".
 // =================================================================================
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
