@@ -1,84 +1,117 @@
-import { GoogleGenAI, SchemaType } from "@google/genai";
 import { supabase } from './supabase';
 import type { UserProfile, BookGenerationFormData } from '../types';
 import { GEMINI_API_KEY } from './geminiConfig';
 
-// --- CONFIGURAÇÃO ---
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+// --- LISTA DE MODELOS (ORDEM DE TENTATIVA) ---
+// Removemos sufixos complexos, vamos no básico que funciona via REST
+const MODELS = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+
+// --- HELPER: CONEXÃO HTTP DIRETA (SEM SDK) ---
+const callGeminiDirect = async (prompt: string, logFunc: (m: string) => void): Promise<any> => {
+    
+    let lastErrorDetails = "";
+
+    for (const model of MODELS) {
+        // URL Oficial da API REST do Google
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+
+        // Corpo da requisição padrão REST
+        const body = {
+            contents: [{ parts: [{ text: prompt }] }]
+            // Removemos 'generationConfig' com JSON mode para evitar erros de compatibilidade no modelo 'gemini-pro'
+        };
+
+        try {
+            // logFunc(`[System] Tentando motor: ${model}...`);
+            
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                const errorMessage = errorData.error?.message || response.statusText;
+                
+                // Se for 404, o modelo não existe pra essa chave, tenta o próximo
+                if (response.status === 404) {
+                    console.warn(`Modelo ${model} não encontrado (404). Tentando próximo.`);
+                    lastErrorDetails = `404 - ${errorMessage}`;
+                    continue; 
+                }
+                
+                // Outros erros (400, 403, 500)
+                throw new Error(`Erro API Google (${response.status}): ${errorMessage}`);
+            }
+
+            const data = await response.json();
+            
+            // Extração segura do texto
+            let text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            
+            if (!text) throw new Error("IA retornou resposta vazia.");
+
+            // Limpeza manual de Markdown para garantir JSON válido
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            
+            // Tenta converter para Objeto
+            try {
+                return JSON.parse(text);
+            } catch (jsonError) {
+                console.error("Erro ao fazer parse do JSON:", text);
+                throw new Error("A IA gerou um texto que não é JSON válido.");
+            }
+
+        } catch (error: any) {
+            console.warn(`Falha em ${model}:`, error.message);
+            // Se for o último modelo, salva o erro para lançar
+            if (model === MODELS[MODELS.length - 1]) {
+                throw new Error(`Falha em todos os modelos. Último erro: ${error.message} || Detalhe anterior: ${lastErrorDetails}`);
+            }
+        }
+    }
+};
 
 // --- PROMPTS ---
+
 const buildOutlinePrompt = (formData: BookGenerationFormData) => `
-  Atue como Editor Chefe. Crie o planejamento de um livro.
-  Dados: Título="${formData.title}", Nicho="${formData.niche}", Tom="${formData.tone}", Objetivo="${formData.summary}".
+  Atue como Editor Chefe.
+  Livro: "${formData.title}" (${formData.niche}).
+  Objetivo: ${formData.summary}.
   
-  FORMATO DE RESPOSTA (JSON OBRIGATÓRIO):
+  Crie uma estrutura JSON EXATAMENTE neste formato:
   {
-    "optimized_title": "Texto",
-    "optimized_subtitle": "Texto",
+    "optimized_title": "...",
+    "optimized_subtitle": "...",
     "chapters": [
-      { "chapter_number": 1, "title": "Texto", "subchapters_list": ["Sub 1", "Sub 2", "Sub 3"] }
+      { "chapter_number": 1, "title": "...", "subchapters_list": ["Sub 1", "Sub 2", "Sub 3"] }
     ]
   }
-  Requisitos: EXATAMENTE 10 Capítulos. Responda APENAS O JSON. Sem markdown.
+  Requisito: Exatamente 10 capítulos. Responda APENAS o JSON.
 `;
 
 const buildChapterPrompt = (title: string, subs: string[], ctx: string) => `
   Escreva o capítulo "${title}". Contexto: ${ctx}.
   Estrutura: Intro + 3 Subcapítulos (${subs.join(', ')}).
   
-  FORMATO DE RESPOSTA (JSON OBRIGATÓRIO):
+  Responda APENAS um JSON neste formato:
   {
     "title": "${title}",
-    "introduction": "Texto com \\n",
+    "introduction": "texto com \\n",
     "subchapters": [
-      { "title": "Sub 1", "content": "Texto longo com \\n" },
-      { "title": "Sub 2", "content": "Texto longo com \\n" },
-      { "title": "Sub 3", "content": "Texto longo com \\n" }
+      { "title": "...", "content": "texto longo com \\n" },
+      { "title": "...", "content": "texto longo com \\n" },
+      { "title": "...", "content": "texto longo com \\n" }
     ]
   }
-  Responda APENAS O JSON. Sem markdown.
 `;
 
 const buildSectionPrompt = (type: string, ctx: string) => `
-  Escreva a ${type}. Contexto: ${ctx}.
-  FORMATO DE RESPOSTA (JSON OBRIGATÓRIO):
-  { "title": "${type}", "content": "Texto longo com \\n" }
-  Responda APENAS O JSON.
+  Escreva a ${type} (min 600 palavras). Contexto: ${ctx}.
+  Responda APENAS um JSON neste formato:
+  { "title": "${type}", "content": "texto com \\n" }
 `;
-
-// --- HELPER: GERADOR INTELIGENTE (COM FALLBACK) ---
-async function generateJSON(prompt: string, logFunc: (m: string) => void) {
-    // TENTATIVA 1: Modelo Flash Moderno (Com Schema Strict)
-    try {
-        // logFunc("[Debug] Tentando Engine v1.5 Flash...");
-        const res = await ai.models.generateContent({
-            model: "gemini-1.5-flash",
-            contents: prompt,
-            config: { responseMimeType: "application/json" } // Tenta forçar JSON nativo
-        });
-        return JSON.parse(res.text());
-    } catch (e: any) {
-        // Se der 404, ignora e tenta o próximo
-        // logFunc(`[Debug] Engine v1.5 falhou (${e.message}). Alternando para Legado...`);
-    }
-
-    // TENTATIVA 2: Modelo Pro Clássico (Sem Schema, Apenas Texto)
-    // Esse é o que funcionava antes para você!
-    try {
-        const res = await ai.models.generateContent({
-            model: "gemini-pro", // Versão 1.0 estável
-            contents: prompt
-            // SEM config de JSON aqui, pois o gemini-pro não suporta
-        });
-        
-        let text = res.text();
-        // Limpeza manual do JSON (caso venha com ```json ... ```)
-        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(text);
-    } catch (finalError: any) {
-        throw new Error(`Falha Total na IA: ${finalError.message}`);
-    }
-}
 
 // --- FUNÇÃO PRINCIPAL ---
 
@@ -88,23 +121,15 @@ export const generateBookContent = async (
     updateLog: (message: string) => void
 ): Promise<string> => {
     
-    updateLog("Inicializando Lidia SNT® Core...");
+    updateLog("Inicializando Lidia SNT® Core (Direct Protocol)...");
     const bookContext = `Livro: ${formData.title}. Nicho: ${formData.niche}`;
 
     // --- FASE 1: ESTRUTURA ---
-    updateLog("Fase 1: Criando Estrutura (Blueprint)...");
+    updateLog("Fase 1: Estrutura Editorial...");
+    const outline = await callGeminiDirect(buildOutlinePrompt(formData), updateLog);
     
-    // Gera estrutura usando o helper inteligente
-    const outline = await generateJSON(buildOutlinePrompt(formData), updateLog);
+    updateLog(`Estrutura definida: ${outline.chapters?.length || 0} Capítulos.`);
 
-    // Validação básica se o JSON veio certo
-    if (!outline.chapters || outline.chapters.length === 0) {
-        throw new Error("A IA gerou uma estrutura inválida. Tente novamente.");
-    }
-
-    updateLog(`Estrutura definida: ${outline.chapters.length} Capítulos.`);
-
-    // Salva no Banco
     const { data: newBook, error: bookError } = await supabase
         .from('books')
         .insert({
@@ -123,29 +148,25 @@ export const generateBookContent = async (
 
     // --- FASE 2: INTRODUÇÃO ---
     updateLog("Escrevendo Introdução...");
-    const introContent = await generateJSON(buildSectionPrompt('Introdução', bookContext), updateLog);
+    const introContent = await callGeminiDirect(buildSectionPrompt('Introdução', bookContext), updateLog);
     await supabase.from('book_parts').insert({ book_id: newBook.id, part_index: partIndex++, part_type: 'introduction', content: JSON.stringify(introContent) });
 
-    // Salva TOC
     const tocList = outline.chapters.map((c: any) => `${c.chapter_number}. ${c.title}`).join('\n');
     await supabase.from('book_parts').insert({ book_id: newBook.id, part_index: partIndex++, part_type: 'toc', content: JSON.stringify({ title: "Sumário", content: tocList }) });
 
-    // --- FASE 3: LOOP MATRIX (Capítulo a Capítulo) ---
+    // --- FASE 3: LOOP ---
     updateLog("Iniciando Escrita Sequencial...");
 
     for (const chapter of outline.chapters) {
         const cNum = chapter.chapter_number;
-        const cTitle = chapter.title;
-        const cSubs = chapter.subchapters_list || [];
-
-        updateLog(`[SNT Core] Escrevendo Cap ${cNum}: "${cTitle}"...`);
+        
+        updateLog(`[SNT Core] Escrevendo Cap ${cNum}: "${chapter.title}"...`);
         
         try {
-            const chapContent = await generateJSON(buildChapterPrompt(cTitle, cSubs, bookContext), updateLog);
+            const chapContent = await callGeminiDirect(buildChapterPrompt(chapter.title, chapter.subchapters_list, bookContext), updateLog);
             
-            // Normaliza dados caso a IA varie o nome das chaves
             const finalContent = {
-                title: chapContent.title || cTitle,
+                title: chapContent.title || chapter.title,
                 introduction: chapContent.introduction || "",
                 subchapters: chapContent.subchapters || []
             };
@@ -156,22 +177,21 @@ export const generateBookContent = async (
             ]);
 
             updateLog(`Capítulo ${cNum} salvo.`);
-
         } catch (err) {
-            console.error(`Erro cap ${cNum}`, err);
-            updateLog(`⚠️ Erro no Cap ${cNum}. O sistema continuará.`);
+            console.error(err);
+            updateLog(`⚠️ Erro no Cap ${cNum}. Avançando...`);
         }
     }
 
     // --- FASE 4: CONCLUSÃO ---
     updateLog("Escrevendo Conclusão...");
-    const conclContent = await generateJSON(buildSectionPrompt('Conclusão', bookContext), updateLog);
+    const conclContent = await callGeminiDirect(buildSectionPrompt('Conclusão', bookContext), updateLog);
     await supabase.from('book_parts').insert({ book_id: newBook.id, part_index: partIndex++, part_type: 'conclusion', content: JSON.stringify(conclContent) });
 
     updateLog("Finalizando...");
     await supabase.from('books').update({ status: 'content_ready' }).eq('id', newBook.id);
     await supabase.from('profiles').update({ book_credits: user.book_credits - 1 }).eq('id', user.id);
     
-    updateLog("Sucesso! Livro gerado.");
+    updateLog("Sucesso! Gerando PDF...");
     return newBook.id;
 };
