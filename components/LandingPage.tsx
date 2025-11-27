@@ -16,10 +16,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, logoUrl })
       </header>
       <main className="max-w-4xl mx-auto">
         <h2 className="text-5xl md:text-7xl font-extrabold text-gray-900 leading-tight">
-          Transforme Suas Ideias em <span className="text-indigo-600">Livros Digitais</span> Profissionais.
+        /*  Transforme Suas Ideias em <span className="text-indigo-600">Livros Digitais</span> Profissionais. */
+        Crie <span className="text-indigo-600">Livros Digitais</span> Profissionais em minutos.
+
         </h2>
         <p className="mt-6 text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
-          Com o poder da Inteligência Artificial, o Lidia Book Maker cria e-books completos e formatados para você em minutos, não em meses.
+          Com o poder da Inteligência Artificial, o Lidia cria e-books completos com mais de 120 páginas, capa pronta e formatados para você em minutos, prontos para vender.
         </p>
         <div className="mt-10">
           <Button onClick={() => onNavigate('login')} className="text-xl md:text-2xl px-10 py-5">
