@@ -15,11 +15,11 @@
 
 
 // FIX: Reverted to a hardcoded key placeholder for the pre-MVP testing phase.
-export const GEMINI_API_KEY: string = "AIzaSyCyh43BgOsfCijaBuKIhxHrdEnZhwWON1Q";
+// export const GEMINI_API_KEY: string = "AIzaSyByPbxhSdPwp-yZmau3hseJjdD_Fu2DanM";
 
 /**
  * Verifica se a chave da API foi alterada do valor placeholder.
  * O App.tsx usará isso para mostrar um erro de configuração se a chave não for fornecida.
  */
 // FIX: Re-enabled the configuration check for the pre-MVP phase.
-export const isGeminiConfigured = !GEMINI_API_KEY.includes('COLE_AQUI');
+// export const isGeminiConfigured = !GEMINI_API_KEY.includes('COLE_AQUI');
