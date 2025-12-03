@@ -14,3 +14,4 @@ export const GEMINI_API_KEY =
  * Verifica se a chave foi carregada corretamente pelo ambiente.
  */
 export const isGeminiConfigured = GEMINI_API_KEY.length > 0;
+// Atualizando Vercel
