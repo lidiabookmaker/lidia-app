@@ -85,7 +85,7 @@ export const generateBookContent = async (
     
     try {
         // Usamos 'gemini-pro' que é o modelo mais compatível
-        const modelName = 'gemini-1.5-flash'; 
+        const modelName = 'gemini-1.5-flash-001'; 
 
         updateLog(`Enviando prompt mestre para o modelo ${modelName}...`);
         updateLog("Aguarde... Escrevendo o livro inteiro (isso pode levar 2-5 minutos)...");
