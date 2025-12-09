@@ -124,7 +124,7 @@ export const generateBookContent = async (
     let response;
 
     // CORREÇÃO: Usando a versão 1.5 real e priorizando o Flash (gratuito e rápido)
-const modelsToTry: string[] = ['gemini-1.5-flash']; 
+const modelsToTry: string[] = ['gemini-1.5-flash-002']; 
       
     for (const model of modelsToTry) {
         try {
