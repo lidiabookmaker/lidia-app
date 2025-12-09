@@ -122,6 +122,35 @@ export const generateBookContent = async (
 
     updateLog("Enviando requisição para Lidia . . .");
     let response;
+
+    // CORREÇÃO: Usando a versão 1.5 real e priorizando o Flash (gratuito e rápido)
+const modelsToTry: string[] = ['gemini-1.5-flash']; 
+      
+    for (const model of modelsToTry) {
+        try {
+            updateLog(`Iniciando geração com o modelo otimizado: ${model}...`);
+            
+            response = await ai.models.generateContent({
+                model: model,
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: bookSchema
+                }
+            });
+            updateLog(`Sucesso com o modelo: ${model}.`);
+            break; 
+        } catch (error) {
+            const err = error as Error;
+            console.error(`Erro no modelo ${model}:`, err);
+            throw error;
+        }
+    }
+
+
+
+
+/*
     const modelsToTry: ('gemini-2.5-pro' | 'gemini-2.5-flash')[] = ['gemini-2.5-pro', 'gemini-2.5-flash'];
       
     for (const model of modelsToTry) {
@@ -150,7 +179,7 @@ export const generateBookContent = async (
             }
             updateLog(`Modelo ${model} sobrecarregado. Tentando o próximo modelo...`);
         }
-    }
+    }  */
 
     if (!response) {
         throw new Error("Todos os modelos de IA falharam ou estão indisponíveis.");
