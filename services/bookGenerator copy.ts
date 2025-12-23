@@ -64,13 +64,14 @@ const buildPrompt = (formData: BookGenerationFormData): string => {
       O formato da resposta DEVE ser um JSON válido que corresponda ao esquema fornecido.
       NÃO inclua markdown (como \`\`\`json) na sua resposta. A resposta deve ser APENAS o JSON.
 
-      **Instruções de Formatação Visual (CRUCIAL PARA LEITURA EM A5):**
-      - Este livro será lido em telas pequenas ou impresso em formato A5.
-      - **REGRA DE OURO:** Escreva parágrafos CURTOS e dinâmicos.
-      - **Limite:** Tente manter os parágrafos entre 30 a 50 palavras. Se um parágrafo estiver ficando longo, QUEBRE-O em dois.
-      - Evite "paredes de texto" (blocos visuais grandes). O texto deve ter "respiro".
-      - Use o caractere de nova linha (\\n) agressivamente para separar esses parágrafos curtos.
-      - Alterne: use um parágrafo médio seguido de uma frase curta de impacto. Isso cria ritmo.
+      **Instruções Gerais de Conteúdo:**
+      /* - Para todos os campos de texto como 'content' e 'introduction', o texto DEVE ser dividido em múltiplos parágrafos para boa legibilidade. Use o caractere de nova linha (\\n) para separar os parágrafos dentro da string do JSON. Cada parágrafo deve ter um tamanho razoável, evitando "paredes de texto". */
+      - Para todos os campos de texto como 'content' e 'introduction', siga estas regras de formatação de parágrafos:
+        - O texto DEVE ser dividido em múltiplos parágrafos curtos e dinâmicos para garantir excelente legibilidade em um formato de livro A5.
+        - Use o caractere de nova linha (\\n) para separar cada parágrafo.
+        - **REGRA OBRIGATÓRIA:** A grande maioria dos parágrafos deve ter um comprimento entre 30 e 80 palavras. Evite parágrafos com mais de 100 palavras a todo custo.
+        - Varie o tamanho dos parágrafos para criar um ritmo de leitura agradável. É permitido ter parágrafos de uma única frase, se isso criar um efeito dramático ou de ênfase.
+        - Não crie "paredes de texto". Pense visualmente.
 
       **Instruções para Título e Subtítulo:**
       - **Sugestão de Título (do usuário):** "${formData.title}"
@@ -83,25 +84,30 @@ const buildPrompt = (formData: BookGenerationFormData): string => {
       **Idioma:** ${formData.language}
       **Tom de voz:** ${formData.tone}
       **Nicho/Assunto:** ${formData.niche}
-      **Resumo/Estrutura (Siga este roteiro estritamente):** 
-      ${formData.summary}
+      **Resumo do conteúdo desejado:** ${formData.summary}
       
-      **Contagem de Palavras:**
-      - **Introdução:** No mínimo 400 palavras.
-      - **Capítulos:** Crie 10 capítulos seguindo a estrutura fornecida no resumo.
-        - **Introdução do Capítulo:** No mínimo 300 palavras.
-        - **Subcapítulos:** Crie 3 subcapítulos por capítulo.
-          - **Conteúdo de cada Subcapítulo:** No mínimo 600 palavras.
-      - **Conclusão:** No mínimo 600 palavras.
+      **Estrutura e Contagem de Palavras (REGRAS OBRIGATÓRIAS):**
+      - **Introdução:** No mínimo 400 palavras, divididas em múltiplos parágrafos usando \\n. O título DEVE ser "Introdução".
+      - **Sumário:** O título DEVE ser "Sumário". O conteúdo deve ser APENAS a lista de todos os 10 capítulos e seus 3 subcapítulos, formatada como texto simples com quebras de linha. Exemplo: 'Capítulo 1: Título do Capítulo\\n- Subcapítulo 1.1\\n- Subcapítulo 1.2'. NÃO inclua nenhum parágrafo de introdução ou texto descritivo para o sumário.
+      - **Capítulos:** Crie exatamente 10 capítulos. O total de palavras por capítulo deve ser no mínimo 2100 palavras.
+        - **Introdução do Capítulo:** No mínimo 300 palavras, divididas em múltiplos parágrafos usando \\n.
+        - **Subcapítulos:** Crie exatamente 3 subcapítulos para cada capítulo.
+          - **Conteúdo de cada Subcapítulo:** No mínimo 600 palavras, divididas em múltiplos parágrafos usando \\n.
+      - **Conclusão:** No mínimo 600 palavras, divididas em múltiplos parágrafos usando \\n. O título DEVE ser "Conclusão".
       
-      **Instruções Adicionais:**
-      - Para o título de cada capítulo (\`chapters[].title\`), forneça APENAS o nome (ex: "A Origem"), sem o prefixo numérico.
-      - Expanda os tópicos com storytelling, exemplos e analogias, mas mantenha a formatação visual leve e quebrada.
+      **Instruções Adicionais para Títulos de Capítulo:**
+      - Para o título de cada capítulo na estrutura JSON (\`chapters[].title\`), forneça APENAS o nome do capítulo (ex: "Os Pilares da Alimentação Saudável"), sem o prefixo numérico como "Capítulo 1:".
+
+      É CRUCIAL que o conteúdo total do livro atinja no mínimo 22.800 palavras. A IA deve expandir os tópicos com detalhes, exemplos e analogias para atingir este volume.
     `;
 };
 
 /**
  * Orchestrates the entire book generation pipeline.
+ * @param formData - The data submitted by the user.
+ * @param user - The current user profile.
+ * @param updateLog - A callback function to send real-time progress updates to the UI.
+ * @returns The ID of the newly created book.
  */
 export const generateBookContent = async (
     formData: BookGenerationFormData,
@@ -116,13 +122,13 @@ export const generateBookContent = async (
 
     updateLog("Enviando requisição para Lidia . . .");
     let response;
-    
-    // Mantendo o modelo que funcionou bem para você: gemini-2.5-flash
-    const modelsToTry: string[] = ['gemini-2.5-flash'];
+
+    // CORREÇÃO: Usando a versão 1.5 real e priorizando o Flash (gratuito e rápido)
+const modelsToTry: string[] = ['gemini-2.5-flash']; 
       
     for (const model of modelsToTry) {
         try {
-            updateLog(`Iniciando escrita com o modelo: ${model}...`);
+            updateLog(`Iniciando geração com o modelo otimizado: ${model}...`);
             
             response = await ai.models.generateContent({
                 model: model,
@@ -137,34 +143,58 @@ export const generateBookContent = async (
         } catch (error) {
             const err = error as Error;
             console.error(`Erro no modelo ${model}:`, err);
-            // Se for o último modelo e falhar, joga o erro
-            if (model === modelsToTry[modelsToTry.length - 1]) {
-                throw error;
-            }
-            updateLog(`Modelo ${model} instável. Tentando alternativa...`);
+            throw error;
         }
     }
 
+
+
+
+/*
+    const modelsToTry: ('gemini-2.5-pro' | 'gemini-2.5-flash')[] = ['gemini-2.5-pro', 'gemini-2.5-flash'];
+      
+    for (const model of modelsToTry) {
+        try {
+            if (model === 'gemini-2.5-pro') {
+                updateLog("SNT® started in deep research, content planning, and simultaneous semantic writing intensive work.");
+            } else {
+                updateLog(`Tentando com o modelo: ${model}...`);
+            }
+            
+            response = await ai.models.generateContent({
+                model: model,
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: bookSchema
+                }
+            });
+            updateLog(`Sucesso com o modelo: ${model}.`);
+            break; 
+        } catch (error) {
+            const err = error as Error;
+            // If it's the last model or the error is not 'overloaded', rethrow it.
+            if (model === modelsToTry[modelsToTry.length - 1] || !err.message.toLowerCase().includes('overloaded')) {
+                throw error;
+            }
+            updateLog(`Modelo ${model} sobrecarregado. Tentando o próximo modelo...`);
+        }
+    }  */
+
     if (!response) {
-        throw new Error("Falha na comunicação com a IA.");
+        throw new Error("Todos os modelos de IA falharam ou estão indisponíveis.");
     }
 
-    updateLog("Conteúdo gerado. Processando estrutura...");
+    updateLog("Resposta da IA recebida e validada.");
 
-    // Pequena proteção contra erros de parsing do JSON da IA
     let jsonText = response.text.trim();
-    // Remove possíveis blocos de código markdown se a IA desobedecer
-    if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.replace(/^```json/, '').replace(/```$/, '');
-    }
-
     const bookContent: DetailedBookContent = JSON.parse(jsonText);
-    
     const finalTitle = bookContent.optimized_title;
     const finalSubtitle = bookContent.optimized_subtitle;
-    updateLog(`Título definido: "${finalTitle}"`);
+    updateLog(`Título otimizado pela IA: "${finalTitle}"`);
+    updateLog(`Subtítulo otimizado pela IA: "${finalSubtitle}"`);
     
-    updateLog("Salvando no banco de dados...");
+    updateLog("Iniciando salvamento do livro no banco de dados...");
     const { data: newBook, error: bookError } = await supabase
       .from('books')
       .insert({
@@ -172,49 +202,50 @@ export const generateBookContent = async (
           title: finalTitle,
           subtitle: finalSubtitle,
           author: formData.author,
-          status: 'processing_parts',
+          status: 'processing_parts', // New initial status
       })
       .select()
       .single();
   
     if (bookError) throw bookError;
+    updateLog(`Registro principal do livro criado com ID: ${newBook.id}`);
 
     const partsToInsert: Omit<BookPart, 'id'>[] = [];
     let partIndex = 1;
 
-    // 1. Capa
+    // 1. Cover
     partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'cover', content: JSON.stringify({ title: finalTitle, subtitle: finalSubtitle, author: formData.author }) });
     // 2. Copyright
     partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'copyright', content: JSON.stringify(`Copyright © ${new Date().getFullYear()} ${formData.author}`) });
-    // 3. Sumário
+    // 3. Table of Contents
     partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'toc', content: JSON.stringify(bookContent.table_of_contents) });
-    // 4. Introdução
+    // 4. Introduction
     partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'introduction', content: JSON.stringify(bookContent.introduction) });
-    
-    // 5. Capítulos
+    // 5. Chapters (each chapter is broken into two parts: title and content)
     bookContent.chapters.forEach(chapter => {
-        // Página de título do capítulo
         partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'chapter_title', content: JSON.stringify({ title: chapter.title }) });
-        // Conteúdo do capítulo
+        // The entire chapter object is saved as the content for the 'chapter_content' part
         partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'chapter_content', content: JSON.stringify(chapter) });
     });
-    
-    // 6. Conclusão
+    // 6. Conclusion
     partsToInsert.push({ book_id: newBook.id, part_index: partIndex++, part_type: 'conclusion', content: JSON.stringify(bookContent.conclusion) });
 
-    updateLog(`Salvando ${partsToInsert.length} seções de conteúdo...`);
-    
-    // Inserção em lotes para evitar timeout do Supabase se o livro for muito grande
+    updateLog(`Preparando ${partsToInsert.length} partes do livro para salvar...`);
     const { error: partsError } = await supabase.from('book_parts').insert(partsToInsert);
     if (partsError) throw partsError;
+    updateLog("Todas as partes do livro foram salvas com sucesso.");
 
-    updateLog("Finalizando...");
+    updateLog("Atualizando status final do livro...");
     const { error: updateStatusError } = await supabase.from('books').update({ status: 'content_ready' }).eq('id', newBook.id);
     if(updateStatusError) throw updateStatusError;
 
-    // Deduzir crédito
     const newCredits = user.book_credits - 1;
-    await supabase.from('profiles').update({ book_credits: newCredits }).eq('id', user.id);
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ book_credits: newCredits })
+      .eq('id', user.id);
+    if (profileError) throw profileError;
+    updateLog("Créditos do usuário atualizados.");
 
     return newBook.id;
 };
